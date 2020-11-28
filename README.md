@@ -12,4 +12,4 @@ Links
   - This describes how the containers are distributed (pushed and pulled) over HTTP
   - This is based on [Docker Registry HTTP API V2 protocol](https://github.com/docker/distribution/blob/master/docs/spec/manifest-v2-2.md)
 - [OCI Registry As Storage (ORAS)](https://github.com/deislabs/oras)
-- - CLI and Go module to realize ORAS
+  - CLI and Go module to realize ORAS
