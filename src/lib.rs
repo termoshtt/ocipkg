@@ -3,12 +3,12 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// OCI Image Index Specification
+/// OCI Image Index Specification, `index.json` file in oci-dir format.
 ///
 /// https://github.com/opencontainers/image-spec/blob/master/image-index.md
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct ImageIndex {
+struct Index {
     schema_version: u32,
     media_type: Option<String>,
     manifests: Vec<Manifest>,
@@ -29,12 +29,19 @@ struct Platform {
     os: String,
 }
 
+/// oci-layout file
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Layout {
+    image_layout_version: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn official_example() {
+    fn index() {
         let example = r#"
         {
           "schemaVersion": 2,
@@ -64,7 +71,15 @@ mod tests {
           }
         }
         "#;
-        let image_index: ImageIndex = serde_json::from_str(example).unwrap();
+        let image_index: Index = serde_json::from_str(example).unwrap();
         dbg!(image_index);
+    }
+
+    #[test]
+    fn layout() {
+        let image_layout: Layout =
+            serde_json::from_str(r#"{ "imageLayoutVersion": "1.0.0" }"#).unwrap();
+        dbg!(&image_layout);
+        assert_eq!(image_layout.image_layout_version, "1.0.0");
     }
 }
