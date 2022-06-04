@@ -42,5 +42,7 @@ fn main() {
         .build()
         .expect("build image manifest");
 
-    image_manifest.to_file_pretty("my-manifest.json").unwrap();
+    image_manifest
+        .to_writer_pretty(&mut std::io::stdout())
+        .unwrap();
 }
