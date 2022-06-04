@@ -1,7 +1,7 @@
 use oci_spec::image::{
     Descriptor, DescriptorBuilder, ImageManifestBuilder, MediaType, SCHEMA_VERSION,
 };
-use std::path::PathBuf;
+use std::{fs, io::Write, path::PathBuf};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -13,10 +13,17 @@ struct Opt {
     /// Input directory
     #[structopt(parse(from_os_str))]
     input_directory: PathBuf,
+
+    /// Output archive
+    #[structopt(parse(from_os_str))]
+    output: PathBuf,
 }
 
 fn main() {
-    let Opt { input_directory } = Opt::from_args();
+    let Opt {
+        input_directory,
+        mut output,
+    } = Opt::from_args();
     if !input_directory.is_dir() {
         panic!(
             "Input directory is not a directory: {}",
@@ -25,6 +32,15 @@ fn main() {
                 .expect("Non-UTF8 input is not supported")
         );
     }
+
+    let mut ar = tar::Builder::new(Vec::new());
+    ar.append_dir_all("rootfs-c9d-v1", &input_directory)
+        .expect("Failed to create tar archive");
+    let buf = ar.into_inner().unwrap();
+
+    output.set_extension("tar");
+    let mut out = fs::File::create(output).unwrap();
+    out.write(&buf).unwrap();
 
     let config = DescriptorBuilder::default()
         .media_type(MediaType::ImageConfig)
