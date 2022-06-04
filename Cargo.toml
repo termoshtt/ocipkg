@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 oci-spec = "0.5.6"
+structopt = "0.3.26"

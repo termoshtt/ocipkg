@@ -1,8 +1,31 @@
 use oci_spec::image::{
     Descriptor, DescriptorBuilder, ImageManifestBuilder, MediaType, SCHEMA_VERSION,
 };
+use std::path::PathBuf;
+use structopt::StructOpt;
+
+#[derive(Debug, StructOpt)]
+#[structopt(
+    name = "cync",
+    about = "Container for binary distribution without virtualization"
+)]
+struct Opt {
+    /// Input directory
+    #[structopt(parse(from_os_str))]
+    input_directory: PathBuf,
+}
 
 fn main() {
+    let Opt { input_directory } = Opt::from_args();
+    if !input_directory.is_dir() {
+        panic!(
+            "Input directory is not a directory: {}",
+            input_directory
+                .to_str()
+                .expect("Non-UTF8 input is not supported")
+        );
+    }
+
     let config = DescriptorBuilder::default()
         .media_type(MediaType::ImageConfig)
         .size(7023)
