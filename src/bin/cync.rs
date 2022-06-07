@@ -1,6 +1,7 @@
 use oci_spec::image::{
     Descriptor, DescriptorBuilder, ImageManifestBuilder, MediaType, SCHEMA_VERSION,
 };
+use sha2::{Digest, Sha256};
 use std::{fs, io::Write, path::PathBuf};
 use structopt::StructOpt;
 
@@ -14,9 +15,16 @@ struct Opt {
     #[structopt(parse(from_os_str))]
     input_directory: PathBuf,
 
-    /// Output archive
+    /// Output oci archive directory
     #[structopt(parse(from_os_str))]
     output: PathBuf,
+}
+
+fn calc_digest(buf: &[u8]) -> String {
+    let hash = Sha256::digest(&buf);
+    let hex_hash = base16ct::lower::encode_string(&hash);
+    let digest = format!("sha256:{}", hex_hash);
+    digest
 }
 
 fn main() {
@@ -40,7 +48,10 @@ fn main() {
 
     output.set_extension("tar");
     let mut out = fs::File::create(output).unwrap();
-    out.write(&buf).unwrap();
+    out.write_all(&buf).unwrap();
+
+    let digest = calc_digest(&buf);
+    dbg!(digest);
 
     let config = DescriptorBuilder::default()
         .media_type(MediaType::ImageConfig)
