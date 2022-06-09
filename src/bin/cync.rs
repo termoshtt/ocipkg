@@ -1,7 +1,5 @@
 use anyhow::bail;
-use oci_spec::image::{
-    Descriptor, DescriptorBuilder, ImageManifestBuilder, MediaType, SCHEMA_VERSION,
-};
+use oci_spec::image::*;
 use sha2::{Digest, Sha256};
 use std::{
     convert::TryFrom,
@@ -26,14 +24,14 @@ struct Opt {
     output: PathBuf,
 }
 
-fn calc_digest_sha256(buf: &[u8]) -> String {
+fn calc_digest(buf: &[u8]) -> String {
     let hash = Sha256::digest(&buf);
     base16ct::lower::encode_string(&hash)
 }
 
 fn save_blob(blob_root: &Path, media_type: MediaType, buf: &[u8]) -> anyhow::Result<Descriptor> {
-    let digest = calc_digest_sha256(&buf);
-    let mut out = fs::File::create(blob_root.join("sha256").join(&digest))?;
+    let digest = calc_digest(&buf);
+    let mut out = fs::File::create(blob_root.join(&digest))?;
     out.write_all(&buf)?;
     Ok(DescriptorBuilder::default()
         .media_type(media_type)
@@ -59,31 +57,29 @@ fn main() -> anyhow::Result<()> {
         bail!("Output directory already exists");
     }
 
-    let blob_root = output.join("blobs");
+    let blob_root = output.join("blobs").join("sha256");
     fs::create_dir_all(&blob_root)?;
 
-    let config = DescriptorBuilder::default()
-        .media_type(MediaType::ImageConfig)
-        .size(7023)
-        .digest("sha256:b5b2b2c507a0944348e0303114d8d93aaaa081732b86451d9bce1f432a537bc7")
-        .build()?;
-
-    // Create container as oci-dir format
+    // Compose input directory as a tar archive
     let mut ar = tar::Builder::new(Vec::new());
     ar.append_dir_all("rootfs-c9d-v1", &input_directory)?;
     let buf: Vec<u8> = ar.into_inner()?;
+    let layer_desc = save_blob(&blob_root, MediaType::ImageLayer, &buf)?;
 
-    let desc = save_blob(&blob_root, MediaType::ImageLayer, &buf)?;
-    let layers: Vec<Descriptor> = vec![desc];
+    let cfg = ImageConfigurationBuilder::default().build()?;
+    let mut buf = Vec::new();
+    cfg.to_writer(&mut buf)?;
+    let config_desc = save_blob(&blob_root, MediaType::ImageConfig, &buf)?;
 
     let image_manifest = ImageManifestBuilder::default()
         .schema_version(SCHEMA_VERSION)
-        .config(config)
-        .layers(layers)
+        .config(config_desc)
+        .layers(vec![layer_desc])
         .build()?;
-
-    let mut manifest = fs::File::create(output.join("index.json"))?;
-    image_manifest.to_writer(&mut manifest)?;
+    let mut buf = Vec::new();
+    image_manifest.to_writer(&mut buf)?;
+    let image_manifest_desc = save_blob(&blob_root, MediaType::ImageManifest, &buf)?;
+    dbg!(image_manifest_desc);
 
     Ok(())
 }
