@@ -3,12 +3,23 @@ name: Rust
 on:
   push:
     branches:
-      - master
+      - main
   pull_request: {}
 
 jobs:
+  podman-load-container:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions-rs/cargo@v1
+      with:
+        command: run
+        args: -- src/ out
+    - name: Testing podman can load the generated container
+      run: podman load < out.tar
+
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
     - uses: actions-rs/cargo@v1
@@ -16,7 +27,7 @@ jobs:
         command: test
 
   check-format:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
     - uses: actions-rs/cargo@v1
@@ -25,7 +36,7 @@ jobs:
         args: -- --check
 
   clippy:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
     - uses: actions-rs/cargo@v1
