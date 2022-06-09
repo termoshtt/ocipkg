@@ -3,7 +3,12 @@ use oci_spec::image::{
     Descriptor, DescriptorBuilder, ImageManifestBuilder, MediaType, SCHEMA_VERSION,
 };
 use sha2::{Digest, Sha256};
-use std::{convert::TryFrom, fs, io::Write, path::PathBuf};
+use std::{
+    convert::TryFrom,
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -26,6 +31,17 @@ fn calc_digest_sha256(buf: &[u8]) -> String {
     base16ct::lower::encode_string(&hash)
 }
 
+fn save_blob(blob_root: &Path, media_type: MediaType, buf: &[u8]) -> anyhow::Result<Descriptor> {
+    let digest = calc_digest_sha256(&buf);
+    let mut out = fs::File::create(blob_root.join("sha256").join(&digest))?;
+    out.write_all(&buf)?;
+    Ok(DescriptorBuilder::default()
+        .media_type(media_type)
+        .size(i64::try_from(buf.len())?)
+        .digest(digest)
+        .build()?)
+}
+
 fn main() -> anyhow::Result<()> {
     let Opt {
         input_directory,
@@ -43,6 +59,9 @@ fn main() -> anyhow::Result<()> {
         bail!("Output directory already exists");
     }
 
+    let blob_root = output.join("blobs");
+    fs::create_dir_all(&blob_root)?;
+
     let config = DescriptorBuilder::default()
         .media_type(MediaType::ImageConfig)
         .size(7023)
@@ -54,17 +73,8 @@ fn main() -> anyhow::Result<()> {
     ar.append_dir_all("rootfs-c9d-v1", &input_directory)?;
     let buf: Vec<u8> = ar.into_inner()?;
 
-    let blobs = output.join("blobs").join("sha256");
-    fs::create_dir_all(&blobs)?;
-    let digest = calc_digest_sha256(&buf);
-    let mut out = fs::File::create(blobs.join(&digest))?;
-    out.write_all(&buf)?;
-
-    let layers: Vec<Descriptor> = vec![DescriptorBuilder::default()
-        .media_type(MediaType::ImageLayer)
-        .size(i64::try_from(buf.len())?)
-        .digest(digest)
-        .build()?];
+    let desc = save_blob(&blob_root, MediaType::ImageLayer, &buf)?;
+    let layers: Vec<Descriptor> = vec![desc];
 
     let image_manifest = ImageManifestBuilder::default()
         .schema_version(SCHEMA_VERSION)
