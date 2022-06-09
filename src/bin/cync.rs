@@ -1,4 +1,5 @@
 use anyhow::bail;
+use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
 use sha2::{Digest, Sha256};
 use std::{
@@ -24,19 +25,15 @@ struct Opt {
     output: PathBuf,
 }
 
-fn calc_digest(buf: &[u8]) -> String {
-    let hash = Sha256::digest(&buf);
-    base16ct::lower::encode_string(&hash)
-}
-
 fn save_blob(blob_root: &Path, media_type: MediaType, buf: &[u8]) -> anyhow::Result<Descriptor> {
-    let digest = calc_digest(&buf);
+    let hash = Sha256::digest(&buf);
+    let digest = base16ct::lower::encode_string(&hash);
     let mut out = fs::File::create(blob_root.join(&digest))?;
     out.write_all(&buf)?;
     Ok(DescriptorBuilder::default()
         .media_type(media_type)
         .size(i64::try_from(buf.len())?)
-        .digest(digest)
+        .digest(format!("sha256:{}", digest))
         .build()?)
 }
 
@@ -60,11 +57,12 @@ fn main() -> anyhow::Result<()> {
     let blob_root = output.join("blobs").join("sha256");
     fs::create_dir_all(&blob_root)?;
 
-    // Compose input directory as a tar archive
-    let mut ar = tar::Builder::new(Vec::new());
+    // Compose input directory as a tar.gz archive
+    let encoder = GzEncoder::new(Vec::new(), Compression::default());
+    let mut ar = tar::Builder::new(encoder);
     ar.append_dir_all("rootfs-c9d-v1", &input_directory)?;
-    let buf: Vec<u8> = ar.into_inner()?;
-    let layer_desc = save_blob(&blob_root, MediaType::ImageLayer, &buf)?;
+    let buf: Vec<u8> = ar.into_inner()?.finish()?;
+    let layer_desc = save_blob(&blob_root, MediaType::ImageLayerGzip, &buf)?;
 
     let cfg = ImageConfigurationBuilder::default().build()?;
     let mut buf = Vec::new();
