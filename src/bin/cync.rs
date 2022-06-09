@@ -64,6 +64,7 @@ fn main() -> anyhow::Result<()> {
     let buf: Vec<u8> = ar.into_inner()?.finish()?;
     let layer_desc = save_blob(&blob_root, MediaType::ImageLayerGzip, &buf)?;
 
+    // No configuration
     let cfg = ImageConfigurationBuilder::default().build()?;
     let mut buf = Vec::new();
     cfg.to_writer(&mut buf)?;
@@ -77,7 +78,17 @@ fn main() -> anyhow::Result<()> {
     let mut buf = Vec::new();
     image_manifest.to_writer(&mut buf)?;
     let image_manifest_desc = save_blob(&blob_root, MediaType::ImageManifest, &buf)?;
-    dbg!(image_manifest_desc);
+
+    let index = ImageIndexBuilder::default()
+        .schema_version(SCHEMA_VERSION)
+        .manifests(vec![image_manifest_desc])
+        .build()?;
+    let mut index_json = fs::File::create(output.join("index.json"))?;
+    index.to_writer(&mut index_json)?;
+
+    let mut oci_layout = fs::File::create(output.join("oci-layout"))?;
+    let version = r#"{"imageLayoutVersion":"1.0.0"}"#;
+    write!(oci_layout, "{}", version)?;
 
     Ok(())
 }
