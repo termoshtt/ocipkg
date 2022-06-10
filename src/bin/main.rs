@@ -6,10 +6,7 @@ use std::{convert::TryFrom, fs, path::PathBuf, time::SystemTime};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
-#[structopt(
-    name = "cync",
-    about = "Container for binary distribution without virtualization"
-)]
+#[structopt(name = "ocipkg", about = "OCI Registry for binary distribution")]
 struct Opt {
     /// Input directory
     #[structopt(parse(from_os_str))]

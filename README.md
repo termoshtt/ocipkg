@@ -1,7 +1,7 @@
-cync
-=====
+ocipkg
+=======
 
-Container without virtualization, for binary distribution
+WIP: OCI Registry for binary distribution.
 
 Links
 ------
