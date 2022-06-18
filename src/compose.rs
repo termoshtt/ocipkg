@@ -1,10 +1,10 @@
 //! Compose directory as a container tar
 
-use anyhow::bail;
+use anyhow::{bail, Context};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
 use sha2::{Digest, Sha256};
-use std::{convert::TryFrom, fs, path::Path, time::SystemTime};
+use std::{convert::TryFrom, fs, io, path::Path, time::SystemTime};
 
 fn now_mtime() -> u64 {
     match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
@@ -22,8 +22,8 @@ fn create_header(size: usize) -> tar::Header {
     header
 }
 
-fn save_blob(
-    builder: &mut tar::Builder<fs::File>,
+fn save_blob<W: io::Write>(
+    builder: &mut tar::Builder<W>,
     media_type: MediaType,
     buf: &[u8],
 ) -> anyhow::Result<Descriptor> {
@@ -31,13 +31,29 @@ fn save_blob(
     let digest = base16ct::lower::encode_string(&hash);
 
     let mut header = create_header(buf.len());
-    builder.append_data(&mut header, format!("blobs/sha256/{}", digest), buf)?;
+    builder
+        .append_data(&mut header, format!("blobs/sha256/{}", digest), buf)
+        .context("IO error while writing tar achive")?;
 
     Ok(DescriptorBuilder::default()
         .media_type(media_type)
         .size(i64::try_from(buf.len())?)
         .digest(format!("sha256:{}", digest))
-        .build()?)
+        .build()
+        .expect("Requirement for descriptor is mediaType, digest, and size."))
+}
+
+/// Compose input directory as a tar.gz archive on memory
+fn create_tar_gz_on_memory_from_dir(input: &Path, rootfs_name: &str) -> anyhow::Result<Vec<u8>> {
+    let encoder = GzEncoder::new(Vec::new(), Compression::default());
+    let mut ar = tar::Builder::new(encoder);
+    ar.append_dir_all(rootfs_name, &input)
+        .context("Error while reading input directory")?;
+    Ok(ar
+        .into_inner()
+        .expect("This never fails since tar arhive is creating on memory")
+        .finish()
+        .expect("This never fails since zip is creating on memory"))
 }
 
 /// Compose a directory as container in oci-archive format based on the [OCI image spec](https://github.com/opencontainers/image-spec)
@@ -58,11 +74,7 @@ pub fn compose(input_directory: &Path, output: &Path) -> anyhow::Result<()> {
 
     let mut oci_archive = tar::Builder::new(fs::File::create(output)?);
 
-    // Compose input directory as a tar.gz archive
-    let encoder = GzEncoder::new(Vec::new(), Compression::default());
-    let mut ar = tar::Builder::new(encoder);
-    ar.append_dir_all("rootfs-c9d-v1", &input_directory)?;
-    let buf: Vec<u8> = ar.into_inner()?.finish()?;
+    let buf = create_tar_gz_on_memory_from_dir(&input_directory, "rootfs-c9d-v1")?;
     let layer_desc = save_blob(&mut oci_archive, MediaType::ImageLayerGzip, &buf)?;
 
     // No configuration
