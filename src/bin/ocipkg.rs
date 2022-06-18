@@ -34,7 +34,13 @@ fn main() -> anyhow::Result<()> {
             input_directory,
             output,
         } => {
-            ocipkg::compose::compose(&input_directory, &output)?;
+            let mut output = output.to_owned();
+            output.set_extension("tar");
+            if output.exists() {
+                anyhow::bail!("Output already exists");
+            }
+            let mut oci_archive = fs::File::create(output)?;
+            ocipkg::image::pack(&input_directory, &mut oci_archive)?;
         }
 
         Opt::Load { input } => {

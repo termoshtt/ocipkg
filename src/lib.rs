@@ -1,5 +1,5 @@
 //! ocipkg
 //! =======
 
-pub mod compose;
 pub mod config;
+pub mod image;
