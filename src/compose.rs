@@ -40,6 +40,7 @@ fn save_blob(
         .build()?)
 }
 
+/// Compose a directory as container in oci-archive format based on the [OCI image spec](https://github.com/opencontainers/image-spec)
 pub fn compose(input_directory: &Path, output: &Path) -> anyhow::Result<()> {
     if !input_directory.is_dir() {
         panic!(
