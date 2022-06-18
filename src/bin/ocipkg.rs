@@ -44,8 +44,7 @@ fn main() -> anyhow::Result<()> {
         }
 
         Opt::Load { input } => {
-            dbg!(input);
-            todo!()
+            ocipkg::image::load(&input)?;
         }
 
         Opt::Initialize {} => {
