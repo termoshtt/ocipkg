@@ -16,6 +16,13 @@ enum Opt {
         output: PathBuf,
     },
 
+    /// Load and expand container local cache
+    Load {
+        /// Input oci-archive
+        #[structopt(parse(from_os_str))]
+        input: PathBuf,
+    },
+
     /// Initialize local storage
     Initialize {},
 }
@@ -28,6 +35,11 @@ fn main() -> anyhow::Result<()> {
             output,
         } => {
             ocipkg::compose::compose(&input_directory, &output)?;
+        }
+
+        Opt::Load { input } => {
+            dbg!(input);
+            todo!()
         }
 
         Opt::Initialize {} => {
