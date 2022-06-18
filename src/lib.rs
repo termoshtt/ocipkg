@@ -1,2 +1,4 @@
 //! ocipkg
 //! =======
+
+pub mod compose;
