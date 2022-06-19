@@ -3,6 +3,8 @@ ocipkg
 
 WIP: OCI Registry for binary distribution.
 
+**This is design document for pre-implementation. These features are not implmeneted yet.**
+
 Features
 ---------
 - You can distribute your binary including static or shared library
@@ -10,17 +12,19 @@ Features
   - Similar to [OCI Registry As Storage(ORAS)][oras] and [OCI Artifacts][oci-artifacts]
 - Your users can download your binary without container runtime
   and link them in `pkg-config` compatible manner.
+  - This project is based on [OCI image spec][image-spec] as package layout
+    and [OCI distribution spec][distribution-spec] for OCI registry API.
+    Do not use [OCI runtime spec][runtime-spec].
+  - Optionally, support container signing in [sigstore/cosign][cosign] way.
 
-Links
-------
+How to use
+-----------
+TBW
 
-- [OCI Image Format](https://github.com/opencontainers/image-spec)
-  - This describes how container consists of
-- [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
-  - This describes how the containers are distributed (pushed and pulled) over HTTP
-  - This is based on [Docker Registry HTTP API V2 protocol](https://github.com/docker/distribution/blob/master/docs/spec/manifest-v2-2.md)
-- [OCI Registry As Storage (ORAS)][oras]
-  - CLI and Go module to realize ORAS
+[image-spec]: https://github.com/opencontainers/image-spec
+[runtime-spec]: https://github.com/opencontainers/runtime-spec
+[distribution-spec]: https://github.com/opencontainers/distribution-spec
 
 [oras]: https://github.com/oras-project/oras
 [oci-artifacts]: https://github.com/opencontainers/artifacts
+[cosign]: https://github.com/sigstore/cosign
