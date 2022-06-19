@@ -24,13 +24,16 @@ This is the problem bothered me and prevent from creating portable C++ library.
 We have three options:
 
 1. Use library in the system
-  - ❤ Library is prepared by the system administrator who would be most familiar with the system.
-  - 💔Library developer have to know how the library is distributed in user's system,
-      possibly Ubuntu 22.04, 20.04, 18.04, Debian sid, 11, 10, 9, RHEL9, 8, 7,
-      ArchLinux, Gentoo Linux, NixOS, FreeBSD,
-      macOS with brew, Windows with winget, chocolatey, scoop, ...
-  - 💔Some system does not allows co-existence of multi-version libraries.
+    - ❤ Library is prepared by the system administrator who would be most familiar with the system.
+    - 💔 Developer have to know how the library is distributed in user's system,
+         possibly Ubuntu 22.04, 20.04, 18.04, Debian sid, 11, 10, 9, RHEL9, 8, 7,
+         ArchLinux, Gentoo Linux, NixOS, FreeBSD,
+         macOS with brew, Windows with winget, chocolatey, scoop, ...
+    - 💔 Some system does not allows co-existence of multi-version libraries.
 2. Get source code from the internet, and build and link them
+    - ❤ Developer can control the library fully.
+    - 💔 Development tool, e.g. `cmake`, is required in user system,
+         and requires additional build resources.
 3. Get compiled library from the internet on build time
 
 How to use ocipkg
