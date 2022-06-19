@@ -10,8 +10,8 @@ Features
 - You can distribute your binary including static or shared library
   through OCI registry, e.g. GitHub Container Registry, by your own authority.
   - Optionally, support container signing in [sigstore/cosign][cosign] way.
-- Users can download your binary without container runtime.
-- Integration to linking libraries. Users can link same library specified by image name and tag.
+- Users can download your binary without container runtime, e.g. docker or podman.
+- Integration to linking libraries. Users can link same library specified by image name and tag everywhere.
 
 How to use
 -----------
