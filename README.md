@@ -30,17 +30,20 @@ We have three options:
          ArchLinux, Gentoo Linux, NixOS, FreeBSD,
          macOS with brew, Windows with winget, chocolatey, scoop, ...
     - 💔 Some system does not allows co-existence of multi-version libraries.
+    - Most of `*-sys` crate support this option.
 2. Get source code from the internet, and build and link them
     - ❤ Developer can control the library fully.
     - 💔 Development tool, e.g. `cmake`, is required in user system,
          and requires additional build resources.
+    - Some crate support this option, and they are named with `*-src`.
 3. Get compiled library from the internet on build time
     - ❤ Developer can control the library fully, too.
     - 💔 Requires HTTP(or other protocol) server to distribute the library
     - 💔 Developer have to ready binaries for every supported platforms,
          e.g. `x86_64-unknown-linux-gnu`, `x86_64-pc-windows-msvc`, `aarch64-unknown-linux-gnu`,...
 
-ocipkg focuses on 3., i.e. helping distributing binary compiled by the developer.
+ocipkg focuses on 3., i.e. helping distributing binary compiled
+by the developer through OCI registry.
 
 How to use ocipkg
 ------------------
