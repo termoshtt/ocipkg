@@ -35,6 +35,12 @@ We have three options:
     - 💔 Development tool, e.g. `cmake`, is required in user system,
          and requires additional build resources.
 3. Get compiled library from the internet on build time
+    - ❤ Developer can control the library fully, too.
+    - 💔 Requires HTTP(or other protocol) server to distribute the library
+    - 💔 Developer have to ready binaries for every supported platforms,
+         e.g. `x86_64-unknown-linux-gnu`, `x86_64-pc-windows-msvc`, `aarch64-unknown-linux-gnu`,...
+
+ocipkg focuses on 3., i.e. helping distributing binary compiled by the developer.
 
 How to use ocipkg
 ------------------
