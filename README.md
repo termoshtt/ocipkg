@@ -8,16 +8,33 @@ WIP: OCI Registry for binary distribution.
 Features
 ---------
 - You can distribute your binary including static or shared library
-  through OCI registry, e.g. GitHub Container Registry, by your own authority.
+  through OCI registry (e.g. GitHub Container Registry) by your own authority.
   - Optionally, support container signing in [sigstore/cosign][cosign] way.
 - Users can download your binary without container runtime (e.g. docker or podman).
 - Binaries are stored in local file system (typically under `$XDG_DATA_HOME/ocipkg`)
-  with image name and tags, and safely shared by several local projects
-  since they are immutable due to container immutablility.
+  with image name and tags, and safely shared by several local projects.
 - Integration to linking libraries. Users can link same library specified by image name and tag everywhere.
 
-How to use
------------
+Why ocipkg?
+-------------
+I have determined to start this project while writing FFI crate in Rust.
+The problem is "how to get a share/static library linked to FFI crate".
+This is the problem bothered me and prevent from creating portable C++ library.
+
+We have three options:
+
+1. Use library in the system
+  - ❤ Library is prepared by the system administrator who would be most familiar with the system.
+  - 💔Library developer have to know how the library is distributed in user's system,
+      possibly Ubuntu 22.04, 20.04, 18.04, Debian sid, 11, 10, 9, RHEL9, 8, 7,
+      ArchLinux, Gentoo Linux, NixOS, FreeBSD,
+      macOS with brew, Windows with winget, chocolatey, scoop, ...
+  - 💔Some system does not allows co-existence of multi-version libraries.
+2. Get source code from the internet, and build and link them
+3. Get compiled library from the internet on build time
+
+How to use ocipkg
+------------------
 
 ### ocipkg crate for Rust
 TBW
