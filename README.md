@@ -54,6 +54,18 @@ TBW
 ### pkg-config compatible CLI for C, C++, and other ld-based languages
 TBW
 
+License
+--------
+
+This project is licensed under either of
+
+ * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
+   https://www.apache.org/licenses/LICENSE-2.0)
+ * MIT license ([LICENSE-MIT](LICENSE-MIT) or
+   https://opensource.org/licenses/MIT)
+
+at your option.
+
 [image-spec]: https://github.com/opencontainers/image-spec
 [runtime-spec]: https://github.com/opencontainers/runtime-spec
 [distribution-spec]: https://github.com/opencontainers/distribution-spec
