@@ -5,7 +5,7 @@ use std::{
     path::*,
 };
 
-/// Get and deserialize index.json
+/// Get index.json from oci-archive
 fn get_index(input: &mut fs::File) -> anyhow::Result<ImageIndex> {
     input.rewind()?;
     let mut ar = tar::Archive::new(input);
@@ -21,54 +21,63 @@ fn get_index(input: &mut fs::File) -> anyhow::Result<ImageIndex> {
     anyhow::bail!("index.json not found in oci-archive")
 }
 
-/// Look up descripters from blobs listed in index.json
+fn split_digest(digest: &str) -> anyhow::Result<(&str, &str)> {
+    let mut iter = digest.split(":");
+    match (iter.next(), iter.next()) {
+        (Some(algorithm), Some(hash)) => Ok((algorithm, hash)),
+        _ => anyhow::bail!("Invalid digest in index.json"),
+    }
+}
+
+/// Check path of tar entry is in `blobs/{algorithm}/{hash}` form
+fn match_digest(entry: &tar::Entry<&mut fs::File>, digest: &str) -> anyhow::Result<bool> {
+    let path = entry.path()?;
+    let mut iter = path.components();
+    match (iter.next(), iter.next(), iter.next()) {
+        (
+            Some(Component::Normal(top)),
+            Some(Component::Normal(algorithm)),
+            Some(Component::Normal(hash)),
+        ) => {
+            let (a, h) = split_digest(digest)?;
+            Ok(top == "blobs" && algorithm == a && hash == h)
+        }
+        _ => Ok(false),
+    }
+}
+
+/// Get manifests listed in index.json
 fn get_manifests(input: &mut fs::File, descs: &[Descriptor]) -> anyhow::Result<Vec<ImageManifest>> {
+    let mut manifests = Vec::new();
     input.rewind()?;
     let mut ar = tar::Archive::new(input);
-
-    let targets = descs
-        .iter()
-        .map(|desc| {
-            let mut iter = desc.digest().split(":");
-            match (iter.next(), iter.next()) {
-                (Some(algorithm), Some(hash)) => Ok((algorithm, hash)),
-                _ => anyhow::bail!("Invalid digest in index.json"),
-            }
-        })
-        .collect::<Result<Vec<(&str, &str)>, _>>()?;
-
-    let mut manifests = Vec::new();
-
-    // Searched linearly since tar archive does not have offset table.
     for entry in ar.entries_with_seek()? {
         let entry = entry?;
-        let path = entry.path()?;
-
-        // Path of manifest must be in `blobs/{algorithm}/{hash}` form
-        let mut iter = path.components();
-        let (algorithm, hash) = match (iter.next(), iter.next(), iter.next()) {
-            (
-                Some(Component::Normal(top)),
-                Some(Component::Normal(algorithm)),
-                Some(Component::Normal(hash)),
-            ) => {
-                if top != "blobs" {
-                    continue;
-                }
-                (algorithm, hash)
+        for d in descs {
+            if match_digest(&entry, d.digest())? {
+                manifests.push(ImageManifest::from_reader(entry)?);
+                break;
             }
-            _ => continue,
-        };
-        if !targets.iter().any(|t| algorithm == t.0 && hash == t.1) {
-            continue;
         }
-        manifests.push(ImageManifest::from_reader(entry)?);
     }
     anyhow::ensure!(
         descs.len() == manifests.len(),
         "Some manifest not found in container"
     );
     Ok(manifests)
+}
+
+/// Get configuration specified in manifest
+fn get_config(input: &mut fs::File, digest: &str) -> anyhow::Result<ImageConfiguration> {
+    input.rewind()?;
+    let mut ar = tar::Archive::new(input);
+    for entry in ar.entries_with_seek()? {
+        let entry = entry?;
+        if match_digest(&entry, digest)? {
+            return Ok(ImageConfiguration::from_reader(entry)?);
+        }
+    }
+    anyhow::bail!("index.json not found in oci-archive")
 }
 
 /// Load oci-archive into local storage
@@ -80,8 +89,13 @@ pub fn load(input: &Path) -> anyhow::Result<()> {
     let index = get_index(&mut f)?;
     dbg!(&index);
 
-    let manifest = get_manifests(&mut f, index.manifests())?;
-    dbg!(manifest);
+    let manifests = get_manifests(&mut f, index.manifests())?;
+    dbg!(&manifests);
+
+    for manifest in &manifests {
+        let cfg = get_config(&mut f, manifest.config().digest())?;
+        dbg!(cfg);
+    }
 
     Ok(())
 }
