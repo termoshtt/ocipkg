@@ -1,3 +1,4 @@
+use anyhow::Context;
 use oci_spec::image::*;
 use std::{
     fs,
@@ -80,6 +81,25 @@ fn get_config(input: &mut fs::File, digest: &str) -> anyhow::Result<ImageConfigu
     anyhow::bail!("index.json not found in oci-archive")
 }
 
+fn expand_layer_at(input: &mut fs::File, layer: &Descriptor, dest: &Path) -> anyhow::Result<()> {
+    input.rewind()?;
+    let mut ar = tar::Archive::new(input);
+    for entry in ar.entries_with_seek()? {
+        let entry = entry?;
+        if match_digest(&entry, layer.digest())? {
+            match layer.media_type() {
+                MediaType::ImageLayerGzip => {
+                    let buf = flate2::read::GzDecoder::new(entry);
+                    tar::Archive::new(buf).unpack(dest)?;
+                    return Ok(());
+                }
+                _ => anyhow::bail!("Unsupported layer type"),
+            }
+        }
+    }
+    anyhow::bail!("Given digest not found in archive");
+}
+
 /// Load oci-archive into local storage
 pub fn load(input: &Path) -> anyhow::Result<()> {
     if !input.exists() {
@@ -87,14 +107,33 @@ pub fn load(input: &Path) -> anyhow::Result<()> {
     }
     let mut f = fs::File::open(input)?;
     let index = get_index(&mut f)?;
-    dbg!(&index);
+
+    let image_names = index
+        .manifests()
+        .iter()
+        .map(|manifest| {
+            let image_name = manifest
+                .annotations()
+                .as_ref()
+                .context("annotations of manifest must exist")?
+                .get("org.opencontainers.image.ref.name")
+                .context("index.json does not has image name for some manifest")?;
+            Ok(image_name.as_str())
+        })
+        .collect::<anyhow::Result<Vec<&str>>>()?;
 
     let manifests = get_manifests(&mut f, index.manifests())?;
-    dbg!(&manifests);
 
-    for manifest in &manifests {
-        let cfg = get_config(&mut f, manifest.config().digest())?;
-        dbg!(cfg);
+    for (image_name, manifest) in image_names.iter().zip(&manifests) {
+        let _cfg = get_config(&mut f, manifest.config().digest())?;
+        let dest = crate::config::image_dir(image_name)?;
+        if dest.exists() {
+            continue;
+        }
+        fs::create_dir_all(&dest)?;
+        for layer in manifest.layers() {
+            expand_layer_at(&mut f, layer, &dest)?;
+        }
     }
 
     Ok(())
