@@ -1,4 +1,3 @@
-use log::info;
 use std::{fs, path::PathBuf};
 use structopt::StructOpt;
 
@@ -23,8 +22,8 @@ enum Opt {
         input: PathBuf,
     },
 
-    /// Initialize local storage
-    Initialize {},
+    /// Get image directory to be used by ocipkg for given container name
+    ImageDirectory { name: String },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -47,12 +46,8 @@ fn main() -> anyhow::Result<()> {
             ocipkg::image::load(&input)?;
         }
 
-        Opt::Initialize {} => {
-            let dir = ocipkg::config::data_dir()?;
-            if !dir.is_dir() {
-                info!("Create directory: {}", dir.display());
-                fs::create_dir_all(&dir)?;
-            }
+        Opt::ImageDirectory { name } => {
+            println!("{}", ocipkg::config::image_dir(&name)?.display());
         }
     }
     Ok(())
