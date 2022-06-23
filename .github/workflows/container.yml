@@ -1,0 +1,35 @@
+name: Rust
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+
+jobs:
+  create-oci-archive:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions-rs/cargo@v1
+      with:
+        command: run
+        args: -- pack src/ out
+    - name: Testing podman can load the generated container
+      run: podman load < out.tar
+
+  load-oci-archive:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v1
+    - name: Create test oci-archive using podman
+      run: |
+        podman pull alpine
+        podman save -o oci-alpine.tar --format oci-archive alpine
+    - uses: actions-rs/cargo@v1
+      with:
+        command: run
+        args: -- load oci-alpine.tar
+    - name: Show alpine version
+      run: cat $HOME/.local/share/ocipkg/docker.io/library/alpine/__latest/etc/alpine-release
+

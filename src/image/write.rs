@@ -4,7 +4,7 @@ use anyhow::{bail, Context};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
 use sha2::{Digest, Sha256};
-use std::{convert::TryFrom, fs, io, path::Path, time::SystemTime};
+use std::{convert::TryFrom, io, path::Path, time::SystemTime};
 
 fn now_mtime() -> u64 {
     match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
@@ -56,25 +56,19 @@ fn create_tar_gz_on_memory_from_dir(input: &Path, rootfs_name: &str) -> anyhow::
         .expect("This never fails since zip is creating on memory"))
 }
 
-/// Compose a directory as container in oci-archive format based on the [OCI image spec](https://github.com/opencontainers/image-spec)
-pub fn compose(input_directory: &Path, output: &Path) -> anyhow::Result<()> {
+/// Compose a directory as container in oci-archive format based
+/// on the [OCI image spec](https://github.com/opencontainers/image-spec)
+pub fn pack<W: io::Write>(input_directory: &Path, output: W) -> anyhow::Result<()> {
     if !input_directory.is_dir() {
-        panic!(
+        bail!(
             "Input directory is not a directory: {}",
-            input_directory
-                .to_str()
-                .expect("Non-UTF8 input is not supported")
+            input_directory.display()
         );
     }
-    let mut output = output.to_owned();
-    output.set_extension("tar");
-    if output.exists() {
-        bail!("Output directory already exists");
-    }
 
-    let mut oci_archive = tar::Builder::new(fs::File::create(output)?);
+    let mut oci_archive = tar::Builder::new(output);
 
-    let buf = create_tar_gz_on_memory_from_dir(&input_directory, "rootfs-c9d-v1")?;
+    let buf = create_tar_gz_on_memory_from_dir(input_directory, "rootfs-c9d-v1")?;
     let layer_desc = save_blob(&mut oci_archive, MediaType::ImageLayerGzip, &buf)?;
 
     // No configuration
