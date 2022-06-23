@@ -23,7 +23,7 @@ fn get_index(input: &mut fs::File) -> anyhow::Result<ImageIndex> {
 }
 
 fn split_digest(digest: &str) -> anyhow::Result<(&str, &str)> {
-    let mut iter = digest.split(":");
+    let mut iter = digest.split(':');
     match (iter.next(), iter.next()) {
         (Some(algorithm), Some(hash)) => Ok((algorithm, hash)),
         _ => anyhow::bail!("Invalid digest in index.json"),

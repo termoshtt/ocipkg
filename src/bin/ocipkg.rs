@@ -33,7 +33,7 @@ fn main() -> anyhow::Result<()> {
             input_directory,
             output,
         } => {
-            let mut output = output.to_owned();
+            let mut output = output;
             output.set_extension("tar");
             if output.exists() {
                 anyhow::bail!("Output already exists");

@@ -68,7 +68,7 @@ pub fn pack<W: io::Write>(input_directory: &Path, output: W) -> anyhow::Result<(
 
     let mut oci_archive = tar::Builder::new(output);
 
-    let buf = create_tar_gz_on_memory_from_dir(&input_directory, "rootfs-c9d-v1")?;
+    let buf = create_tar_gz_on_memory_from_dir(input_directory, "rootfs-c9d-v1")?;
     let layer_desc = save_blob(&mut oci_archive, MediaType::ImageLayerGzip, &buf)?;
 
     // No configuration
