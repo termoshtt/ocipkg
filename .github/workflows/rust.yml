@@ -7,17 +7,6 @@ on:
   pull_request: {}
 
 jobs:
-  podman-load-container:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v1
-    - uses: actions-rs/cargo@v1
-      with:
-        command: run
-        args: -- pack src/ out
-    - name: Testing podman can load the generated container
-      run: podman load < out.tar
-
   test:
     runs-on: ubuntu-22.04
     steps:

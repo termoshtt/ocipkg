@@ -30,3 +30,8 @@ jobs:
       with:
         command: run
         args: -- load oci-alpine.tar
+      env:
+        XDG_DATA_HOME: /data
+    - name: Show alpine version
+      run: cat /data/ocipkg/docker.io/library/alpine/__latest/etc/alpine-release
+
