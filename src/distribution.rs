@@ -1,9 +1,11 @@
-//! Binding to OCI distribution spec
+//! Binding to [OCI distribution spec](https://github.com/opencontainers/distribution-spec)
 
 use derive_more::Deref;
 use regex::Regex;
+use serde::Deserialize;
 use thiserror::Error;
 
+/// Error occured while handling distribution API
 #[derive(Debug, Error)]
 pub enum Error<'a> {
     #[error("Invalid <name> of repository: {0}")]
@@ -11,9 +13,42 @@ pub enum Error<'a> {
 
     #[error("Invalid reference: {0}")]
     InvalidReference(&'a str),
+
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
 }
 
-pub struct Client {}
+/// A client for `/v2/<name>/` API endpoint
+pub struct Client<'a> {
+    client: reqwest::Client,
+    name: Name<'a>,
+}
+
+/// Response of `/v2/<name>/tags/list`
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+struct TagList {
+    name: String,
+    tags: Vec<String>,
+}
+
+impl<'a> Client<'a> {
+    pub fn new(name: &'a str) -> Result<Self, Error<'a>> {
+        let client = reqwest::Client::new();
+        let name = Name::new(name)?;
+        Ok(Client { client, name })
+    }
+
+    pub async fn tag_list(&self) -> Result<Vec<String>, Error<'a>> {
+        let tag_list = self
+            .client
+            .get(format!("/v2/{}/tags/list", self.name.as_str()))
+            .send()
+            .await?
+            .json::<TagList>()
+            .await?;
+        Ok(tag_list.tags)
+    }
+}
 
 /// Namespace of the repository
 ///
@@ -35,7 +70,7 @@ impl<'a> Name<'a> {
         self.0
     }
 
-    pub fn from_str(name: &'a str) -> Result<Self, Error<'a>> {
+    pub fn new(name: &'a str) -> Result<Self, Error<'a>> {
         if NAME_RE.is_match(name) {
             Ok(Name(name))
         } else {
@@ -65,7 +100,7 @@ impl<'a> Reference<'a> {
         self.0
     }
 
-    pub fn from_str(name: &'a str) -> Result<Self, Error<'a>> {
+    pub fn new(name: &'a str) -> Result<Self, Error<'a>> {
         if REF_RE.is_match(name) {
             Ok(Reference(name))
         } else {
@@ -80,16 +115,16 @@ mod tests {
 
     #[test]
     fn name() {
-        assert_eq!(Name::from_str("ghcr.io").unwrap().as_str(), "ghcr.io");
+        assert_eq!(Name::new("ghcr.io").unwrap().as_str(), "ghcr.io");
         // Head must be alphanum
-        assert!(Name::from_str("_ghcr.io").is_err());
-        assert!(Name::from_str("/ghcr.io").is_err());
+        assert!(Name::new("_ghcr.io").is_err());
+        assert!(Name::new("/ghcr.io").is_err());
     }
 
     #[test]
     fn reference() {
-        assert_eq!(Name::from_str("latest").unwrap().as_str(), "latest");
+        assert_eq!(Name::new("latest").unwrap().as_str(), "latest");
         // @ is not allowed
-        assert!(Name::from_str("my_super_tag@2").is_err());
+        assert!(Name::new("my_super_tag@2").is_err());
     }
 }
