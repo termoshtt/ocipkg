@@ -4,6 +4,7 @@ use derive_more::Deref;
 use regex::Regex;
 use serde::Deserialize;
 use thiserror::Error;
+use url::Url;
 
 /// Error occured while handling distribution API
 #[derive(Debug, Error)]
@@ -15,12 +16,18 @@ pub enum Error<'a> {
     InvalidReference(&'a str),
 
     #[error(transparent)]
+    UrlParseError(#[from] url::ParseError),
+
+    #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
 }
 
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client<'a> {
     client: reqwest::Client,
+    /// URL to registry server
+    url: Url,
+    /// Name of repository
     name: Name<'a>,
 }
 
@@ -32,20 +39,18 @@ struct TagList {
 }
 
 impl<'a> Client<'a> {
-    pub fn new(name: &'a str) -> Result<Self, Error<'a>> {
+    pub fn new(url: &str, name: &'a str) -> Result<Self, Error<'a>> {
         let client = reqwest::Client::new();
+        let url = Url::parse(url)?;
         let name = Name::new(name)?;
-        Ok(Client { client, name })
+        Ok(Client { client, url, name })
     }
 
-    pub async fn tag_list(&self) -> Result<Vec<String>, Error<'a>> {
-        let tag_list = self
-            .client
-            .get(format!("/v2/{}/tags/list", self.name.as_str()))
-            .send()
-            .await?
-            .json::<TagList>()
-            .await?;
+    pub async fn get_tags(&self) -> Result<Vec<String>, Error<'a>> {
+        let url = self
+            .url
+            .join(&format!("/v2/{}/tags/list", self.name.as_str()))?;
+        let tag_list = self.client.get(url).send().await?.json::<TagList>().await?;
         Ok(tag_list.tags)
     }
 }
@@ -126,5 +131,25 @@ mod tests {
         assert_eq!(Name::new("latest").unwrap().as_str(), "latest");
         // @ is not allowed
         assert!(Name::new("my_super_tag@2").is_err());
+    }
+
+    //
+    // Following tests need registry server. See test/fixture.sh for setting.
+    // These tests are ignored by default.
+    //
+
+    const TEST_URL: &str = "http://localhost:5000";
+    const TEST_REPO: &str = "test_repo";
+
+    #[tokio::test]
+    #[ignore]
+    async fn get_tags() -> anyhow::Result<()> {
+        let client = Client::new(TEST_URL, TEST_REPO)?;
+        let tags = client.get_tags().await?;
+        assert_eq!(
+            tags,
+            &["tag1".to_string(), "tag2".to_string(), "tag3".to_string()]
+        );
+        Ok(())
     }
 }
