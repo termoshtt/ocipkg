@@ -15,6 +15,20 @@ jobs:
       with:
         command: test
 
+  with-registry:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: -- --include-ignored
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
+
   check-format:
     runs-on: ubuntu-22.04
     steps:
