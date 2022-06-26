@@ -3,8 +3,9 @@
 use anyhow::{bail, Context};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
-use sha2::{Digest, Sha256};
 use std::{convert::TryFrom, io, path::Path, time::SystemTime};
+
+use crate::Digest;
 
 fn now_mtime() -> u64 {
     match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
@@ -27,18 +28,17 @@ fn save_blob<W: io::Write>(
     media_type: MediaType,
     buf: &[u8],
 ) -> anyhow::Result<Descriptor> {
-    let hash = Sha256::digest(&buf);
-    let digest = base16ct::lower::encode_string(&hash);
+    let digest = Digest::from_buf_sha256(buf);
 
     let mut header = create_header(buf.len());
     builder
-        .append_data(&mut header, format!("blobs/sha256/{}", digest), buf)
+        .append_data(&mut header, digest.as_path(), buf)
         .context("IO error while writing tar achive")?;
 
     Ok(DescriptorBuilder::default()
         .media_type(media_type)
         .size(i64::try_from(buf.len())?)
-        .digest(format!("sha256:{}", digest))
+        .digest(format!("{}", digest))
         .build()
         .expect("Requirement for descriptor is mediaType, digest, and size."))
 }

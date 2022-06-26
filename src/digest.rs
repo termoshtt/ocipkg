@@ -1,5 +1,6 @@
 use regex::Regex;
-use std::path::PathBuf;
+use sha2::{Digest as _, Sha256};
+use std::{fmt, path::PathBuf};
 
 /// Digest of contents
 ///
@@ -21,6 +22,12 @@ pub struct Digest {
 
 lazy_static::lazy_static! {
     static ref ENCODED_RE: Regex = Regex::new(r"[a-zA-Z0-9=_-]+").unwrap();
+}
+
+impl fmt::Display for Digest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "{}:{}", self.algorithm, self.encoded)
+    }
 }
 
 impl Digest {
@@ -45,5 +52,15 @@ impl Digest {
     /// As a path used in oci-archive
     pub fn as_path(&self) -> PathBuf {
         PathBuf::from(format!("blobs/{}/{}", self.algorithm, self.encoded))
+    }
+
+    /// Calc digest using SHA-256 algorithm
+    pub fn from_buf_sha256(buf: &[u8]) -> Self {
+        let hash = Sha256::digest(&buf);
+        let digest = base16ct::lower::encode_string(&hash);
+        Self {
+            algorithm: "sha256".to_string(),
+            encoded: digest,
+        }
     }
 }
