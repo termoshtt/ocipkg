@@ -46,6 +46,13 @@ impl<'a> Client<'a> {
         Ok(Client { client, url, name })
     }
 
+    /// Get tags of `<name>` repository.
+    ///
+    /// ```text
+    /// GET /v2/<name>/tags/list
+    /// ```
+    ///
+    /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#content-discovery) for detail.
     pub async fn get_tags(&self) -> Result<Vec<String>, Error<'a>> {
         let url = self
             .url
