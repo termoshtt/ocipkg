@@ -8,6 +8,9 @@ pub enum Error<'a> {
     #[error("Invalid reference: {0}")]
     InvalidReference(&'a str),
 
+    #[error("Invalid digest: {0}")]
+    InvalidDigest(&'a str),
+
     #[error(transparent)]
     UrlParseError(#[from] url::ParseError),
 
