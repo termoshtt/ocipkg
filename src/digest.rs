@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::path::PathBuf;
 
 /// Digest of contents
 ///
@@ -38,8 +39,8 @@ impl<'a> Digest<'a> {
         }
     }
 
-    /// As a fraction of path used in blobs
-    pub fn as_path_fraction(&self) -> String {
-        format!("{}/{}", self.algorithm, self.encoded)
+    /// As a path used in oci-archive
+    pub fn as_path(&self) -> PathBuf {
+        PathBuf::from(format!("blobs/{}/{}", self.algorithm, self.encoded))
     }
 }
