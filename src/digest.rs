@@ -13,24 +13,27 @@ use std::path::PathBuf;
 /// algorithm-separator   ::= [+._-]
 /// encoded               ::= [a-zA-Z0-9=_-]+
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Digest<'a> {
-    pub algorithm: &'a str,
-    pub encoded: &'a str,
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Digest {
+    pub algorithm: String,
+    pub encoded: String,
 }
 
 lazy_static::lazy_static! {
     static ref ENCODED_RE: Regex = Regex::new(r"[a-zA-Z0-9=_-]+").unwrap();
 }
 
-impl<'a> Digest<'a> {
-    pub fn new(input: &'a str) -> anyhow::Result<Self> {
+impl Digest {
+    pub fn new(input: &str) -> anyhow::Result<Self> {
         let mut iter = input.split(':');
         match (iter.next(), iter.next(), iter.next()) {
             (Some(algorithm), Some(encoded), None) => {
                 // FIXME: check algorithm part
                 if ENCODED_RE.is_match(encoded) {
-                    Ok(Digest { algorithm, encoded })
+                    Ok(Digest {
+                        algorithm: algorithm.to_string(),
+                        encoded: encoded.to_string(),
+                    })
                 } else {
                     anyhow::bail!("Invalid digest: {}", input);
                 }

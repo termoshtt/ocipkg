@@ -10,21 +10,21 @@ use regex::Regex;
 /// > [a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}
 /// > ```
 /// This struct checks this restriction at creation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deref)]
-pub struct Reference<'a>(&'a str);
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deref)]
+pub struct Reference(String);
 
 lazy_static::lazy_static! {
     static ref REF_RE: Regex = Regex::new(r"^[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}$").unwrap();
 }
 
-impl<'a> Reference<'a> {
+impl Reference {
     pub fn as_str(&self) -> &str {
-        self.0
+        &self.0
     }
 
-    pub fn new(name: &'a str) -> anyhow::Result<Self> {
+    pub fn new(name: &str) -> anyhow::Result<Self> {
         if REF_RE.is_match(name) {
-            Ok(Reference(name))
+            Ok(Reference(name.to_string()))
         } else {
             anyhow::bail!("Invalid reference to image: {}", name)
         }

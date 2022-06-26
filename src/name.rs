@@ -9,21 +9,21 @@ use regex::Regex;
 /// > [a-z0-9]+([._-][a-z0-9]+)*(/[a-z0-9]+([._-][a-z0-9]+)*)*
 /// > ```
 /// This struct checks this restriction at creation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deref)]
-pub struct Name<'a>(&'a str);
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deref)]
+pub struct Name(String);
 
 lazy_static::lazy_static! {
     static ref NAME_RE: Regex = Regex::new(r"^[a-z0-9]+([._-][a-z0-9]+)*(/[a-z0-9]+([._-][a-z0-9]+)*)*$").unwrap();
 }
 
-impl<'a> Name<'a> {
+impl Name {
     pub fn as_str(&self) -> &str {
-        self.0
+        &self.0
     }
 
-    pub fn new(name: &'a str) -> anyhow::Result<Self> {
+    pub fn new(name: &str) -> anyhow::Result<Self> {
         if NAME_RE.is_match(name) {
-            Ok(Name(name))
+            Ok(Name(name.to_string()))
         } else {
             anyhow::bail!("Invalid name for repository: {}", name);
         }

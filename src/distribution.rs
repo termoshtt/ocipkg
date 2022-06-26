@@ -6,12 +6,12 @@ use url::Url;
 use crate::Name;
 
 /// A client for `/v2/<name>/` API endpoint
-pub struct Client<'a> {
+pub struct Client {
     client: reqwest::Client,
     /// URL to registry server
     url: Url,
     /// Name of repository
-    name: Name<'a>,
+    name: Name,
 }
 
 /// Response of `/v2/<name>/tags/list`
@@ -21,8 +21,8 @@ struct TagList {
     tags: Vec<String>,
 }
 
-impl<'a> Client<'a> {
-    pub fn new(url: &str, name: &'a str) -> anyhow::Result<Self> {
+impl Client {
+    pub fn new(url: &str, name: &str) -> anyhow::Result<Self> {
         let client = reqwest::Client::new();
         let url = Url::parse(url)?;
         let name = Name::new(name)?;
