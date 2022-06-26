@@ -1,7 +1,5 @@
 use regex::Regex;
 
-use crate::error::Error;
-
 /// Digest of contents
 ///
 /// Digest is defined in [OCI image spec](https://github.com/opencontainers/image-spec/blob/v1.0.1/descriptor.md#digests)
@@ -25,7 +23,7 @@ lazy_static::lazy_static! {
 }
 
 impl<'a> Digest<'a> {
-    pub fn new(input: &'a str) -> Result<Self, Error<'a>> {
+    pub fn new(input: &'a str) -> anyhow::Result<Self> {
         let mut iter = input.split(':');
         match (iter.next(), iter.next(), iter.next()) {
             (Some(algorithm), Some(encoded), None) => {
@@ -33,10 +31,10 @@ impl<'a> Digest<'a> {
                 if ENCODED_RE.is_match(encoded) {
                     Ok(Digest { algorithm, encoded })
                 } else {
-                    Err(Error::InvalidDigest(input))
+                    anyhow::bail!("Invalid digest: {}", input);
                 }
             }
-            _ => Err(Error::InvalidDigest(input)),
+            _ => anyhow::bail!("Invalid digest: {}", input),
         }
     }
 

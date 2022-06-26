@@ -1,8 +1,6 @@
 use derive_more::Deref;
 use regex::Regex;
 
-use crate::error::Error;
-
 /// Reference of container image stored in the repository
 ///
 /// In [OCI distribution spec](https://github.com/opencontainers/distribution-spec/blob/main/spec.md):
@@ -24,11 +22,11 @@ impl<'a> Reference<'a> {
         self.0
     }
 
-    pub fn new(name: &'a str) -> Result<Self, Error<'a>> {
+    pub fn new(name: &'a str) -> anyhow::Result<Self> {
         if REF_RE.is_match(name) {
             Ok(Reference(name))
         } else {
-            Err(Error::InvalidReference(name))
+            anyhow::bail!("Invalid reference to image: {}", name)
         }
     }
 }

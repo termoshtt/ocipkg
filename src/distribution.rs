@@ -3,7 +3,7 @@
 use serde::Deserialize;
 use url::Url;
 
-use crate::{error::Error, Name};
+use crate::Name;
 
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client<'a> {
@@ -22,7 +22,7 @@ struct TagList {
 }
 
 impl<'a> Client<'a> {
-    pub fn new(url: &str, name: &'a str) -> Result<Self, Error<'a>> {
+    pub fn new(url: &str, name: &'a str) -> anyhow::Result<Self> {
         let client = reqwest::Client::new();
         let url = Url::parse(url)?;
         let name = Name::new(name)?;
@@ -36,7 +36,7 @@ impl<'a> Client<'a> {
     /// ```
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#content-discovery) for detail.
-    pub async fn get_tags(&self) -> Result<Vec<String>, Error<'a>> {
+    pub async fn get_tags(&self) -> anyhow::Result<Vec<String>> {
         let url = self
             .url
             .join(&format!("/v2/{}/tags/list", self.name.as_str()))?;

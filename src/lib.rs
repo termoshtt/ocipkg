@@ -3,7 +3,6 @@
 
 pub mod config;
 pub mod distribution;
-pub mod error;
 pub mod image;
 
 mod digest;

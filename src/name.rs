@@ -1,8 +1,6 @@
 use derive_more::Deref;
 use regex::Regex;
 
-use crate::error::Error;
-
 /// Namespace of the repository
 ///
 /// In [OCI distribution spec](https://github.com/opencontainers/distribution-spec/blob/main/spec.md):
@@ -23,11 +21,11 @@ impl<'a> Name<'a> {
         self.0
     }
 
-    pub fn new(name: &'a str) -> Result<Self, Error<'a>> {
+    pub fn new(name: &'a str) -> anyhow::Result<Self> {
         if NAME_RE.is_match(name) {
             Ok(Name(name))
         } else {
-            Err(Error::InvalidRepositoryName(name))
+            anyhow::bail!("Invalid name for repository: {}", name);
         }
     }
 }
