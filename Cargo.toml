@@ -8,6 +8,7 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 anyhow = { version = "1.0.57", features = ["backtrace"] }
 base16ct = { version = "0.1.1", features = ["alloc"] }
+bytes = "1.1.0"
 derive_more = "0.99.17"
 directories = "4.0.1"
 env_logger = "0.9.0"
@@ -20,12 +21,9 @@ serde = "1.0.137"
 sha2 = "0.10.2"
 structopt = "0.3.26"
 tar = "0.4.38"
+tokio = { version = "1.19.2", features = ["rt", "macros"] }
 url = "2.2.2"
-bytes = "1.1.0"
 
 [dependencies.oci-spec]
 # require https://github.com/containers/oci-spec-rs/pull/106
 git = "https://github.com/containers/oci-spec-rs"
-
-[dev-dependencies]
-tokio = { version = "1.19.2", features = ["rt", "macros"] }
