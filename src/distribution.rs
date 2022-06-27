@@ -1,9 +1,10 @@
 //! Binding to [OCI distribution spec](https://github.com/opencontainers/distribution-spec)
 
+use oci_spec::image::*;
 use serde::Deserialize;
 use url::Url;
 
-use crate::Name;
+use crate::{Name, Reference};
 
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client {
@@ -37,11 +38,42 @@ impl Client {
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#content-discovery) for detail.
     pub async fn get_tags(&self) -> anyhow::Result<Vec<String>> {
-        let url = self
-            .url
-            .join(&format!("/v2/{}/tags/list", self.name.as_str()))?;
-        let tag_list = self.client.get(url).send().await?.json::<TagList>().await?;
+        let tag_list = self
+            .client
+            .get(
+                self.url
+                    .join(&format!("/v2/{}/tags/list", self.name.as_str()))?,
+            )
+            .send()
+            .await?
+            .json::<TagList>()
+            .await?;
         Ok(tag_list.tags)
+    }
+
+    /// Get manifest for given repository
+    ///
+    /// ```text
+    /// GET /v2/<name>/manifests/<reference>
+    /// ```
+    ///
+    /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests) for detail.
+    pub async fn get_manifest(&self, reference: &str) -> anyhow::Result<ImageManifest> {
+        let reference = Reference::new(reference)?;
+        let manifest = self
+            .client
+            .get(self.url.join(&format!(
+                "/v2/{}/manifests/{}",
+                self.name.as_str(),
+                reference.as_str()
+            ))?)
+            .header("Accept", MediaType::ImageManifest.to_docker_v2s2()?)
+            .send()
+            .await?
+            .text()
+            .await?;
+        let manifest = ImageManifest::from_reader(manifest.as_bytes())?;
+        Ok(manifest)
     }
 }
 
@@ -66,6 +98,15 @@ mod tests {
             tags,
             &["tag1".to_string(), "tag2".to_string(), "tag3".to_string()]
         );
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn get_manifest() -> anyhow::Result<()> {
+        let client = Client::new(TEST_URL, TEST_REPO)?;
+        let manifest = client.get_manifest("tag1").await?;
+        dbg!(manifest);
         Ok(())
     }
 }
