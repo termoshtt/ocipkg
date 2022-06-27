@@ -1,10 +1,11 @@
 //! Binding to [OCI distribution spec](https://github.com/opencontainers/distribution-spec)
 
+use bytes::Bytes;
 use oci_spec::image::*;
 use serde::Deserialize;
 use url::Url;
 
-use crate::{Name, Reference};
+use crate::{Digest, Name, Reference};
 
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client {
@@ -75,6 +76,29 @@ impl Client {
         let manifest = ImageManifest::from_reader(manifest.as_bytes())?;
         Ok(manifest)
     }
+
+    /// Get blob for given digest
+    ///
+    /// ```text
+    /// GET /v2/<name>/blobs/<digest>
+    /// ```
+    ///
+    /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs) for detail.
+    pub async fn get_blob(&self, digest: &str) -> anyhow::Result<Bytes> {
+        let digest = Digest::new(digest)?;
+        let blob = self
+            .client
+            .get(self.url.join(&format!(
+                "/v2/{}/blobs/{}",
+                self.name.as_str(),
+                format!("{}", digest)
+            ))?)
+            .send()
+            .await?
+            .bytes()
+            .await?;
+        Ok(blob)
+    }
 }
 
 #[cfg(test)]
@@ -103,10 +127,15 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn get_manifest() -> anyhow::Result<()> {
+    async fn get_images() -> anyhow::Result<()> {
         let client = Client::new(TEST_URL, TEST_REPO)?;
-        let manifest = client.get_manifest("tag1").await?;
-        dbg!(manifest);
+        for tag in ["tag1", "tag2", "tag3"] {
+            let manifest = client.get_manifest(tag).await?;
+            for layer in manifest.layers() {
+                let buf = client.get_blob(layer.digest()).await?;
+                dbg!(buf.len());
+            }
+        }
         Ok(())
     }
 }
