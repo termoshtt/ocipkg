@@ -102,20 +102,30 @@ impl Client {
 }
 
 /// Get image from registry and save it into local storage
-pub async fn get_image(url: &str, name: &str, reference: &str) -> anyhow::Result<()> {
-    let client = Client::new(url, name)?;
+pub async fn get_image(domain: &str, name: &str, reference: &str) -> anyhow::Result<()> {
+    let url = if domain.starts_with("localhost") {
+        format!("http://{}", domain)
+    } else {
+        format!("https://{}", domain)
+    };
+    let client = Client::new(&url, name)?;
     let manifest = client.get_manifest(reference).await?;
-    let dest = crate::config::image_dir(&format!("{}:{}", name, reference))?;
+    let dest = crate::config::image_dir(&format!("{}/{}:{}", domain, name, reference))?;
     for layer in manifest.layers() {
         let blob = client.get_blob(layer.digest()).await?;
         match layer.media_type() {
-            MediaType::ImageLayerGzip => {
-                let buf = flate2::read::GzDecoder::new(blob.as_ref());
-                tar::Archive::new(buf).unpack(dest)?;
-                return Ok(());
+            MediaType::ImageLayerGzip => {}
+            MediaType::Other(ty) => {
+                // application/vnd.docker.image.rootfs.diff.tar.gzip case
+                if !ty.ends_with("tar.gzip") {
+                    continue;
+                }
             }
-            _ => anyhow::bail!("Unsupported layer type"),
+            _ => continue,
         }
+        let buf = flate2::read::GzDecoder::new(blob.as_ref());
+        tar::Archive::new(buf).unpack(dest)?;
+        return Ok(());
     }
     anyhow::bail!("Layer not found")
 }

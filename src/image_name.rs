@@ -1,23 +1,20 @@
+use crate::{Name, Reference};
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ImageName {
-    pub url: String,
-    pub name: String,
-    pub reference: String,
+    pub domain: String,
+    pub name: Name,
+    pub reference: Reference,
 }
 
 impl ImageName {
-    pub fn new(name: &str) -> anyhow::Result<Self> {
+    pub fn parse(name: &str) -> anyhow::Result<Self> {
         let (domain, name) = name.split_once('/').unwrap_or(("docker.io", name));
         let (name, reference) = name.split_once(':').unwrap_or((name, "latest"));
-        let url = if domain.starts_with("localhost") {
-            format!("http://{}", domain)
-        } else {
-            format!("https://{}", domain)
-        };
         Ok(ImageName {
-            url,
-            name: name.to_string(),
-            reference: reference.to_string(),
+            domain: domain.to_string(),
+            name: Name::new(&name)?,
+            reference: Reference::new(reference)?,
         })
     }
 }
@@ -27,35 +24,37 @@ mod test {
     use super::*;
 
     #[test]
-    fn image_name() {
-        let name = ImageName::new("ghcr.io/termoshtt/ocipkg/testing:latest").unwrap();
+    fn image_name() -> anyhow::Result<()> {
+        let name = ImageName::parse("ghcr.io/termoshtt/ocipkg/testing:latest")?;
         assert_eq!(
             name,
             ImageName {
-                url: "https://ghcr.io".to_string(),
-                name: "termoshtt/ocipkg/testing".to_string(),
-                reference: "latest".to_string(),
+                domain: "ghcr.io".to_string(),
+                name: Name::new("termoshtt/ocipkg/testing")?,
+                reference: Reference::new("latest")?,
             }
         );
 
-        let name = ImageName::new("ubuntu:20.04").unwrap();
+        let name = ImageName::parse("ubuntu:20.04")?;
         assert_eq!(
             name,
             ImageName {
-                url: "https://docker.io".to_string(),
-                name: "ubuntu".to_string(),
-                reference: "20.04".to_string(),
+                domain: "docker.io".to_string(),
+                name: Name::new("ubuntu")?,
+                reference: Reference::new("20.04")?,
             }
         );
 
-        let name = ImageName::new("alpine").unwrap();
+        let name = ImageName::parse("alpine").unwrap();
         assert_eq!(
             name,
             ImageName {
-                url: "https://docker.io".to_string(),
-                name: "alpine".to_string(),
-                reference: "latest".to_string(),
+                domain: "docker.io".to_string(),
+                name: Name::new("alpine")?,
+                reference: Reference::new("latest")?,
             }
         );
+
+        Ok(())
     }
 }
