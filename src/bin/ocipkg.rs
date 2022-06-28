@@ -22,11 +22,15 @@ enum Opt {
         input: PathBuf,
     },
 
+    /// Get and save in local storage
+    Get { image_name: String },
+
     /// Get image directory to be used by ocipkg for given container name
     ImageDirectory { name: String },
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> anyhow::Result<()> {
     env_logger::init();
     match Opt::from_args() {
         Opt::Pack {
@@ -44,6 +48,11 @@ fn main() -> anyhow::Result<()> {
 
         Opt::Load { input } => {
             ocipkg::image::load(&input)?;
+        }
+
+        Opt::Get { image_name } => {
+            let image_name = ocipkg::ImageName::parse(&image_name)?;
+            ocipkg::distribution::get_image(&image_name).await?;
         }
 
         Opt::ImageDirectory { name } => {

@@ -6,6 +6,8 @@ use std::{
     path::*,
 };
 
+use crate::digest::Digest;
+
 /// Get index.json from oci-archive
 fn get_index(input: &mut fs::File) -> anyhow::Result<ImageIndex> {
     input.rewind()?;
@@ -22,31 +24,6 @@ fn get_index(input: &mut fs::File) -> anyhow::Result<ImageIndex> {
     anyhow::bail!("index.json not found in oci-archive")
 }
 
-fn split_digest(digest: &str) -> anyhow::Result<(&str, &str)> {
-    let mut iter = digest.split(':');
-    match (iter.next(), iter.next()) {
-        (Some(algorithm), Some(hash)) => Ok((algorithm, hash)),
-        _ => anyhow::bail!("Invalid digest in index.json"),
-    }
-}
-
-/// Check path of tar entry is in `blobs/{algorithm}/{hash}` form
-fn match_digest(entry: &tar::Entry<&mut fs::File>, digest: &str) -> anyhow::Result<bool> {
-    let path = entry.path()?;
-    let mut iter = path.components();
-    match (iter.next(), iter.next(), iter.next()) {
-        (
-            Some(Component::Normal(top)),
-            Some(Component::Normal(algorithm)),
-            Some(Component::Normal(hash)),
-        ) => {
-            let (a, h) = split_digest(digest)?;
-            Ok(top == "blobs" && algorithm == a && hash == h)
-        }
-        _ => Ok(false),
-    }
-}
-
 /// Get manifests listed in index.json
 fn get_manifests(input: &mut fs::File, descs: &[Descriptor]) -> anyhow::Result<Vec<ImageManifest>> {
     let mut manifests = Vec::new();
@@ -55,7 +32,8 @@ fn get_manifests(input: &mut fs::File, descs: &[Descriptor]) -> anyhow::Result<V
     for entry in ar.entries_with_seek()? {
         let entry = entry?;
         for d in descs {
-            if match_digest(&entry, d.digest())? {
+            let digest = Digest::new(d.digest())?;
+            if entry.path()? == digest.as_path() {
                 manifests.push(ImageManifest::from_reader(entry)?);
                 break;
             }
@@ -74,7 +52,8 @@ fn get_config(input: &mut fs::File, digest: &str) -> anyhow::Result<ImageConfigu
     let mut ar = tar::Archive::new(input);
     for entry in ar.entries_with_seek()? {
         let entry = entry?;
-        if match_digest(&entry, digest)? {
+        let digest = Digest::new(digest)?;
+        if entry.path()? == digest.as_path() {
             return Ok(ImageConfiguration::from_reader(entry)?);
         }
     }
@@ -86,7 +65,8 @@ fn expand_layer_at(input: &mut fs::File, layer: &Descriptor, dest: &Path) -> any
     let mut ar = tar::Archive::new(input);
     for entry in ar.entries_with_seek()? {
         let entry = entry?;
-        if match_digest(&entry, layer.digest())? {
+        let digest = Digest::new(layer.digest())?;
+        if entry.path()? == digest.as_path() {
             match layer.media_type() {
                 MediaType::ImageLayerGzip => {
                     let buf = flate2::read::GzDecoder::new(entry);
