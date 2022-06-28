@@ -151,7 +151,8 @@ mod tests {
     #[ignore]
     async fn get_tags() -> anyhow::Result<()> {
         let client = Client::new(TEST_URL, TEST_REPO)?;
-        let tags = client.get_tags().await?;
+        let mut tags = client.get_tags().await?;
+        tags.sort_unstable();
         assert_eq!(
             tags,
             &["tag1".to_string(), "tag2".to_string(), "tag3".to_string()]
