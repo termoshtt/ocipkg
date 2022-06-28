@@ -1,6 +1,8 @@
 ocipkg
 =======
 
+[![cargo-doc](https://img.shields.io/badge/master-ocipkg-green)](https://termoshtt.github.io/ocipkg/ocipkg/index.html)
+
 WIP: OCI Registry for binary distribution.
 
 **This is design document for pre-implementation. These features are not implmeneted yet.**
