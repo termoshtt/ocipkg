@@ -51,12 +51,8 @@ async fn main() -> anyhow::Result<()> {
         }
 
         Opt::Get { image_name } => {
-            let ocipkg::ImageName {
-                domain,
-                name,
-                reference,
-            } = ocipkg::ImageName::parse(&image_name)?;
-            ocipkg::distribution::get_image(&domain, &name, &reference).await?;
+            let image_name = ocipkg::ImageName::parse(&image_name)?;
+            ocipkg::distribution::get_image(&image_name).await?;
         }
 
         Opt::ImageDirectory { name } => {

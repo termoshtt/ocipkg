@@ -5,7 +5,7 @@ use oci_spec::image::*;
 use serde::Deserialize;
 use url::Url;
 
-use crate::{Digest, Name, Reference};
+use crate::{Digest, ImageName, Name, Reference};
 
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client {
@@ -102,15 +102,21 @@ impl Client {
 }
 
 /// Get image from registry and save it into local storage
-pub async fn get_image(domain: &str, name: &str, reference: &str) -> anyhow::Result<()> {
-    let url = if domain.starts_with("localhost") {
-        format!("http://{}", domain)
-    } else {
-        format!("https://{}", domain)
-    };
-    let client = Client::new(&url, name)?;
+pub async fn get_image(image_name: &ImageName) -> anyhow::Result<()> {
+    let ImageName {
+        name,
+        domain,
+        reference,
+        ..
+    } = image_name;
+    let client = Client::new(&image_name.url(), name)?;
     let manifest = client.get_manifest(reference).await?;
-    let dest = crate::config::image_dir(&format!("{}/{}:{}", domain, name, reference))?;
+    let dest = crate::config::image_dir(&format!(
+        "{}/{}/{}",
+        domain,
+        name.as_str(),
+        reference.as_str()
+    ))?;
     for layer in manifest.layers() {
         let blob = client.get_blob(layer.digest()).await?;
         match layer.media_type() {
