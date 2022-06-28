@@ -111,7 +111,7 @@ pub async fn get_image(image_name: &ImageName) -> anyhow::Result<()> {
     let client = Client::new(&image_name.url(), name)?;
     let manifest = client.get_manifest(reference).await?;
     let dest = crate::config::image_dir(&format!(
-        "{}/{}/{}",
+        "{}/{}/__{}",
         domain,
         name.as_str(),
         reference.as_str()
