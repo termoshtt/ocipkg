@@ -26,22 +26,22 @@ This is the problem bothered me and prevent from creating portable C++ library.
 We have three options:
 
 1. Use library in the system
-    - ✅ Library is prepared by the system administrator who would be most familiar with the system.
-    - ❎ Developer have to know how the library is distributed in user's system,
+    - ✔ Library is prepared by the system administrator who would be most familiar with the system.
+    - ❌ Developer have to know how the library is distributed in user's system,
          possibly Ubuntu 22.04, 20.04, 18.04, Debian sid, 11, 10, 9, RHEL9, 8, 7,
          ArchLinux, Gentoo Linux, NixOS, FreeBSD,
          macOS with brew, Windows with winget, chocolatey, scoop, ...
-    - ❎ Some system does not allows co-existence of multi-version libraries.
+    - ❌ Some system does not allows co-existence of multi-version libraries.
     - Most of `*-sys` crate support this option.
 2. Get source code from the internet, and build and link them
-    - ✅ Developer can control the library fully.
-    - ❎ Development tool, e.g. `cmake`, is required in user system,
+    - ✔ Developer can control the library fully.
+    - ❌ Development tool, e.g. `cmake`, is required in user system,
          and requires additional build resources.
     - Some crate support this option, and they are named with `*-src`.
 3. Get compiled library from the internet on build time
-    - ✅ Developer can control the library fully, too.
-    - ❎ Requires HTTP(or other protocol) server to distribute the library
-    - ❎ Developer have to ready binaries for every supported platforms,
+    - ✔ Developer can control the library fully, too.
+    - ❌ Requires HTTP(or other protocol) server to distribute the library
+    - ❌ Developer have to ready binaries for every supported platforms,
          e.g. `x86_64-unknown-linux-gnu`, `x86_64-pc-windows-msvc`, `aarch64-unknown-linux-gnu`,...
 
 ocipkg focuses on 3., i.e. helping distributing binary compiled
