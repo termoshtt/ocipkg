@@ -12,7 +12,7 @@ impl ImageName {
     pub fn parse(name: &str) -> anyhow::Result<Self> {
         let (domain, name) = name.split_once('/').unwrap_or(("docker.io", name));
         let (domain, port) = if let Some((domain, port)) = domain.split_once(':') {
-            (domain, Some(u16::from_str_radix(port, 10)?))
+            (domain, Some(str::parse(port)?))
         } else {
             (domain, None)
         };
@@ -20,7 +20,7 @@ impl ImageName {
         Ok(ImageName {
             domain: domain.to_string(),
             port,
-            name: Name::new(&name)?,
+            name: Name::new(name)?,
             reference: Reference::new(reference)?,
         })
     }

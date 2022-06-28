@@ -88,11 +88,10 @@ impl Client {
         let digest = Digest::new(digest)?;
         let blob = self
             .client
-            .get(self.url.join(&format!(
-                "/v2/{}/blobs/{}",
-                self.name.as_str(),
-                format!("{}", digest)
-            ))?)
+            .get(
+                self.url
+                    .join(&format!("/v2/{}/blobs/{}", self.name.as_str(), digest,))?,
+            )
             .send()
             .await?
             .bytes()
