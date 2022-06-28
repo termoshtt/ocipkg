@@ -33,3 +33,21 @@ jobs:
     - name: Show alpine version
       run: cat $HOME/.local/share/ocipkg/docker.io/library/alpine/__latest/etc/alpine-release
 
+  get-container:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v1
+    - name: Setup registry
+      run: |
+        ./test/fixture.sh
+    - uses: actions-rs/cargo@v1
+      with:
+        command: run
+        args: -- get localhost:5000/test_repo:tag1
+    - name: Show alpine version
+      run: cat $HOME/.local/share/ocipkg/localhost/test_repo/__tag1/etc/alpine-release
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
