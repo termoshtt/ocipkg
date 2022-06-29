@@ -15,7 +15,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: run
-        args: --bin=ocipkg -- pack ocipkg/ out
+        args: --bin=ocipkg -- pack src/ out
     - name: Testing podman can load the generated container
       run: podman load < out.tar
 
