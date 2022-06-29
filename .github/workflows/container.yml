@@ -11,10 +11,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
+    - uses: Swatinem/rust-cache@v1
     - uses: actions-rs/cargo@v1
       with:
         command: run
-        args: --bin=ocipkg -- pack src/ out
+        args: --bin=ocipkg -- pack ocipkg/ out
     - name: Testing podman can load the generated container
       run: podman load < out.tar
 
@@ -22,6 +23,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
+    - uses: Swatinem/rust-cache@v1
     - name: Create test oci-archive using podman
       run: |
         podman pull alpine
@@ -37,6 +39,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
+    - uses: Swatinem/rust-cache@v1
     - name: Setup registry
       run: |
         ./test/fixture.sh
