@@ -11,10 +11,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
+    - uses: Swatinem/rust-cache@v1
     - uses: actions-rs/cargo@v1
       with:
         command: run
-        args: -- pack src/ out
+        args: --bin=ocipkg -- pack ocipkg/ out
     - name: Testing podman can load the generated container
       run: podman load < out.tar
 
@@ -22,6 +23,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
+    - uses: Swatinem/rust-cache@v1
     - name: Create test oci-archive using podman
       run: |
         podman pull alpine
@@ -29,7 +31,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: run
-        args: -- load oci-alpine.tar
+        args: --bin=ocipkg -- load oci-alpine.tar
     - name: Show alpine version
       run: cat $HOME/.local/share/ocipkg/docker.io/library/alpine/__latest/etc/alpine-release
 
@@ -37,13 +39,14 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
+    - uses: Swatinem/rust-cache@v1
     - name: Setup registry
       run: |
         ./test/fixture.sh
     - uses: actions-rs/cargo@v1
       with:
         command: run
-        args: -- get localhost:5000/test_repo:tag1
+        args: --bin=ocipkg -- get localhost:5000/test_repo:tag1
     - name: Show alpine version
       run: cat $HOME/.local/share/ocipkg/localhost/test_repo/__tag1/etc/alpine-release
     services:
