@@ -43,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
                 anyhow::bail!("Output already exists");
             }
             let mut oci_archive = fs::File::create(output)?;
-            ocipkg::image::pack(&input_directory, &mut oci_archive)?;
+            ocipkg::image::pack_dir(&input_directory, &mut oci_archive)?;
         }
 
         Opt::Load { input } => {
