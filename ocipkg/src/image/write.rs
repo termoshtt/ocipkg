@@ -10,7 +10,8 @@ use crate::Digest;
 /// Build a container in oci-archive format based
 /// on the [OCI image spec](https://github.com/opencontainers/image-spec)
 pub struct Builder<W: io::Write> {
-    builder: tar::Builder<W>,
+    /// Include a flag to check if finished
+    builder: Option<tar::Builder<W>>,
     config: Option<Descriptor>,
     layers: Vec<Descriptor>,
 }
@@ -18,7 +19,7 @@ pub struct Builder<W: io::Write> {
 impl<W: io::Write> Builder<W> {
     pub fn new(writer: W) -> Self {
         Builder {
-            builder: tar::Builder::new(writer),
+            builder: Some(tar::Builder::new(writer)),
             config: None,
             layers: Vec::new(),
         }
@@ -49,6 +50,11 @@ impl<W: io::Write> Builder<W> {
     }
 
     pub fn into_inner(mut self) -> anyhow::Result<W> {
+        self.finish()?;
+        Ok(self.builder.take().unwrap().into_inner()?)
+    }
+
+    fn finish(&mut self) -> anyhow::Result<()> {
         let image_manifest = ImageManifestBuilder::default()
             .schema_version(SCHEMA_VERSION)
             .config(
@@ -74,7 +80,12 @@ impl<W: io::Write> Builder<W> {
         let version = r#"{"imageLayoutVersion":"1.0.0"}"#;
         self.save_file(Path::new("oci-layout"), version)?;
 
-        Ok(self.builder.into_inner()?)
+        self.builder
+            .as_mut()
+            .expect("builder never becomes None except on Drop")
+            .finish()?;
+
+        Ok(())
     }
 
     fn save_blob(&mut self, media_type: MediaType, buf: &[u8]) -> anyhow::Result<Descriptor> {
@@ -82,6 +93,8 @@ impl<W: io::Write> Builder<W> {
 
         let mut header = create_header(buf.len());
         self.builder
+            .as_mut()
+            .expect("builder never becomes None except on Drop")
             .append_data(&mut header, digest.as_path(), buf)
             .context("IO error while writing tar achive")?;
 
@@ -96,9 +109,19 @@ impl<W: io::Write> Builder<W> {
     fn save_file(&mut self, dest: &Path, input: &str) -> anyhow::Result<()> {
         let mut header = create_header(input.len());
         self.builder
+            .as_mut()
+            .expect("builder never becomes None except on Drop")
             .append_data(&mut header, dest, input.as_bytes())
             .context("IO error while writing tar achive")?;
         Ok(())
+    }
+}
+
+impl<W: io::Write> Drop for Builder<W> {
+    fn drop(&mut self) {
+        if self.builder.is_some() {
+            let _ = self.finish();
+        }
     }
 }
 
