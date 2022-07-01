@@ -27,7 +27,7 @@ impl<W: io::Write> Builder<W> {
     pub fn append_config(&mut self, cfg: ImageConfiguration) -> anyhow::Result<()> {
         let mut buf = Vec::new();
         cfg.to_writer(&mut buf)?;
-        let config_desc = save_blob(&mut self.builder, MediaType::ImageConfig, &buf)?;
+        let config_desc = self.save_blob(MediaType::ImageConfig, &buf)?;
         if self.config.replace(config_desc).is_some() {
             bail!("ImageConfiguration is set twice.")
         } else {
@@ -43,7 +43,7 @@ impl<W: io::Write> Builder<W> {
     /// Append directory as a layer
     pub fn append_dir_all(&mut self, path: &Path) -> anyhow::Result<()> {
         let buf = create_tar_gz_on_memory_from_dir(path, "rootfs-c9d-v1")?;
-        let layer_desc = save_blob(&mut self.builder, MediaType::ImageLayerGzip, &buf)?;
+        let layer_desc = self.save_blob(MediaType::ImageLayerGzip, &buf)?;
         self.layers.push(layer_desc);
         Ok(())
     }
@@ -51,12 +51,16 @@ impl<W: io::Write> Builder<W> {
     pub fn into_inner(mut self) -> anyhow::Result<W> {
         let image_manifest = ImageManifestBuilder::default()
             .schema_version(SCHEMA_VERSION)
-            .config(self.config.context("ImageConfiguration is not set")?)
-            .layers(self.layers.clone())
+            .config(
+                self.config
+                    .take()
+                    .context("ImageConfiguration is not set")?,
+            )
+            .layers(std::mem::replace(&mut self.layers, Vec::new()))
             .build()?;
         let mut buf = Vec::new();
         image_manifest.to_writer(&mut buf)?;
-        let image_manifest_desc = save_blob(&mut self.builder, MediaType::ImageManifest, &buf)?;
+        let image_manifest_desc = self.save_blob(MediaType::ImageManifest, &buf)?;
 
         let index = ImageIndexBuilder::default()
             .schema_version(SCHEMA_VERSION)
@@ -65,12 +69,36 @@ impl<W: io::Write> Builder<W> {
         let mut index_json = Vec::new();
         index.to_writer(&mut index_json)?;
         let index_json = String::from_utf8(index_json)?;
-        save_file(&mut self.builder, Path::new("index.json"), &index_json)?;
+        self.save_file(Path::new("index.json"), &index_json)?;
 
         let version = r#"{"imageLayoutVersion":"1.0.0"}"#;
-        save_file(&mut self.builder, Path::new("oci-layout"), version)?;
+        self.save_file(Path::new("oci-layout"), version)?;
 
         Ok(self.builder.into_inner()?)
+    }
+
+    fn save_blob(&mut self, media_type: MediaType, buf: &[u8]) -> anyhow::Result<Descriptor> {
+        let digest = Digest::from_buf_sha256(buf);
+
+        let mut header = create_header(buf.len());
+        self.builder
+            .append_data(&mut header, digest.as_path(), buf)
+            .context("IO error while writing tar achive")?;
+
+        Ok(DescriptorBuilder::default()
+            .media_type(media_type)
+            .size(i64::try_from(buf.len())?)
+            .digest(format!("{}", digest))
+            .build()
+            .expect("Requirement for descriptor is mediaType, digest, and size."))
+    }
+
+    fn save_file(&mut self, dest: &Path, input: &str) -> anyhow::Result<()> {
+        let mut header = create_header(input.len());
+        self.builder
+            .append_data(&mut header, dest, input.as_bytes())
+            .context("IO error while writing tar achive")?;
+        Ok(())
     }
 }
 
@@ -88,38 +116,6 @@ fn create_header(size: usize) -> tar::Header {
     header.set_mode(0b110100100); // rw-r--r--
     header.set_mtime(now_mtime());
     header
-}
-
-fn save_blob<W: io::Write>(
-    builder: &mut tar::Builder<W>,
-    media_type: MediaType,
-    buf: &[u8],
-) -> anyhow::Result<Descriptor> {
-    let digest = Digest::from_buf_sha256(buf);
-
-    let mut header = create_header(buf.len());
-    builder
-        .append_data(&mut header, digest.as_path(), buf)
-        .context("IO error while writing tar achive")?;
-
-    Ok(DescriptorBuilder::default()
-        .media_type(media_type)
-        .size(i64::try_from(buf.len())?)
-        .digest(format!("{}", digest))
-        .build()
-        .expect("Requirement for descriptor is mediaType, digest, and size."))
-}
-
-fn save_file<W: io::Write>(
-    builder: &mut tar::Builder<W>,
-    dest: &Path,
-    input: &str,
-) -> anyhow::Result<()> {
-    let mut header = create_header(input.len());
-    builder
-        .append_data(&mut header, dest, input.as_bytes())
-        .context("IO error while writing tar achive")?;
-    Ok(())
 }
 
 /// Compose input directory as a tar.gz archive on memory
