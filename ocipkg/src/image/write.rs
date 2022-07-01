@@ -28,7 +28,7 @@ impl<W: io::Write> Builder<W> {
         let mut buf = Vec::new();
         cfg.to_writer(&mut buf)?;
         let config_desc = save_blob(&mut self.builder, MediaType::ImageConfig, &buf)?;
-        if let Some(_) = self.config.replace(config_desc) {
+        if self.config.replace(config_desc).is_some() {
             bail!("ImageConfiguration is set twice.")
         } else {
             Ok(())
@@ -65,10 +65,10 @@ impl<W: io::Write> Builder<W> {
         let mut index_json = Vec::new();
         index.to_writer(&mut index_json)?;
         let index_json = String::from_utf8(index_json)?;
-        save_file(&mut self.builder, &Path::new("index.json"), &index_json)?;
+        save_file(&mut self.builder, Path::new("index.json"), &index_json)?;
 
         let version = r#"{"imageLayoutVersion":"1.0.0"}"#;
-        save_file(&mut self.builder, &Path::new("oci-layout"), version)?;
+        save_file(&mut self.builder, Path::new("oci-layout"), version)?;
 
         Ok(self.builder.into_inner()?)
     }
