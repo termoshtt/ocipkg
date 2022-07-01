@@ -3,7 +3,7 @@
 use anyhow::{bail, Context};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
-use std::{convert::TryFrom, io, path::Path, time::SystemTime};
+use std::{convert::TryFrom, fs, io, path::Path, time::SystemTime};
 
 use crate::Digest;
 
@@ -36,14 +36,43 @@ impl<W: io::Write> Builder<W> {
         }
     }
 
-    /// Append a file as a signle-file layer
-    pub fn append_file(&mut self, _path: &Path) -> anyhow::Result<()> {
-        todo!()
+    /// Append a files as a layer
+    pub fn append_files(&mut self, ps: &[impl AsRef<Path>]) -> anyhow::Result<()> {
+        let encoder = GzEncoder::new(Vec::new(), Compression::default());
+        let mut ar = tar::Builder::new(encoder);
+        for path in ps {
+            let path = path.as_ref();
+            if !path.is_file() {
+                bail!("Not a file, or not exist: {}", path.display());
+            }
+            let mut f = fs::File::open(path)?;
+            ar.append_file("rootfs-c9d-v1", &mut f)
+                .context("Error while reading input directory")?;
+        }
+        let buf = ar
+            .into_inner()
+            .expect("This never fails since tar arhive is creating on memory")
+            .finish()
+            .expect("This never fails since zip is creating on memory");
+        let layer_desc = self.save_blob(MediaType::ImageLayerGzip, &buf)?;
+        self.layers.push(layer_desc);
+        Ok(())
     }
 
     /// Append directory as a layer
     pub fn append_dir_all(&mut self, path: &Path) -> anyhow::Result<()> {
-        let buf = create_tar_gz_on_memory_from_dir(path, "rootfs-c9d-v1")?;
+        if !path.is_dir() {
+            bail!("Not a directory, or not exist: {}", path.display());
+        }
+        let encoder = GzEncoder::new(Vec::new(), Compression::default());
+        let mut ar = tar::Builder::new(encoder);
+        ar.append_dir_all("rootfs-c9d-v1", path)
+            .context("Error while reading input directory")?;
+        let buf = ar
+            .into_inner()
+            .expect("This never fails since tar arhive is creating on memory")
+            .finish()
+            .expect("This never fails since zip is creating on memory");
         let layer_desc = self.save_blob(MediaType::ImageLayerGzip, &buf)?;
         self.layers.push(layer_desc);
         Ok(())
@@ -141,33 +170,22 @@ fn create_header(size: usize) -> tar::Header {
     header
 }
 
-/// Compose input directory as a tar.gz archive on memory
-fn create_tar_gz_on_memory_from_dir(input: &Path, rootfs_name: &str) -> anyhow::Result<Vec<u8>> {
-    let encoder = GzEncoder::new(Vec::new(), Compression::default());
-    let mut ar = tar::Builder::new(encoder);
-    ar.append_dir_all(rootfs_name, &input)
-        .context("Error while reading input directory")?;
-    Ok(ar
-        .into_inner()
-        .expect("This never fails since tar arhive is creating on memory")
-        .finish()
-        .expect("This never fails since zip is creating on memory"))
-}
-
-/// Compose a directory as container in oci-archive format based
+/// Compose a directory as a single-layer container in oci-archive format based
 /// on the [OCI image spec](https://github.com/opencontainers/image-spec)
 pub fn pack_dir<W: io::Write>(input_directory: &Path, output: W) -> anyhow::Result<()> {
-    if !input_directory.is_dir() {
-        bail!(
-            "Input directory is not a directory: {}",
-            input_directory.display()
-        );
-    }
-
     let mut b = Builder::new(output);
     b.append_config(ImageConfigurationBuilder::default().build()?)?;
     b.append_dir_all(input_directory)?;
     let _output = b.into_inner()?;
+    Ok(())
+}
 
+/// Compose files as a single-layer container in oci-archive format based
+/// on the [OCI image spec](https://github.com/opencontainers/image-spec)
+pub fn pack_files<W: io::Write, P: AsRef<Path>>(files: &[P], output: W) -> anyhow::Result<()> {
+    let mut b = Builder::new(output);
+    b.append_config(ImageConfigurationBuilder::default().build()?)?;
+    b.append_files(files)?;
+    let _output = b.into_inner()?;
     Ok(())
 }
