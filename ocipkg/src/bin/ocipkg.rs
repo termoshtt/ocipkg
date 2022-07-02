@@ -6,13 +6,17 @@ use structopt::StructOpt;
 enum Opt {
     /// Pack a directory into an oci-archive tar file
     Pack {
-        /// Input directory
+        /// Path of input directory to be packed
         #[structopt(parse(from_os_str))]
         input_directory: PathBuf,
 
-        /// Output oci archive
+        /// Path of output tar archive in oci-archive format
         #[structopt(parse(from_os_str))]
         output: PathBuf,
+
+        /// Name of container, use UUID v4 hyphenated if not set.
+        #[structopt(short = "t", long = "tag")]
+        tag: Option<String>,
     },
 
     /// Load and expand container local cache
@@ -36,14 +40,22 @@ async fn main() -> anyhow::Result<()> {
         Opt::Pack {
             input_directory,
             output,
+            tag,
         } => {
             let mut output = output;
             output.set_extension("tar");
             if output.exists() {
                 anyhow::bail!("Output already exists");
             }
-            let mut oci_archive = fs::File::create(output)?;
-            ocipkg::image::pack_dir(&input_directory, &mut oci_archive)?;
+            let f = fs::File::create(output)?;
+            let mut b = ocipkg::image::Builder::new(f);
+            if let Some(name) = tag {
+                b.set_name(&name)?;
+            }
+            let cfg = oci_spec::image::ImageConfigurationBuilder::default().build()?;
+            b.append_config(cfg)?;
+            b.append_dir_all(&input_directory)?;
+            let _output = b.into_inner()?;
         }
 
         Opt::Load { input } => {

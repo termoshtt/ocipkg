@@ -27,6 +27,9 @@ impl<W: io::Write> Builder<W> {
         }
     }
 
+    /// Set name of container, used in `org.opencontainers.image.ref.name` tag.
+    ///
+    /// If not set, a random name using UUID v4 hyphenated is set.
     pub fn set_name(&mut self, name: &str) -> anyhow::Result<()> {
         if self.name.replace(name.to_string()).is_some() {
             bail!("Name is set twice.");
@@ -194,20 +197,17 @@ fn create_header(size: usize) -> tar::Header {
     header
 }
 
-/// Compose a directory as a single-layer container in oci-archive format based
-/// on the [OCI image spec](https://github.com/opencontainers/image-spec)
-pub fn pack_dir<W: io::Write>(input_directory: &Path, output: W) -> anyhow::Result<()> {
-    let mut b = Builder::new(output);
-    b.append_config(ImageConfigurationBuilder::default().build()?)?;
-    b.append_dir_all(input_directory)?;
-    let _output = b.into_inner()?;
-    Ok(())
-}
-
 /// Compose files as a single-layer container in oci-archive format based
 /// on the [OCI image spec](https://github.com/opencontainers/image-spec)
-pub fn pack_files<W: io::Write, P: AsRef<Path>>(files: &[P], output: W) -> anyhow::Result<()> {
+pub fn pack_files<W: io::Write, P: AsRef<Path>>(
+    files: &[P],
+    name: Option<&str>,
+    output: W,
+) -> anyhow::Result<()> {
     let mut b = Builder::new(output);
+    if let Some(name) = name {
+        b.set_name(name)?;
+    }
     b.append_config(ImageConfigurationBuilder::default().build()?)?;
     b.append_files(files)?;
     let _output = b.into_inner()?;

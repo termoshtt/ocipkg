@@ -96,7 +96,7 @@ fn main() -> anyhow::Result<()> {
 
                 let dest = build_dir.join(format!("{}.tar", target.name));
                 let mut f = fs::File::create(dest)?;
-                ocipkg::image::pack_files(&targets, &mut f)?;
+                ocipkg::image::pack_files(&targets, None, &mut f)?;
             }
         }
     }
