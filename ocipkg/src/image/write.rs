@@ -91,7 +91,7 @@ impl<W: io::Write> Builder<W> {
                     .take()
                     .context("ImageConfiguration is not set")?,
             )
-            .layers(std::mem::replace(&mut self.layers, Vec::new()))
+            .layers(std::mem::take(&mut self.layers))
             .build()?;
         let mut buf = Vec::new();
         image_manifest.to_writer(&mut buf)?;

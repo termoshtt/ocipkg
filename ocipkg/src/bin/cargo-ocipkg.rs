@@ -78,12 +78,12 @@ fn main() -> anyhow::Result<()> {
                     match ty.as_str() {
                         "staticlib" => {
                             targets.push(
-                                build_dir.join(format!("lib{}.a", target.name.replace("-", "_"))),
+                                build_dir.join(format!("lib{}.a", target.name.replace('-', "_"))),
                             );
                         }
                         "cdylib" => {
                             targets.push(
-                                build_dir.join(format!("lib{}.so", target.name.replace("-", "_"))),
+                                build_dir.join(format!("lib{}.so", target.name.replace('-', "_"))),
                             );
                         }
                         _ => {}
