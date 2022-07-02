@@ -1,6 +1,6 @@
 use anyhow::{bail, Context};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
-use std::{path::PathBuf, process::Command};
+use std::{fs, path::PathBuf, process::Command};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -80,8 +80,8 @@ fn main() -> anyhow::Result<()> {
                 .args(["--manifest-path", package.manifest_path.as_str()])
                 .status()?;
 
-            let mut targets = Vec::new();
             for target in package.targets {
+                let mut targets = Vec::new();
                 for ty in target.crate_types {
                     // FIXME support non-Linux OS
                     match ty.as_str() {
@@ -98,9 +98,17 @@ fn main() -> anyhow::Result<()> {
                         _ => {}
                     }
                 }
+
+                if targets.is_empty() {
+                    bail!("No target exists for packing. Only staticlib or cdylib are suppoted.");
+                }
+
+                let dest = build_dir.join(format!("{}.tar", target.name));
+                let mut f = fs::File::create(dest)?;
+                ocipkg::image::pack_files(&targets, &mut f)?;
             }
-            dbg!(targets);
         }
+
         Opt::Publish {
             package_name,
             release,
