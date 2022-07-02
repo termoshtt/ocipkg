@@ -3,7 +3,7 @@
 use anyhow::{bail, Context};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
-use std::{convert::TryFrom, fs, io, path::Path, time::SystemTime};
+use std::{collections::HashMap, convert::TryFrom, fs, io, path::Path, time::SystemTime};
 
 use crate::Digest;
 
@@ -12,6 +12,7 @@ use crate::Digest;
 pub struct Builder<W: io::Write> {
     /// Include a flag to check if finished
     builder: Option<tar::Builder<W>>,
+    name: Option<String>,
     config: Option<Descriptor>,
     layers: Vec<Descriptor>,
 }
@@ -20,9 +21,23 @@ impl<W: io::Write> Builder<W> {
     pub fn new(writer: W) -> Self {
         Builder {
             builder: Some(tar::Builder::new(writer)),
+            name: None,
             config: None,
             layers: Vec::new(),
         }
+    }
+
+    pub fn set_name(&mut self, name: &str) -> anyhow::Result<()> {
+        if self.name.replace(name.to_string()).is_some() {
+            bail!("Name is set twice.");
+        }
+        Ok(())
+    }
+
+    fn get_name(&self) -> String {
+        self.name
+            .clone()
+            .unwrap_or(format!("{}", uuid::Uuid::new_v4().as_hyphenated()))
     }
 
     pub fn append_config(&mut self, cfg: ImageConfiguration) -> anyhow::Result<()> {
@@ -100,7 +115,11 @@ impl<W: io::Write> Builder<W> {
             .build()?;
         let mut buf = Vec::new();
         image_manifest.to_writer(&mut buf)?;
-        let image_manifest_desc = self.save_blob(MediaType::ImageManifest, &buf)?;
+        let mut image_manifest_desc = self.save_blob(MediaType::ImageManifest, &buf)?;
+        image_manifest_desc.set_annotations(Some(HashMap::from([(
+            "org.opencontainers.image.ref.name".to_string(),
+            self.get_name(),
+        )])));
 
         let index = ImageIndexBuilder::default()
             .schema_version(SCHEMA_VERSION)
