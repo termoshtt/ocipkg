@@ -25,7 +25,8 @@ impl ImageName {
         })
     }
 
-    pub fn url(&self) -> String {
+    /// URL for OCI distribution API endpoint
+    pub fn registry_url(&self) -> String {
         let domain = if let Some(port) = self.port {
             format!("{}:{}", self.domain, port)
         } else {
