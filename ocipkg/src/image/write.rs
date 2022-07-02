@@ -3,7 +3,7 @@
 use anyhow::{bail, Context};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
-use std::{convert::TryFrom, fs, io, path::Path, time::SystemTime};
+use std::{collections::HashMap, convert::TryFrom, fs, io, path::Path, time::SystemTime};
 
 use crate::Digest;
 
@@ -12,6 +12,7 @@ use crate::Digest;
 pub struct Builder<W: io::Write> {
     /// Include a flag to check if finished
     builder: Option<tar::Builder<W>>,
+    name: Option<String>,
     config: Option<Descriptor>,
     layers: Vec<Descriptor>,
 }
@@ -20,9 +21,26 @@ impl<W: io::Write> Builder<W> {
     pub fn new(writer: W) -> Self {
         Builder {
             builder: Some(tar::Builder::new(writer)),
+            name: None,
             config: None,
             layers: Vec::new(),
         }
+    }
+
+    /// Set name of container, used in `org.opencontainers.image.ref.name` tag.
+    ///
+    /// If not set, a random name using UUID v4 hyphenated is set.
+    pub fn set_name(&mut self, name: &str) -> anyhow::Result<()> {
+        if self.name.replace(name.to_string()).is_some() {
+            bail!("Name is set twice.");
+        }
+        Ok(())
+    }
+
+    fn get_name(&self) -> String {
+        self.name
+            .clone()
+            .unwrap_or(format!("{}", uuid::Uuid::new_v4().as_hyphenated()))
     }
 
     pub fn append_config(&mut self, cfg: ImageConfiguration) -> anyhow::Result<()> {
@@ -100,7 +118,11 @@ impl<W: io::Write> Builder<W> {
             .build()?;
         let mut buf = Vec::new();
         image_manifest.to_writer(&mut buf)?;
-        let image_manifest_desc = self.save_blob(MediaType::ImageManifest, &buf)?;
+        let mut image_manifest_desc = self.save_blob(MediaType::ImageManifest, &buf)?;
+        image_manifest_desc.set_annotations(Some(HashMap::from([(
+            "org.opencontainers.image.ref.name".to_string(),
+            self.get_name(),
+        )])));
 
         let index = ImageIndexBuilder::default()
             .schema_version(SCHEMA_VERSION)
@@ -173,24 +195,4 @@ fn create_header(size: usize) -> tar::Header {
     header.set_mode(0b110100100); // rw-r--r--
     header.set_mtime(now_mtime());
     header
-}
-
-/// Compose a directory as a single-layer container in oci-archive format based
-/// on the [OCI image spec](https://github.com/opencontainers/image-spec)
-pub fn pack_dir<W: io::Write>(input_directory: &Path, output: W) -> anyhow::Result<()> {
-    let mut b = Builder::new(output);
-    b.append_config(ImageConfigurationBuilder::default().build()?)?;
-    b.append_dir_all(input_directory)?;
-    let _output = b.into_inner()?;
-    Ok(())
-}
-
-/// Compose files as a single-layer container in oci-archive format based
-/// on the [OCI image spec](https://github.com/opencontainers/image-spec)
-pub fn pack_files<W: io::Write, P: AsRef<Path>>(files: &[P], output: W) -> anyhow::Result<()> {
-    let mut b = Builder::new(output);
-    b.append_config(ImageConfigurationBuilder::default().build()?)?;
-    b.append_files(files)?;
-    let _output = b.into_inner()?;
-    Ok(())
 }
