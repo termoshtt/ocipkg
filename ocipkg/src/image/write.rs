@@ -196,20 +196,3 @@ fn create_header(size: usize) -> tar::Header {
     header.set_mtime(now_mtime());
     header
 }
-
-/// Compose files as a single-layer container in oci-archive format based
-/// on the [OCI image spec](https://github.com/opencontainers/image-spec)
-pub fn pack_files<W: io::Write, P: AsRef<Path>>(
-    files: &[P],
-    name: Option<&str>,
-    output: W,
-) -> anyhow::Result<()> {
-    let mut b = Builder::new(output);
-    if let Some(name) = name {
-        b.set_name(name)?;
-    }
-    b.append_config(ImageConfigurationBuilder::default().build()?)?;
-    b.append_files(files)?;
-    let _output = b.into_inner()?;
-    Ok(())
-}

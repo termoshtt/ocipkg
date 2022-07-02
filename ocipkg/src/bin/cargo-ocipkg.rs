@@ -13,6 +13,10 @@ enum Opt {
 
         #[structopt(short = "p", long = "package-name")]
         package_name: Option<String>,
+
+        /// Name of container, use UUID v4 hyphenated if not set.
+        #[structopt(short = "t", long = "tag")]
+        tag: Option<String>,
     },
 }
 
@@ -61,6 +65,7 @@ fn main() -> anyhow::Result<()> {
         Opt::Build {
             package_name,
             release,
+            tag,
         } => {
             let metadata = get_metadata()?;
             let package = get_package(&metadata, package_name)?;
@@ -95,8 +100,15 @@ fn main() -> anyhow::Result<()> {
                 }
 
                 let dest = build_dir.join(format!("{}.tar", target.name));
-                let mut f = fs::File::create(dest)?;
-                ocipkg::image::pack_files(&targets, None, &mut f)?;
+                let f = fs::File::create(dest)?;
+                let mut b = ocipkg::image::Builder::new(f);
+                if let Some(ref name) = tag {
+                    b.set_name(&name)?;
+                }
+                let cfg = oci_spec::image::ImageConfigurationBuilder::default().build()?;
+                b.append_config(cfg)?;
+                b.append_files(&targets)?;
+                let _output = b.into_inner()?;
             }
         }
     }
