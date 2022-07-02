@@ -45,8 +45,13 @@ impl<W: io::Write> Builder<W> {
             if !path.is_file() {
                 bail!("Not a file, or not exist: {}", path.display());
             }
+            let name = path
+                .file_name()
+                .expect("This never fails since checked above")
+                .to_str()
+                .expect("Non-UTF8 file name");
             let mut f = fs::File::open(path)?;
-            ar.append_file("rootfs-c9d-v1", &mut f)
+            ar.append_file(format!("rootfs-c9d-v1/{}", name), &mut f)
                 .context("Error while reading input directory")?;
         }
         let buf = ar
