@@ -14,15 +14,6 @@ enum Opt {
         #[structopt(short = "p", long = "package-name")]
         package_name: Option<String>,
     },
-
-    /// Push container to OCI registry
-    Publish {
-        #[structopt(long)]
-        release: bool,
-
-        #[structopt(short = "p", long = "package-name")]
-        package_name: Option<String>,
-    },
 }
 
 fn get_metadata() -> anyhow::Result<Metadata> {
@@ -107,17 +98,6 @@ fn main() -> anyhow::Result<()> {
                 let mut f = fs::File::create(dest)?;
                 ocipkg::image::pack_files(&targets, &mut f)?;
             }
-        }
-
-        Opt::Publish {
-            package_name,
-            release,
-        } => {
-            let metadata = get_metadata()?;
-            let package = get_package(&metadata, package_name)?;
-            let build_dir = get_build_dir(&metadata, release);
-            dbg!(package, build_dir);
-            todo!("cargo-ocipkg publish");
         }
     }
     Ok(())
