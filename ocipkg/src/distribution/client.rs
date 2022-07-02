@@ -1,11 +1,9 @@
-//! Binding to [OCI distribution spec](https://github.com/opencontainers/distribution-spec)
-
 use bytes::Bytes;
 use oci_spec::image::*;
 use serde::Deserialize;
 use url::Url;
 
-use crate::{Digest, ImageName, Name, Reference};
+use crate::{distribution::*, Digest, ImageName};
 
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client {

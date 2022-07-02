@@ -1,4 +1,4 @@
-use crate::{Name, Reference};
+use crate::distribution::{Name, Reference};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ImageName {
