@@ -103,7 +103,7 @@ fn main() -> anyhow::Result<()> {
                 let f = fs::File::create(dest)?;
                 let mut b = ocipkg::image::Builder::new(f);
                 if let Some(ref name) = tag {
-                    b.set_name(&name)?;
+                    b.set_name(name)?;
                 }
                 let cfg = oci_spec::image::ImageConfigurationBuilder::default().build()?;
                 b.append_config(cfg)?;
