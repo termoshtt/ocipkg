@@ -15,9 +15,11 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: run
-        args: --bin=ocipkg -- pack ocipkg/ out
+        args: --bin=ocipkg -- pack ocipkg/ out -t test_repo/testing:tag1
     - name: Testing podman can load the generated container
-      run: podman load < out.tar
+      run: |
+        podman load < out.tar
+        podman images | grep test_repo/testing | grep tag1
 
   load-oci-archive:
     runs-on: ubuntu-22.04
