@@ -15,7 +15,7 @@ use oci_spec::image::*;
 pub async fn get_image(image_name: &ImageName) -> anyhow::Result<()> {
     let ImageName {
         name,
-        domain,
+        hostname,
         reference,
         ..
     } = image_name;
@@ -23,7 +23,7 @@ pub async fn get_image(image_name: &ImageName) -> anyhow::Result<()> {
     let manifest = client.get_manifest(reference).await?;
     let dest = crate::config::image_dir(&format!(
         "{}/{}/__{}",
-        domain,
+        hostname,
         name.as_str(),
         reference.as_str()
     ))?;
