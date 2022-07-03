@@ -22,11 +22,14 @@ struct TagList {
 }
 
 impl Client {
-    pub fn new(url: &str, name: &str) -> anyhow::Result<Self> {
+    pub fn new(url: &Url, name: &str) -> anyhow::Result<Self> {
         let client = reqwest::Client::new();
-        let url = Url::parse(url)?;
         let name = Name::new(name)?;
-        Ok(Client { client, url, name })
+        Ok(Client {
+            client,
+            url: url.clone(),
+            name,
+        })
     }
 
     /// Get tags of `<name>` repository.
@@ -107,13 +110,15 @@ mod tests {
     // These tests are ignored by default.
     //
 
-    const TEST_URL: &str = "http://localhost:5000";
+    fn test_url() -> Url {
+        Url::parse("http://localhost:5000").unwrap()
+    }
     const TEST_REPO: &str = "test_repo";
 
     #[tokio::test]
     #[ignore]
     async fn get_tags() -> anyhow::Result<()> {
-        let client = Client::new(TEST_URL, TEST_REPO)?;
+        let client = Client::new(&test_url(), TEST_REPO)?;
         let mut tags = client.get_tags().await?;
         tags.sort_unstable();
         assert_eq!(
@@ -126,7 +131,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn get_images() -> anyhow::Result<()> {
-        let client = Client::new(TEST_URL, TEST_REPO)?;
+        let client = Client::new(&test_url(), TEST_REPO)?;
         for tag in ["tag1", "tag2", "tag3"] {
             let manifest = client.get_manifest(tag).await?;
             for layer in manifest.layers() {

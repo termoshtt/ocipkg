@@ -26,17 +26,18 @@ impl ImageName {
     }
 
     /// URL for OCI distribution API endpoint
-    pub fn registry_url(&self) -> String {
-        let domain = if let Some(port) = self.port {
-            format!("{}:{}", self.domain, port)
+    pub fn registry_url(&self) -> anyhow::Result<Url> {
+        let hostname = if let Some(port) = self.port {
+            format!("{}:{}", self.hostname, port)
         } else {
-            self.domain.clone()
+            self.hostname.clone()
         };
-        if self.domain.starts_with("localhost") {
-            format!("http://{}", domain)
+        let url = if self.hostname.starts_with("localhost") {
+            format!("http://{}", hostname)
         } else {
-            format!("https://{}", domain)
-        }
+            format!("https://{}", hostname)
+        };
+        Ok(Url::parse(&url)?)
     }
 }
 
