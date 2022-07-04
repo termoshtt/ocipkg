@@ -1,3 +1,4 @@
+use anyhow::Context;
 use bytes::Bytes;
 use oci_spec::image::*;
 use serde::Deserialize;
@@ -76,6 +77,44 @@ impl Client {
             .await?;
         let manifest = ImageManifest::from_reader(manifest.as_bytes())?;
         Ok(manifest)
+    }
+
+    /// Push manifest to registry
+    ///
+    /// ```text
+    /// PUT /v2/<name>/manifests/<reference>
+    /// ```
+    ///
+    /// Manifest must be pushed after blobs are updated.
+    ///
+    /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests) for detail.
+    pub async fn push_manifest(
+        &self,
+        reference: &str,
+        manifest: &ImageManifest,
+    ) -> anyhow::Result<Url> {
+        let reference = Reference::new(reference)?;
+        let mut buf = Vec::new();
+        manifest.to_writer(&mut buf)?;
+        let res = self
+            .client
+            .put(
+                self.url
+                    .join(&format!("/v2/{}/manifests/{}", self.name, reference))?,
+            )
+            .header("Content-Type", MediaType::ImageManifest.to_string())
+            .body(buf)
+            .send()
+            .await?;
+        if res.status().is_success() {
+            let location = res
+                .headers()
+                .get("Location")
+                .context("Location not included in response")?;
+            Ok(Url::parse(location.to_str()?)?)
+        } else {
+            anyhow::bail!("PUT /v2/<name>/manifests/<reference> failed")
+        }
     }
 
     /// Get blob for given digest
