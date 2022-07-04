@@ -18,7 +18,7 @@ pub async fn get_image(image_name: &ImageName) -> anyhow::Result<()> {
     } = image_name;
     let client = Client::new(&image_name.registry_url()?, name)?;
     let manifest = client.get_manifest(reference).await?;
-    let dest = crate::config::image_dir(&image_name)?;
+    let dest = crate::config::image_dir(image_name)?;
     for layer in manifest.layers() {
         let blob = client.get_blob(layer.digest()).await?;
         match layer.media_type() {
