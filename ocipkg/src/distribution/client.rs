@@ -106,15 +106,8 @@ impl Client {
             .body(buf)
             .send()
             .await?;
-        if res.status().is_success() {
-            let location = res
-                .headers()
-                .get("Location")
-                .context("Location not included in response")?;
-            Ok(Url::parse(location.to_str()?)?)
-        } else {
-            anyhow::bail!("PUT /v2/<name>/manifests/<reference> failed")
-        }
+        let url = check_response(&res)?;
+        Ok(url)
     }
 
     /// Get blob for given digest
@@ -138,6 +131,46 @@ impl Client {
             .await?;
         Ok(blob)
     }
+
+    /// Push blob to registry
+    ///
+    /// ```text
+    /// PUT /v2/<name>/blobs/uploads/
+    /// ```
+    ///
+    /// and following `POST` to URL obtained by `PUT`. This method uses two step API.
+    ///
+    /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests) for detail.
+    pub async fn push_blob(&self, blob: &[u8]) -> anyhow::Result<Url> {
+        let res = self
+            .client
+            .put(self.url.join(&format!("/v2/{}/blobs/uploads", self.name))?)
+            .send()
+            .await?;
+        let url = check_response(&res)?;
+
+        let digest = Digest::from_buf_sha256(blob);
+        let res = self
+            .client
+            .post(url)
+            .query(&[("digest", digest.to_string())])
+            .header("Content-Length", blob.len())
+            .header("Content-Type", "application/octet-stream")
+            .body(blob.to_vec())
+            .send()
+            .await?;
+        let url = check_response(&res)?;
+        Ok(url)
+    }
+}
+
+fn check_response(res: &reqwest::Response) -> anyhow::Result<Url> {
+    anyhow::ensure!(res.status().is_success());
+    let location = res
+        .headers()
+        .get("Location")
+        .context("Location not included in response")?;
+    Ok(Url::parse(location.to_str()?)?)
 }
 
 #[cfg(test)]
