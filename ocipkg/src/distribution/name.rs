@@ -1,5 +1,6 @@
 use derive_more::Deref;
 use regex::Regex;
+use std::fmt;
 
 /// Namespace of the repository
 ///
@@ -11,6 +12,12 @@ use regex::Regex;
 /// This struct checks this restriction at creation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deref)]
 pub struct Name(String);
+
+impl fmt::Display for Name {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 lazy_static::lazy_static! {
     static ref NAME_RE: Regex = Regex::new(r"^[a-z0-9]+([._-][a-z0-9]+)*(/[a-z0-9]+([._-][a-z0-9]+)*)*$").unwrap();

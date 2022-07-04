@@ -1,5 +1,6 @@
 use derive_more::Deref;
 use regex::Regex;
+use std::fmt;
 
 /// Reference of container image stored in the repository
 ///
@@ -12,6 +13,12 @@ use regex::Regex;
 /// This struct checks this restriction at creation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deref)]
 pub struct Reference(String);
+
+impl fmt::Display for Reference {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 lazy_static::lazy_static! {
     static ref REF_RE: Regex = Regex::new(r"^[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}$").unwrap();

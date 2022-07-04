@@ -6,7 +6,7 @@ use std::{
     path::*,
 };
 
-use crate::digest::Digest;
+use crate::{digest::Digest, ImageName};
 
 /// Get index.json from oci-archive
 fn get_index(input: &mut fs::File) -> anyhow::Result<ImageIndex> {
@@ -106,7 +106,8 @@ pub fn load(input: &Path) -> anyhow::Result<()> {
 
     for (image_name, manifest) in image_names.iter().zip(&manifests) {
         let _cfg = get_config(&mut f, manifest.config().digest())?;
-        let dest = crate::config::image_dir(image_name)?;
+        let image_name = ImageName::parse(image_name)?;
+        let dest = crate::config::image_dir(&image_name)?;
         if dest.exists() {
             continue;
         }

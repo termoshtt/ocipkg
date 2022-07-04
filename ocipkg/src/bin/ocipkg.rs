@@ -30,7 +30,7 @@ enum Opt {
     Get { image_name: String },
 
     /// Get image directory to be used by ocipkg for given container name
-    ImageDirectory { name: String },
+    ImageDirectory { image_name: String },
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -67,8 +67,9 @@ async fn main() -> anyhow::Result<()> {
             ocipkg::distribution::get_image(&image_name).await?;
         }
 
-        Opt::ImageDirectory { name } => {
-            println!("{}", ocipkg::config::image_dir(&name)?.display());
+        Opt::ImageDirectory { image_name } => {
+            let image_name = ocipkg::ImageName::parse(&image_name)?;
+            println!("{}", ocipkg::config::image_dir(&image_name)?.display());
         }
     }
     Ok(())

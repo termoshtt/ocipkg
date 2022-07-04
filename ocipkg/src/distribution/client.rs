@@ -1,11 +1,9 @@
-//! Binding to [OCI distribution spec](https://github.com/opencontainers/distribution-spec)
-
 use bytes::Bytes;
 use oci_spec::image::*;
 use serde::Deserialize;
 use url::Url;
 
-use crate::{Digest, ImageName, Name, Reference};
+use crate::{distribution::*, Digest};
 
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client {
@@ -24,11 +22,14 @@ struct TagList {
 }
 
 impl Client {
-    pub fn new(url: &str, name: &str) -> anyhow::Result<Self> {
+    pub fn new(url: &Url, name: &str) -> anyhow::Result<Self> {
         let client = reqwest::Client::new();
-        let url = Url::parse(url)?;
         let name = Name::new(name)?;
-        Ok(Client { client, url, name })
+        Ok(Client {
+            client,
+            url: url.clone(),
+            name,
+        })
     }
 
     /// Get tags of `<name>` repository.
@@ -100,41 +101,6 @@ impl Client {
     }
 }
 
-/// Get image from registry and save it into local storage
-pub async fn get_image(image_name: &ImageName) -> anyhow::Result<()> {
-    let ImageName {
-        name,
-        domain,
-        reference,
-        ..
-    } = image_name;
-    let client = Client::new(&image_name.url(), name)?;
-    let manifest = client.get_manifest(reference).await?;
-    let dest = crate::config::image_dir(&format!(
-        "{}/{}/__{}",
-        domain,
-        name.as_str(),
-        reference.as_str()
-    ))?;
-    for layer in manifest.layers() {
-        let blob = client.get_blob(layer.digest()).await?;
-        match layer.media_type() {
-            MediaType::ImageLayerGzip => {}
-            MediaType::Other(ty) => {
-                // application/vnd.docker.image.rootfs.diff.tar.gzip case
-                if !ty.ends_with("tar.gzip") {
-                    continue;
-                }
-            }
-            _ => continue,
-        }
-        let buf = flate2::read::GzDecoder::new(blob.as_ref());
-        tar::Archive::new(buf).unpack(dest)?;
-        return Ok(());
-    }
-    anyhow::bail!("Layer not found")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -144,13 +110,15 @@ mod tests {
     // These tests are ignored by default.
     //
 
-    const TEST_URL: &str = "http://localhost:5000";
+    fn test_url() -> Url {
+        Url::parse("http://localhost:5000").unwrap()
+    }
     const TEST_REPO: &str = "test_repo";
 
     #[tokio::test]
     #[ignore]
     async fn get_tags() -> anyhow::Result<()> {
-        let client = Client::new(TEST_URL, TEST_REPO)?;
+        let client = Client::new(&test_url(), TEST_REPO)?;
         let mut tags = client.get_tags().await?;
         tags.sort_unstable();
         assert_eq!(
@@ -163,7 +131,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn get_images() -> anyhow::Result<()> {
-        let client = Client::new(TEST_URL, TEST_REPO)?;
+        let client = Client::new(&test_url(), TEST_REPO)?;
         for tag in ["tag1", "tag2", "tag3"] {
             let manifest = client.get_manifest(tag).await?;
             for layer in manifest.layers() {
