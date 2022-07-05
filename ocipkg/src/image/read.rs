@@ -8,6 +8,55 @@ use std::{
 
 use crate::{digest::Digest, ImageName};
 
+pub struct Archive<'buf, W: Read + Seek> {
+    archive: Option<tar::Archive<&'buf mut W>>,
+}
+
+impl<'buf, W: Read + Seek> Archive<'buf, W> {
+    pub fn new(buf: &'buf mut W) -> Self {
+        Self {
+            archive: Some(tar::Archive::new(buf)),
+        }
+    }
+
+    pub fn entries(&mut self) -> anyhow::Result<tar::Entries<&'buf mut W>> {
+        let raw = self
+            .archive
+            .take()
+            .expect("This never becomes None except in this function");
+        let inner = raw.into_inner();
+        inner.rewind()?;
+        self.archive = Some(tar::Archive::new(inner));
+        Ok(self
+            .archive
+            .as_mut()
+            .expect("This never becomes None except in this function")
+            .entries_with_seek()?)
+    }
+
+    pub fn get_index(&mut self) -> anyhow::Result<ImageIndex> {
+        for entry in self.entries()? {
+            let mut entry = entry?;
+            if entry.path()?.as_os_str() == "index.json" {
+                let mut out = Vec::new();
+                entry.read_to_end(&mut out)?;
+                return Ok(ImageIndex::from_reader(&*out)?);
+            }
+        }
+        anyhow::bail!("index.json not found")
+    }
+
+    pub fn get_blob(&mut self, digest: &Digest) -> anyhow::Result<tar::Entry<&'buf mut W>> {
+        for entry in self.entries()? {
+            let entry = entry?;
+            if entry.path()? == digest.as_path() {
+                return Ok(entry);
+            }
+        }
+        anyhow::bail!("No blob found with digest: {}", digest)
+    }
+}
+
 /// Get index.json from oci-archive
 fn get_index(input: &mut fs::File) -> anyhow::Result<ImageIndex> {
     input.rewind()?;
