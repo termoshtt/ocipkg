@@ -1,4 +1,5 @@
 use oci_spec::image::*;
+use std::{collections::HashMap, iter::*};
 
 /// Annotations defined in `org.opencontainers.image.*` namespace
 ///
@@ -75,6 +76,16 @@ pub struct Annotations {
     ///
     /// Image reference of the image this image is based on (string)
     pub base_name: Option<String>,
+}
+
+impl Annotations {
+    pub fn from_map(annotations: &HashMap<String, String>) -> Self {
+        Self::from_iter(
+            annotations
+                .iter()
+                .map(|(key, value)| (key.as_str(), value.as_str())),
+        )
+    }
 }
 
 macro_rules! impl_into_iter_part {

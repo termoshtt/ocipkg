@@ -6,7 +6,7 @@ use std::{
     path::*,
 };
 
-use crate::{digest::Digest, ImageName};
+use crate::{digest::Digest, image::*, ImageName};
 
 pub struct Archive<'buf, W: Read + Seek> {
     archive: Option<tar::Archive<&'buf mut W>>,
@@ -89,13 +89,16 @@ pub fn load(input: &Path) -> anyhow::Result<()> {
     let mut ar = Archive::new(&mut f);
     let index = ar.get_index()?;
     for manifest in index.manifests() {
-        let image_name = manifest
-            .annotations()
-            .as_ref()
-            .context("annotations of manifest must exist")?
-            .get("org.opencontainers.image.ref.name")
+        let annotations = Annotations::from_map(
+            manifest
+                .annotations()
+                .as_ref()
+                .context("annotations of manifest must exist")?,
+        );
+        let image_name = annotations
+            .ref_name
             .context("index.json does not has image ref name")?;
-        let image_name = ImageName::parse(image_name)?;
+        let image_name = ImageName::parse(&image_name)?;
         let dest = crate::config::image_dir(&image_name)?;
         if dest.exists() {
             continue;
