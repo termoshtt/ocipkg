@@ -73,7 +73,7 @@ impl<'buf, W: Read + Seek> Archive<'buf, W> {
             MediaType::ImageLayerGzip => {
                 let buf = flate2::read::GzDecoder::new(blob);
                 tar::Archive::new(buf).unpack(dest)?;
-                return Ok(());
+                Ok(())
             }
             _ => anyhow::bail!("Unsupported layer type"),
         }
