@@ -1,6 +1,6 @@
 use anyhow::Context;
 use bytes::Bytes;
-use oci_spec::image::*;
+use oci_spec::{distribution::*, image::*};
 use serde::Deserialize;
 use url::Url;
 
@@ -106,7 +106,7 @@ impl Client {
             .body(buf)
             .send()
             .await?;
-        let url = check_response(&res)?;
+        let url = response_with_location(res).await?;
         Ok(url)
     }
 
@@ -147,7 +147,7 @@ impl Client {
             .put(self.url.join(&format!("/v2/{}/blobs/uploads", self.name))?)
             .send()
             .await?;
-        let url = check_response(&res)?;
+        let url = response_with_location(res).await?;
 
         let digest = Digest::from_buf_sha256(blob);
         let res = self
@@ -159,18 +159,23 @@ impl Client {
             .body(blob.to_vec())
             .send()
             .await?;
-        let url = check_response(&res)?;
+        let url = response_with_location(res).await?;
         Ok(url)
     }
 }
 
-fn check_response(res: &reqwest::Response) -> anyhow::Result<Url> {
-    anyhow::ensure!(res.status().is_success());
-    let location = res
-        .headers()
-        .get("Location")
-        .context("Location not included in response")?;
-    Ok(Url::parse(location.to_str()?)?)
+// Most of API returns `Location: <location>`
+async fn response_with_location(res: reqwest::Response) -> anyhow::Result<Url> {
+    if res.status().is_success() {
+        let location = res
+            .headers()
+            .get("Location")
+            .context("Location not included in response")?;
+        Ok(Url::parse(location.to_str()?)?)
+    } else {
+        let err = res.json::<ErrorResponse>().await?;
+        Err(anyhow::Error::new(err))
+    }
 }
 
 #[cfg(test)]
@@ -211,6 +216,15 @@ mod tests {
                 dbg!(buf.len());
             }
         }
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn push_blob() -> anyhow::Result<()> {
+        let client = Client::new(&test_url(), TEST_REPO)?;
+        let url = client.push_blob("test string".as_bytes()).await?;
+        dbg!(url);
         Ok(())
     }
 }
