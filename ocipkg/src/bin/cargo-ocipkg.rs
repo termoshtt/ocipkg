@@ -1,21 +1,26 @@
 use anyhow::{bail, Context};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
+use clap::*;
 use std::{fs, path::PathBuf, process::Command};
-use structopt::StructOpt;
 
-#[derive(StructOpt)]
-#[structopt(name = "cargo-ocipkg")]
+#[derive(Parser, Debug)]
+#[clap(version)]
 enum Opt {
+    #[clap(subcommand)]
+    Ocipkg(Ocipkg),
+}
+
+#[derive(Subcommand, Debug)]
+#[clap(version)]
+enum Ocipkg {
     /// Build library or executable, and pack as a container
     Build {
-        #[structopt(long)]
+        #[clap(long)]
         release: bool,
-
-        #[structopt(short = "p", long = "package-name")]
+        #[clap(short = 'p', long = "package-name")]
         package_name: Option<String>,
-
         /// Name of container, use UUID v4 hyphenated if not set.
-        #[structopt(short = "t", long = "tag")]
+        #[clap(short = 't', long = "tag")]
         tag: Option<String>,
     },
 }
@@ -62,11 +67,11 @@ fn get_build_dir(metadata: &Metadata, release: bool) -> PathBuf {
 
 fn main() -> anyhow::Result<()> {
     match Opt::from_args() {
-        Opt::Build {
+        Opt::Ocipkg(Ocipkg::Build {
             package_name,
             release,
             tag,
-        } => {
+        }) => {
             let metadata = get_metadata()?;
             let package = get_package(&metadata, package_name)?;
             let build_dir = get_build_dir(&metadata, release);

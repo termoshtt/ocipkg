@@ -1,28 +1,28 @@
+use clap::Parser;
 use std::{fs, path::PathBuf};
-use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "ocipkg", about = "OCI Registry for binary distribution")]
+#[derive(Debug, Parser)]
+#[clap(version)]
 enum Opt {
     /// Pack a directory into an oci-archive tar file
     Pack {
         /// Path of input directory to be packed
-        #[structopt(parse(from_os_str))]
+        #[clap(parse(from_os_str))]
         input_directory: PathBuf,
 
         /// Path of output tar archive in oci-archive format
-        #[structopt(parse(from_os_str))]
+        #[clap(parse(from_os_str))]
         output: PathBuf,
 
         /// Name of container, use UUID v4 hyphenated if not set.
-        #[structopt(short = "t", long = "tag")]
+        #[clap(short = 't', long = "tag")]
         tag: Option<String>,
     },
 
     /// Load and expand container local cache
     Load {
         /// Input oci-archive
-        #[structopt(parse(from_os_str))]
+        #[clap(parse(from_os_str))]
         input: PathBuf,
     },
 
@@ -32,7 +32,7 @@ enum Opt {
     /// Push oci-archive to registry
     Push {
         /// Input oci-archive
-        #[structopt(parse(from_os_str))]
+        #[clap(parse(from_os_str))]
         input: PathBuf,
     },
 
