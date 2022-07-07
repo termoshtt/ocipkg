@@ -135,31 +135,38 @@ impl Client {
     /// Push blob to registry
     ///
     /// ```text
-    /// PUT /v2/<name>/blobs/uploads/
+    /// POST /v2/<name>/blobs/uploads/
     /// ```
     ///
-    /// and following `POST` to URL obtained by `PUT`. This method uses two step API.
+    /// and following `PUT` to URL obtained by `POST`.
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests) for detail.
     pub async fn push_blob(&self, blob: &[u8]) -> anyhow::Result<Url> {
         let res = self
             .client
-            .put(self.url.join(&format!("/v2/{}/blobs/uploads", self.name))?)
+            .post(
+                self.url
+                    .join(&format!("/v2/{}/blobs/uploads/", self.name))?,
+            )
             .send()
             .await?;
-        let url = response_with_location(res).await?;
+        let url = response_with_location(res)
+            .await
+            .context("POST /v2/<name>/blobs/uploads/ failed")?;
 
         let digest = Digest::from_buf_sha256(blob);
         let res = self
             .client
-            .post(url)
+            .put(url.clone())
             .query(&[("digest", digest.to_string())])
             .header("Content-Length", blob.len())
             .header("Content-Type", "application/octet-stream")
             .body(blob.to_vec())
             .send()
             .await?;
-        let url = response_with_location(res).await?;
+        let url = response_with_location(res)
+            .await
+            .with_context(|| format!("PUT to {} failed", url))?;
         Ok(url)
     }
 }
