@@ -29,6 +29,13 @@ enum Opt {
     /// Get and save in local storage
     Get { image_name: String },
 
+    /// Push oci-archive to registry
+    Push {
+        /// Input oci-archive
+        #[structopt(parse(from_os_str))]
+        input: PathBuf,
+    },
+
     /// Get image directory to be used by ocipkg for given container name
     ImageDirectory { image_name: String },
 }
@@ -65,6 +72,10 @@ async fn main() -> anyhow::Result<()> {
         Opt::Get { image_name } => {
             let image_name = ocipkg::ImageName::parse(&image_name)?;
             ocipkg::distribution::get_image(&image_name).await?;
+        }
+
+        Opt::Push { input } => {
+            ocipkg::distribution::push_image(&input).await?;
         }
 
         Opt::ImageDirectory { image_name } => {
