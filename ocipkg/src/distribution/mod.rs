@@ -27,8 +27,16 @@ pub async fn push_image(path: &Path) -> anyhow::Result<()> {
             let mut entry = ar.get_blob(&digest)?;
             let mut buf = Vec::new();
             entry.read_to_end(&mut buf)?;
-            let _url = client.push_blob(&buf).await?;
+            client.push_blob(&buf).await?;
         }
+        let digest = Digest::new(manifest.config().digest())?;
+        let mut entry = ar.get_blob(&digest)?;
+        let mut buf = Vec::new();
+        entry.read_to_end(&mut buf)?;
+        client.push_blob(&buf).await?;
+        client
+            .push_manifest(image_name.reference.as_str(), &manifest)
+            .await?;
     }
     Ok(())
 }
