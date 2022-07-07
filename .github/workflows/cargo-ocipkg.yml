@@ -1,0 +1,21 @@
+name: cargo-ocipkg
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v1
+    - uses: Swatinem/rust-cache@v1
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+    - name: Build container with cargo-ocipkg
+      run: ./target/debug/cargo-ocipkg build -p ocipkg-lib-example
+    - name: Testing podman can load the generated container
+      run: podman load < ./target/debug/ocipkg-lib-example.tar

@@ -1,4 +1,4 @@
-name: Rust
+name: ocipkg
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   pull_request: {}
 
 jobs:
-  create-oci-archive:
+  pack:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
@@ -21,7 +21,7 @@ jobs:
         podman load < out.tar
         podman images | grep test_repo/testing | grep tag1
 
-  load-oci-archive:
+  load:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
@@ -37,7 +37,7 @@ jobs:
     - name: Show alpine version
       run: cat $HOME/.local/share/ocipkg/docker.io/library/alpine/__latest/etc/alpine-release
 
-  get-container:
+  get:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
@@ -56,16 +56,3 @@ jobs:
         image: registry:2
         ports:
           - 5000:5000
-
-  cargo-ocipkg-build:
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v1
-    - uses: Swatinem/rust-cache@v1
-    - uses: actions-rs/cargo@v1
-      with:
-        command: build
-    - name: Build container with cargo-ocipkg
-      run: ./target/debug/cargo-ocipkg build -p ocipkg-lib-example
-    - name: Testing podman can load the generated container
-      run: podman load < ./target/debug/ocipkg-lib-example.tar
