@@ -56,3 +56,24 @@ jobs:
         image: registry:2
         ports:
           - 5000:5000
+
+  push:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v1
+    - uses: Swatinem/rust-cache@v1
+    - uses: actions-rs/cargo@v1
+      with:
+        command: run
+        args: --bin=ocipkg -- pack ocipkg/src out.tar -t localhost:5000/test_repo:new_tag
+    - uses: actions-rs/cargo@v1
+      with:
+        command: run
+        args: --bin=ocipkg -- push out.tar
+    - name: Test image has been pushed
+      run: curl -sf localhost:5000/v2/test_repo/tags/list | jq '.tags[] | select(test("new_tag"))'
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
