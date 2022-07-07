@@ -1,5 +1,6 @@
+use anyhow::Context;
 use bytes::Bytes;
-use oci_spec::image::*;
+use oci_spec::{distribution::*, image::*};
 use serde::Deserialize;
 use url::Url;
 
@@ -78,6 +79,37 @@ impl Client {
         Ok(manifest)
     }
 
+    /// Push manifest to registry
+    ///
+    /// ```text
+    /// PUT /v2/<name>/manifests/<reference>
+    /// ```
+    ///
+    /// Manifest must be pushed after blobs are updated.
+    ///
+    /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests) for detail.
+    pub async fn push_manifest(
+        &self,
+        reference: &str,
+        manifest: &ImageManifest,
+    ) -> anyhow::Result<Url> {
+        let reference = Reference::new(reference)?;
+        let mut buf = Vec::new();
+        manifest.to_writer(&mut buf)?;
+        let res = self
+            .client
+            .put(
+                self.url
+                    .join(&format!("/v2/{}/manifests/{}", self.name, reference))?,
+            )
+            .header("Content-Type", MediaType::ImageManifest.to_string())
+            .body(buf)
+            .send()
+            .await?;
+        let url = response_with_location(res).await?;
+        Ok(url)
+    }
+
     /// Get blob for given digest
     ///
     /// ```text
@@ -98,6 +130,58 @@ impl Client {
             .bytes()
             .await?;
         Ok(blob)
+    }
+
+    /// Push blob to registry
+    ///
+    /// ```text
+    /// POST /v2/<name>/blobs/uploads/
+    /// ```
+    ///
+    /// and following `PUT` to URL obtained by `POST`.
+    ///
+    /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests) for detail.
+    pub async fn push_blob(&self, blob: &[u8]) -> anyhow::Result<Url> {
+        let res = self
+            .client
+            .post(
+                self.url
+                    .join(&format!("/v2/{}/blobs/uploads/", self.name))?,
+            )
+            .send()
+            .await?;
+        let url = response_with_location(res)
+            .await
+            .context("POST /v2/<name>/blobs/uploads/ failed")?;
+
+        let digest = Digest::from_buf_sha256(blob);
+        let res = self
+            .client
+            .put(url.clone())
+            .query(&[("digest", digest.to_string())])
+            .header("Content-Length", blob.len())
+            .header("Content-Type", "application/octet-stream")
+            .body(blob.to_vec())
+            .send()
+            .await?;
+        let url = response_with_location(res)
+            .await
+            .with_context(|| format!("PUT to {} failed", url))?;
+        Ok(url)
+    }
+}
+
+// Most of API returns `Location: <location>`
+async fn response_with_location(res: reqwest::Response) -> anyhow::Result<Url> {
+    if res.status().is_success() {
+        let location = res
+            .headers()
+            .get("Location")
+            .context("Location not included in response")?;
+        Ok(Url::parse(location.to_str()?)?)
+    } else {
+        let err = res.json::<ErrorResponse>().await?;
+        Err(anyhow::Error::new(err))
     }
 }
 
@@ -139,6 +223,15 @@ mod tests {
                 dbg!(buf.len());
             }
         }
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn push_blob() -> anyhow::Result<()> {
+        let client = Client::new(&test_url(), TEST_REPO)?;
+        let url = client.push_blob("test string".as_bytes()).await?;
+        dbg!(url);
         Ok(())
     }
 }

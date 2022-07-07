@@ -8,8 +8,38 @@ pub use client::Client;
 pub use name::Name;
 pub use reference::Reference;
 
-use crate::ImageName;
+use crate::{Digest, ImageName};
+use anyhow::bail;
 use oci_spec::image::*;
+use std::{fs, io::Read, path::Path};
+
+/// Push image to registry
+pub async fn push_image(path: &Path) -> anyhow::Result<()> {
+    if !path.is_file() {
+        bail!("Not an oci-archive: {}", path.display())
+    }
+    let mut f = fs::File::open(&path)?;
+    let mut ar = crate::image::Archive::new(&mut f);
+    for (image_name, manifest) in ar.get_manifests()? {
+        let client = Client::new(&image_name.registry_url()?, image_name.name.as_str())?;
+        for layer in manifest.layers() {
+            let digest = Digest::new(layer.digest())?;
+            let mut entry = ar.get_blob(&digest)?;
+            let mut buf = Vec::new();
+            entry.read_to_end(&mut buf)?;
+            client.push_blob(&buf).await?;
+        }
+        let digest = Digest::new(manifest.config().digest())?;
+        let mut entry = ar.get_blob(&digest)?;
+        let mut buf = Vec::new();
+        entry.read_to_end(&mut buf)?;
+        client.push_blob(&buf).await?;
+        client
+            .push_manifest(image_name.reference.as_str(), &manifest)
+            .await?;
+    }
+    Ok(())
+}
 
 /// Get image from registry and save it into local storage
 pub async fn get_image(image_name: &ImageName) -> anyhow::Result<()> {
