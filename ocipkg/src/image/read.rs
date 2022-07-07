@@ -8,6 +8,9 @@ use std::{
 
 use crate::{digest::Digest, image::*, ImageName};
 
+/// Handler for oci-archive format
+///
+/// oci-archive consists of several manifests i.e. several container.
 pub struct Archive<'buf, W: Read + Seek> {
     archive: Option<tar::Archive<&'buf mut W>>,
 }
@@ -32,6 +35,29 @@ impl<'buf, W: Read + Seek> Archive<'buf, W> {
             .as_mut()
             .expect("This never becomes None except in this function")
             .entries_with_seek()?)
+    }
+
+    pub fn get_manifests(&mut self) -> anyhow::Result<Vec<(ImageName, ImageManifest)>> {
+        let index = self.get_index()?;
+        index
+            .manifests()
+            .iter()
+            .map(|manifest| {
+                let annotations = Annotations::from_map(
+                    manifest
+                        .annotations()
+                        .as_ref()
+                        .context("annotations of manifest must exist")?,
+                );
+                let image_name = annotations
+                    .ref_name
+                    .context("index.json does not has image ref name")?;
+                let image_name = ImageName::parse(&image_name)?;
+                let digest = Digest::new(manifest.digest())?;
+                let manifest = self.get_manifest(&digest)?;
+                Ok((image_name, manifest))
+            })
+            .collect()
     }
 
     pub fn get_index(&mut self) -> anyhow::Result<ImageIndex> {
@@ -87,26 +113,12 @@ pub fn load(input: &Path) -> anyhow::Result<()> {
     }
     let mut f = fs::File::open(input)?;
     let mut ar = Archive::new(&mut f);
-    let index = ar.get_index()?;
-    for manifest in index.manifests() {
-        let annotations = Annotations::from_map(
-            manifest
-                .annotations()
-                .as_ref()
-                .context("annotations of manifest must exist")?,
-        );
-        let image_name = annotations
-            .ref_name
-            .context("index.json does not has image ref name")?;
-        let image_name = ImageName::parse(&image_name)?;
+    for (image_name, manifest) in ar.get_manifests()? {
         let dest = crate::config::image_dir(&image_name)?;
         if dest.exists() {
             continue;
         }
         fs::create_dir_all(&dest)?;
-
-        let digest = Digest::new(manifest.digest())?;
-        let manifest = ar.get_manifest(&digest)?;
         for layer in manifest.layers() {
             ar.unpack_layer(layer, &dest)?;
         }
