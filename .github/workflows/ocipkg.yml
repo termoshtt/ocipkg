@@ -71,7 +71,7 @@ jobs:
         command: run
         args: --bin=ocipkg -- push out.tar
     - name: Test image has been pushed
-      run: curl -sf localhost:5000/v2/test_repo/tags/list | jq '.tags[] | select(test("new_tag"))'
+      run: curl -sf localhost:5000/v2/test_repo/tags/list | jq -e '.tags[] | select(test("new_tag"))'
     services:
       registry:
         image: registry:2
