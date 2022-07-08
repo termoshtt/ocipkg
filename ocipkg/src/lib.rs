@@ -16,6 +16,11 @@ pub use image_name::ImageName;
 /// This is aimed to use in [build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html) a.k.a. `build.rs`.
 pub fn link_package(image_name: &str) -> anyhow::Result<()> {
     let image_name = ImageName::parse(image_name)?;
-    dbg!(image_name);
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(async {
+        distribution::get_image(&image_name)
+            .await
+            .expect("Failed to get image");
+    });
     Ok(())
 }
