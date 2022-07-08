@@ -51,7 +51,18 @@ How to use ocipkg
 ------------------
 
 ### ocipkg crate for Rust
-TBW
+
+Use `ocipkg::find_package` in `build.rs`:
+
+```rust
+fn main() -> anyhow::Result<()> {
+    ocipkg::find_package("ghcr.io/termoshtt/ocipkg/ocipkg-lib-example:0.1.0")?;
+    Ok(())
+}
+```
+
+This downloads the package from OCI registry, save it in local storage,
+and link them by generating [cargo link instruction](https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script).
 
 ### pkg-config compatible CLI for C, C++, and other ld-based languages
 TBW
