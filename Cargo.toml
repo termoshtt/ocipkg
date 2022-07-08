@@ -2,5 +2,6 @@
 members = [
   "ocipkg",
   "ocipkg-lib-example",
+  "ocipkg-exe-example",
 ]
 
