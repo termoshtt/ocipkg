@@ -8,9 +8,9 @@ use std::{
 
 use crate::{digest::Digest, image::*, ImageName};
 
-/// Handler for oci-archive format
+/// Handler for oci-archive tar file.
 ///
-/// oci-archive consists of several manifests i.e. several container.
+/// oci-archive consists of several manifests i.e. several containers.
 pub struct Archive<'buf, W: Read + Seek> {
     archive: Option<tar::Archive<&'buf mut W>>,
 }
@@ -92,13 +92,23 @@ impl<'buf, W: Read + Seek> Archive<'buf, W> {
         Ok(ImageConfiguration::from_reader(entry)?)
     }
 
-    pub fn unpack_layer(&mut self, layer: &Descriptor, dest: &Path) -> anyhow::Result<()> {
+    pub fn unpack_layer(&mut self, layer: &Descriptor, dest_root: &Path) -> anyhow::Result<()> {
         let digest = Digest::new(layer.digest())?;
         let blob = self.get_blob(&digest)?;
         match layer.media_type() {
             MediaType::ImageLayerGzip => {
                 let buf = flate2::read::GzDecoder::new(blob);
-                tar::Archive::new(buf).unpack(dest)?;
+                let mut ar = tar::Archive::new(buf);
+                for entry in ar.entries()? {
+                    let mut entry = entry?;
+                    let path = entry.path()?;
+                    // Remove rootfs
+                    let mut dest = dest_root.to_owned();
+                    for c in path.components().skip(1) {
+                        dest = dest.join(c);
+                    }
+                    entry.unpack(dest)?;
+                }
                 Ok(())
             }
             _ => anyhow::bail!("Unsupported layer type"),
