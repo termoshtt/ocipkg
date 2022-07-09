@@ -7,4 +7,4 @@ edition = "2021"
 anyhow = "1.0.58"
 
 [build-dependencies.ocipkg]
-path = "../ocipkg"
+path = "../.."
