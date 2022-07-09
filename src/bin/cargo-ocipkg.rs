@@ -20,7 +20,7 @@ enum Ocipkg {
         release: bool,
         #[clap(short = 'p', long = "package-name")]
         package_name: Option<String>,
-        /// Name of container, use UUID v4 hyphenated if not set.
+        /// Name of container
         #[clap(short = 't', long = "tag")]
         tag: Option<String>,
     },
@@ -110,6 +110,7 @@ fn main() -> anyhow::Result<()> {
 
             Command::new("cargo")
                 .arg("build")
+                .arg(if release { "--release" } else { "" })
                 .args(["--manifest-path", package.manifest_path.as_str()])
                 .status()?;
 
