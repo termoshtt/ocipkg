@@ -52,5 +52,7 @@ pub fn link_package(image_name: &str) -> anyhow::Result<()> {
             }
         }
     }
+    println!("cargo:rerun-if-changed={}", dir.display());
+    println!("cargo:rerun-if-env-changed=XDG_DATA_HOME");
     Ok(())
 }
