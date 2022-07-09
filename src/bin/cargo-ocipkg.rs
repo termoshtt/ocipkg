@@ -1,6 +1,7 @@
 use anyhow::{bail, Context};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
 use clap::*;
+use ocipkg::ImageName;
 use std::{fs, path::PathBuf, process::Command};
 
 #[derive(Parser, Debug)]
@@ -62,6 +63,32 @@ fn get_build_dir(metadata: &Metadata, release: bool) -> PathBuf {
         target_dir.join("release")
     } else {
         target_dir.join("debug")
+    }
+}
+
+fn generate_image_name(package: &Package) -> anyhow::Result<ImageName> {
+    use serde_json::Value;
+    match &package.metadata {
+        Value::Object(obj) => {
+            match obj
+                .get("ocipkg")
+                .context("`package.metadata.ocipkg` is missing")?
+            {
+                Value::Object(obj) => {
+                    if let Value::String(ref image_name) = obj
+                        .get("registry")
+                        .context("`package.metadata.ocipkg` does not have `registry`")?
+                    {
+                        let image_name = ImageName::parse(image_name)?;
+                        Ok(image_name)
+                    } else {
+                        bail!("`package.metadata.ocipkg.registry` must be a string")
+                    }
+                }
+                _ => bail!("`package.metadata.ocipkg` must be a map"),
+            }
+        }
+        _ => bail!("`package.metadata` must be object"),
     }
 }
 
