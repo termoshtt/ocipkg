@@ -102,6 +102,11 @@ fn main() -> anyhow::Result<()> {
             let metadata = get_metadata()?;
             let package = get_package(&metadata, package_name)?;
             let build_dir = get_build_dir(&metadata, release);
+            let image_name = if let Some(ref tag) = tag {
+                ImageName::parse(&tag)?
+            } else {
+                generate_image_name(&package)?
+            };
 
             Command::new("cargo")
                 .arg("build")
@@ -134,9 +139,7 @@ fn main() -> anyhow::Result<()> {
                 let dest = build_dir.join(format!("{}.tar", target.name));
                 let f = fs::File::create(dest)?;
                 let mut b = ocipkg::image::Builder::new(f);
-                if let Some(ref name) = tag {
-                    b.set_name(name)?;
-                }
+                b.set_name(&image_name)?;
                 let cfg = oci_spec::image::ImageConfigurationBuilder::default().build()?;
                 b.append_config(cfg)?;
                 b.append_files(&targets)?;

@@ -1,4 +1,5 @@
 use crate::distribution::{Name, Reference};
+use std::fmt;
 use url::Url;
 
 /// Image name
@@ -111,6 +112,27 @@ pub struct ImageName {
     pub port: Option<u16>,
     pub name: Name,
     pub reference: Reference,
+}
+
+impl fmt::Display for ImageName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let Some(port) = self.port {
+            write!(
+                f,
+                "{}:{}/{}:{}",
+                self.hostname, port, self.name, self.reference
+            )
+        } else {
+            write!(f, "{}/{}:{}", self.hostname, self.name, self.reference)
+        }
+    }
+}
+
+impl Default for ImageName {
+    fn default() -> Self {
+        Self::parse(&format!("{}", uuid::Uuid::new_v4().as_hyphenated()))
+            .expect("UUID hyphenated must be valid name")
+    }
 }
 
 impl ImageName {
