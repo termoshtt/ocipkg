@@ -21,7 +21,7 @@ jobs:
     - name: Build container with cargo-ocipkg
       run: |
         cd examples/rust-lib
-        cargo ocipkg build -t localhost:5000/test_repo:tag1
+        cargo ocipkg build -t ghcr.io/termoshtt/ocipkg/rust-lib:latest
         podman load < ./target/debug/ocipkg-lib-example.tar
 
   rust-exe:
@@ -39,7 +39,7 @@ jobs:
     - name: Build container of rust-lib example
       run: |
         cd examples/rust-lib
-        cargo ocipkg build -t localhost:5000/test_repo:tag1
+        cargo ocipkg build -t ghcr.io/termoshtt/ocipkg/rust-lib:latest
         ocipkg load ./target/debug/ocipkg-lib-example.tar
 
     - name: Build rust-exe example

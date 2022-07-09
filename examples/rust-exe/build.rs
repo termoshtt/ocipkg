@@ -1,4 +1,4 @@
 fn main() -> anyhow::Result<()> {
-    ocipkg::link_package("localhost:5000/test_repo:tag1")?;
+    ocipkg::link_package("ghcr.io/termoshtt/ocipkg/rust-lib:latest")?;
     Ok(())
 }
