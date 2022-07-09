@@ -3,6 +3,9 @@ name = "ocipkg-lib-example"
 version = "0.1.0"
 edition = "2021"
 
+[package.metadata.ocipkg]
+registry = "ghcr.io/termoshtt/ocipkg"
+
 [lib]
 crate-type = ["staticlib", "cdylib"]
 
