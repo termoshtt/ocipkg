@@ -14,8 +14,14 @@ jobs:
     - uses: Swatinem/rust-cache@v1
     - uses: actions-rs/cargo@v1
       with:
-        command: run
-        args: --bin=ocipkg -- pack ocipkg/ out -t test_repo/testing:tag1
+        command: install
+        args: --path=. -f
+    - name: Add path
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: pack src/
+      run: |
+        ocipkg pack src/ out.tar -t test_repo/testing:tag1
     - name: Testing podman can load the generated container
       run: |
         podman load < out.tar
@@ -26,14 +32,20 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - uses: Swatinem/rust-cache@v1
+    - uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: --path=. -f
+    - name: Add path
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
     - name: Create test oci-archive using podman
       run: |
         podman pull alpine
         podman save -o oci-alpine.tar --format oci-archive alpine
-    - uses: actions-rs/cargo@v1
-      with:
-        command: run
-        args: --bin=ocipkg -- load oci-alpine.tar
+    - name: load oci-archive
+      run: |
+        ocipkg load oci-alpine.tar
     - name: Show alpine version
       run: cat $HOME/.local/share/ocipkg/docker.io/library/alpine/__latest/etc/alpine-release
 
@@ -42,15 +54,21 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - uses: Swatinem/rust-cache@v1
+    - uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: --path=. -f
+    - name: Add path
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
     - name: Setup registry
       run: |
         ./test/fixture.sh
-    - uses: actions-rs/cargo@v1
-      with:
-        command: run
-        args: --bin=ocipkg -- get localhost:5000/test_repo:tag1
+    - name: get image
+      run: ocipkg get localhost:5000/test_repo:tag1
     - name: Show alpine version
       run: cat $HOME/.local/share/ocipkg/localhost/test_repo/__tag1/etc/alpine-release
+
     services:
       registry:
         image: registry:2
@@ -64,14 +82,18 @@ jobs:
     - uses: Swatinem/rust-cache@v1
     - uses: actions-rs/cargo@v1
       with:
-        command: run
-        args: --bin=ocipkg -- pack ocipkg/src out.tar -t localhost:5000/test_repo:new_tag
-    - uses: actions-rs/cargo@v1
-      with:
-        command: run
-        args: --bin=ocipkg -- push out.tar
+        command: install
+        args: --path=. -f
+    - name: Add path
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: pack src/ and push
+      run: |
+        ocipkg pack src out.tar -t localhost:5000/test_repo:new_tag
+        ocipkg push out.tar
     - name: Test image has been pushed
       run: curl -sf localhost:5000/v2/test_repo/tags/list | jq -e '.tags[] | select(test("new_tag"))'
+
     services:
       registry:
         image: registry:2

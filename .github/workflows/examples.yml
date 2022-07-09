@@ -1,0 +1,48 @@
+name: examples
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+
+jobs:
+  rust-lib:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v1
+    - uses: Swatinem/rust-cache@v1
+    - uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: --path=. -f
+    - name: Add path
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    - name: Build container with cargo-ocipkg
+      run: |
+        cd examples/rust-lib
+        cargo ocipkg build -t localhost:5000/test_repo:tag1
+        podman load < ./target/debug/ocipkg-lib-example.tar
+
+  rust-exe:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v1
+    - uses: Swatinem/rust-cache@v1
+    - uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: --path=. -f
+    - name: Add path
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Build container of rust-lib example
+      run: |
+        cd examples/rust-lib
+        cargo ocipkg build -t localhost:5000/test_repo:tag1
+        ocipkg load ./target/debug/ocipkg-lib-example.tar
+
+    - name: Build rust-exe example
+      run: |
+        cd examples/rust-exe
+        cargo build
