@@ -69,7 +69,7 @@ impl<W: io::Write> Builder<W> {
                 .to_str()
                 .expect("Non-UTF8 file name");
             let mut f = fs::File::open(path)?;
-            ar.append_file(format!("rootfs-c9d-v1/{}", name), &mut f)
+            ar.append_file(name, &mut f)
                 .context("Error while reading input directory")?;
         }
         let buf = ar
@@ -89,7 +89,7 @@ impl<W: io::Write> Builder<W> {
         }
         let encoder = GzEncoder::new(Vec::new(), Compression::default());
         let mut ar = tar::Builder::new(encoder);
-        ar.append_dir_all("rootfs-c9d-v1", path)
+        ar.append_dir_all("", path)
             .context("Error while reading input directory")?;
         let buf = ar
             .into_inner()
