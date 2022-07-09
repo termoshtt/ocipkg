@@ -47,14 +47,11 @@ We have three options:
 ocipkg focuses on 3., i.e. helping distributing binary compiled
 by the developer through OCI registry.
 
-How to use ocipkg
-------------------
+Examples
+---------
 
-### ocipkg crate for Rust
-TBW
-
-### pkg-config compatible CLI for C, C++, and other ld-based languages
-TBW
+- [Use in Rust](./examples/rust-exe)
+- [Create package in Rust](./examples/rust-exe)
 
 License
 --------
