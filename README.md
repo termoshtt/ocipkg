@@ -47,25 +47,11 @@ We have three options:
 ocipkg focuses on 3., i.e. helping distributing binary compiled
 by the developer through OCI registry.
 
-How to use ocipkg
-------------------
+Examples
+---------
 
-### ocipkg crate for Rust
-
-Use `ocipkg::find_package` in `build.rs`:
-
-```rust
-fn main() -> anyhow::Result<()> {
-    ocipkg::find_package("ghcr.io/termoshtt/ocipkg/ocipkg-lib-example:0.1.0")?;
-    Ok(())
-}
-```
-
-This downloads the package from OCI registry, save it in local storage,
-and link them by generating [cargo link instruction](https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script).
-
-### pkg-config compatible CLI for C, C++, and other ld-based languages
-TBW
+- [Use in Rust](./examples/rust-exe)
+- [Create package in Rust](./examples/rust-exe)
 
 License
 --------
