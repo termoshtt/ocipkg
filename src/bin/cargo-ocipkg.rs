@@ -108,10 +108,12 @@ fn main() -> anyhow::Result<()> {
                 generate_image_name(&package)?
             };
 
-            Command::new("cargo")
-                .arg("build")
-                .arg(if release { "--release" } else { "" })
-                .args(["--manifest-path", package.manifest_path.as_str()])
+            let mut cmd = Command::new("cargo");
+            cmd.arg("build");
+            if release {
+                cmd.arg("--release");
+            }
+            cmd.args(["--manifest-path", package.manifest_path.as_str()])
                 .status()?;
 
             for target in package.targets {
