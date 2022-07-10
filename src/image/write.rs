@@ -5,14 +5,14 @@ use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
 use std::{collections::HashMap, convert::TryFrom, fs, io, path::Path, time::SystemTime};
 
-use crate::Digest;
+use crate::{Digest, ImageName};
 
 /// Build a container in oci-archive format based
 /// on the [OCI image spec](https://github.com/opencontainers/image-spec)
 pub struct Builder<W: io::Write> {
     /// Include a flag to check if finished
     builder: Option<tar::Builder<W>>,
-    name: Option<String>,
+    name: Option<ImageName>,
     config: Option<Descriptor>,
     layers: Vec<Descriptor>,
 }
@@ -30,17 +30,15 @@ impl<W: io::Write> Builder<W> {
     /// Set name of container, used in `org.opencontainers.image.ref.name` tag.
     ///
     /// If not set, a random name using UUID v4 hyphenated is set.
-    pub fn set_name(&mut self, name: &str) -> anyhow::Result<()> {
-        if self.name.replace(name.to_string()).is_some() {
+    pub fn set_name(&mut self, name: &ImageName) -> anyhow::Result<()> {
+        if self.name.replace(name.clone()).is_some() {
             bail!("Name is set twice.");
         }
         Ok(())
     }
 
-    fn get_name(&self) -> String {
-        self.name
-            .clone()
-            .unwrap_or(format!("{}", uuid::Uuid::new_v4().as_hyphenated()))
+    fn get_name(&self) -> ImageName {
+        self.name.clone().unwrap_or_default()
     }
 
     pub fn append_config(&mut self, cfg: ImageConfiguration) -> anyhow::Result<()> {
@@ -121,7 +119,7 @@ impl<W: io::Write> Builder<W> {
         let mut image_manifest_desc = self.save_blob(MediaType::ImageManifest, &buf)?;
         image_manifest_desc.set_annotations(Some(HashMap::from([(
             "org.opencontainers.image.ref.name".to_string(),
-            self.get_name(),
+            self.get_name().to_string(),
         )])));
 
         let index = ImageIndexBuilder::default()

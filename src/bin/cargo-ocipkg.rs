@@ -1,7 +1,12 @@
 use anyhow::{bail, Context};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
 use clap::*;
-use std::{fs, path::PathBuf, process::Command};
+use ocipkg::ImageName;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 #[derive(Parser, Debug)]
 #[clap(version)]
@@ -19,7 +24,7 @@ enum Ocipkg {
         release: bool,
         #[clap(short = 'p', long = "package-name")]
         package_name: Option<String>,
-        /// Name of container, use UUID v4 hyphenated if not set.
+        /// Name of container
         #[clap(short = 't', long = "tag")]
         tag: Option<String>,
     },
@@ -65,6 +70,46 @@ fn get_build_dir(metadata: &Metadata, release: bool) -> PathBuf {
     }
 }
 
+fn get_revision(manifest_path: &Path) -> anyhow::Result<String> {
+    let repo = git2::Repository::discover(manifest_path)?;
+    // This means repository is not in rebase or merge process,
+    // do not means "not dirty"
+    if repo.state() != git2::RepositoryState::Clean {
+        bail!("Git repository is not clean.")
+    }
+    let rev = repo.revparse_single("HEAD")?;
+    Ok(rev.id().to_string())
+}
+
+fn generate_image_name(package: &Package) -> anyhow::Result<ImageName> {
+    use serde_json::Value;
+    match &package.metadata {
+        Value::Object(obj) => {
+            match obj
+                .get("ocipkg")
+                .context("`package.metadata.ocipkg` is missing")?
+            {
+                Value::Object(obj) => {
+                    if let Value::String(ref registry) = obj
+                        .get("registry")
+                        .context("`package.metadata.ocipkg` does not have `registry`")?
+                    {
+                        let rev = get_revision(package.manifest_path.as_std_path())?;
+                        let image_name = ImageName::parse(&format!("{}:{}", registry, rev))?;
+                        Ok(image_name)
+                    } else {
+                        bail!("`package.metadata.ocipkg.registry` must be a string")
+                    }
+                }
+                _ => bail!("`package.metadata.ocipkg` must be a map"),
+            }
+        }
+        _ => {
+            bail!("`package.metadata.ocipkg` in Cargo.toml is required to generate container name")
+        }
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     match Opt::from_args() {
         Opt::Ocipkg(Ocipkg::Build {
@@ -75,10 +120,18 @@ fn main() -> anyhow::Result<()> {
             let metadata = get_metadata()?;
             let package = get_package(&metadata, package_name)?;
             let build_dir = get_build_dir(&metadata, release);
+            let image_name = if let Some(ref tag) = tag {
+                ImageName::parse(tag)?
+            } else {
+                generate_image_name(&package)?
+            };
 
-            Command::new("cargo")
-                .arg("build")
-                .args(["--manifest-path", package.manifest_path.as_str()])
+            let mut cmd = Command::new("cargo");
+            cmd.arg("build");
+            if release {
+                cmd.arg("--release");
+            }
+            cmd.args(["--manifest-path", package.manifest_path.as_str()])
                 .status()?;
 
             for target in package.targets {
@@ -107,9 +160,7 @@ fn main() -> anyhow::Result<()> {
                 let dest = build_dir.join(format!("{}.tar", target.name));
                 let f = fs::File::create(dest)?;
                 let mut b = ocipkg::image::Builder::new(f);
-                if let Some(ref name) = tag {
-                    b.set_name(name)?;
-                }
+                b.set_name(&image_name)?;
                 let cfg = oci_spec::image::ImageConfigurationBuilder::default().build()?;
                 b.append_config(cfg)?;
                 b.append_files(&targets)?;
