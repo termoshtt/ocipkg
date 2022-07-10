@@ -121,7 +121,7 @@ fn main() -> anyhow::Result<()> {
             let package = get_package(&metadata, package_name)?;
             let build_dir = get_build_dir(&metadata, release);
             let image_name = if let Some(ref tag) = tag {
-                ImageName::parse(&tag)?
+                ImageName::parse(tag)?
             } else {
                 generate_image_name(&package)?
             };
