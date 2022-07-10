@@ -2,7 +2,11 @@ use anyhow::{bail, Context};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
 use clap::*;
 use ocipkg::ImageName;
-use std::{fs, path::PathBuf, process::Command};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 #[derive(Parser, Debug)]
 #[clap(version)]
@@ -66,6 +70,17 @@ fn get_build_dir(metadata: &Metadata, release: bool) -> PathBuf {
     }
 }
 
+fn get_revision(manifest_path: &Path) -> anyhow::Result<String> {
+    let repo = git2::Repository::discover(manifest_path)?;
+    // This means repository is not in rebase or merge process,
+    // do not means "not dirty"
+    if repo.state() != git2::RepositoryState::Clean {
+        bail!("Git repository is not clean.")
+    }
+    let rev = repo.revparse_single("HEAD")?;
+    Ok(rev.id().to_string())
+}
+
 fn generate_image_name(package: &Package) -> anyhow::Result<ImageName> {
     use serde_json::Value;
     match &package.metadata {
@@ -75,11 +90,12 @@ fn generate_image_name(package: &Package) -> anyhow::Result<ImageName> {
                 .context("`package.metadata.ocipkg` is missing")?
             {
                 Value::Object(obj) => {
-                    if let Value::String(ref image_name) = obj
+                    if let Value::String(ref registry) = obj
                         .get("registry")
                         .context("`package.metadata.ocipkg` does not have `registry`")?
                     {
-                        let image_name = ImageName::parse(image_name)?;
+                        let rev = get_revision(package.manifest_path.as_std_path())?;
+                        let image_name = ImageName::parse(&format!("{}:{}", registry, rev))?;
                         Ok(image_name)
                     } else {
                         bail!("`package.metadata.ocipkg.registry` must be a string")
@@ -88,7 +104,9 @@ fn generate_image_name(package: &Package) -> anyhow::Result<ImageName> {
                 _ => bail!("`package.metadata.ocipkg` must be a map"),
             }
         }
-        _ => bail!("`package.metadata` must be object"),
+        _ => {
+            bail!("`package.metadata.ocipkg` in Cargo.toml is required to generate container name")
+        }
     }
 }
 
