@@ -1,5 +1,6 @@
 use crate::Digest;
 use oci_spec::OciSpecError;
+use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -16,6 +17,10 @@ pub enum Error {
     InvalidReference(String),
     #[error(transparent)]
     InvalidUrl(#[from] url::ParseError),
+    #[error("Not a file, or not exist: {0}")]
+    NotAFile(PathBuf),
+    #[error("Not a directory, or not exist: {0}")]
+    NotADirectory(PathBuf),
 
     //
     // Invalid container image

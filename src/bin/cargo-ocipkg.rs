@@ -165,7 +165,7 @@ fn main() -> anyhow::Result<()> {
                 let dest = build_dir.join(format!("{}.tar", target.name));
                 let f = fs::File::create(dest)?;
                 let mut b = ocipkg::image::Builder::new(f);
-                b.set_name(&image_name)?;
+                b.set_name(&image_name);
                 let cfg = oci_spec::image::ImageConfigurationBuilder::default().build()?;
                 b.append_config(cfg)?;
                 b.append_files(&targets)?;

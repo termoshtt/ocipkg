@@ -61,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
             let f = fs::File::create(output)?;
             let mut b = ocipkg::image::Builder::new(f);
             if let Some(name) = tag {
-                b.set_name(&ocipkg::ImageName::parse(&name)?)?;
+                b.set_name(&ocipkg::ImageName::parse(&name)?);
             }
             let cfg = oci_spec::image::ImageConfigurationBuilder::default().build()?;
             b.append_config(cfg)?;

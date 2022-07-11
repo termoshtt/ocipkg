@@ -1,11 +1,11 @@
 //! Compose directory as a container tar
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
 use std::{collections::HashMap, convert::TryFrom, fs, io, path::Path, time::SystemTime};
 
-use crate::{Digest, ImageName};
+use crate::{error::*, Digest, ImageName};
 
 /// Build a container in oci-archive format based
 /// on the [OCI image spec](https://github.com/opencontainers/image-spec)
@@ -30,36 +30,30 @@ impl<W: io::Write> Builder<W> {
     /// Set name of container, used in `org.opencontainers.image.ref.name` tag.
     ///
     /// If not set, a random name using UUID v4 hyphenated is set.
-    pub fn set_name(&mut self, name: &ImageName) -> anyhow::Result<()> {
-        if self.name.replace(name.clone()).is_some() {
-            bail!("Name is set twice.");
-        }
-        Ok(())
+    pub fn set_name(&mut self, name: &ImageName) {
+        self.name.replace(name.clone());
     }
 
     fn get_name(&self) -> ImageName {
         self.name.clone().unwrap_or_default()
     }
 
-    pub fn append_config(&mut self, cfg: ImageConfiguration) -> anyhow::Result<()> {
+    pub fn append_config(&mut self, cfg: ImageConfiguration) -> Result<()> {
         let mut buf = Vec::new();
         cfg.to_writer(&mut buf)?;
         let config_desc = self.save_blob(MediaType::ImageConfig, &buf)?;
-        if self.config.replace(config_desc).is_some() {
-            bail!("ImageConfiguration is set twice.")
-        } else {
-            Ok(())
-        }
+        self.config.replace(config_desc);
+        Ok(())
     }
 
     /// Append a files as a layer
-    pub fn append_files(&mut self, ps: &[impl AsRef<Path>]) -> anyhow::Result<()> {
+    pub fn append_files(&mut self, ps: &[impl AsRef<Path>]) -> Result<()> {
         let encoder = GzEncoder::new(Vec::new(), Compression::default());
         let mut ar = tar::Builder::new(encoder);
         for path in ps {
             let path = path.as_ref();
             if !path.is_file() {
-                bail!("Not a file, or not exist: {}", path.display());
+                return Err(Error::NotAFile(path.to_owned()));
             }
             let name = path
                 .file_name()
@@ -67,8 +61,7 @@ impl<W: io::Write> Builder<W> {
                 .to_str()
                 .expect("Non-UTF8 file name");
             let mut f = fs::File::open(path)?;
-            ar.append_file(name, &mut f)
-                .context("Error while reading input directory")?;
+            ar.append_file(name, &mut f)?;
         }
         let buf = ar
             .into_inner()
@@ -81,14 +74,13 @@ impl<W: io::Write> Builder<W> {
     }
 
     /// Append directory as a layer
-    pub fn append_dir_all(&mut self, path: &Path) -> anyhow::Result<()> {
+    pub fn append_dir_all(&mut self, path: &Path) -> Result<()> {
         if !path.is_dir() {
-            bail!("Not a directory, or not exist: {}", path.display());
+            return Err(Error::NotADirectory(path.to_owned()));
         }
         let encoder = GzEncoder::new(Vec::new(), Compression::default());
         let mut ar = tar::Builder::new(encoder);
-        ar.append_dir_all("", path)
-            .context("Error while reading input directory")?;
+        ar.append_dir_all("", path)?;
         let buf = ar
             .into_inner()
             .expect("This never fails since tar arhive is creating on memory")
@@ -142,31 +134,29 @@ impl<W: io::Write> Builder<W> {
         Ok(())
     }
 
-    fn save_blob(&mut self, media_type: MediaType, buf: &[u8]) -> anyhow::Result<Descriptor> {
+    fn save_blob(&mut self, media_type: MediaType, buf: &[u8]) -> Result<Descriptor> {
         let digest = Digest::from_buf_sha256(buf);
 
         let mut header = create_header(buf.len());
         self.builder
             .as_mut()
             .expect("builder never becomes None except on Drop")
-            .append_data(&mut header, digest.as_path(), buf)
-            .context("IO error while writing tar achive")?;
+            .append_data(&mut header, digest.as_path(), buf)?;
 
         Ok(DescriptorBuilder::default()
             .media_type(media_type)
-            .size(i64::try_from(buf.len())?)
+            .size(buf.len() as i64)
             .digest(format!("{}", digest))
             .build()
             .expect("Requirement for descriptor is mediaType, digest, and size."))
     }
 
-    fn save_file(&mut self, dest: &Path, input: &str) -> anyhow::Result<()> {
+    fn save_file(&mut self, dest: &Path, input: &str) -> Result<()> {
         let mut header = create_header(input.len());
         self.builder
             .as_mut()
             .expect("builder never becomes None except on Drop")
-            .append_data(&mut header, dest, input.as_bytes())
-            .context("IO error while writing tar achive")?;
+            .append_data(&mut header, dest, input.as_bytes())?;
         Ok(())
     }
 }
