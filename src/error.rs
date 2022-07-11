@@ -1,4 +1,7 @@
-use thiserror::Error;
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum Error {
+    #[error("No valid home directory path could be retrieved from the operating system.")]
+    NoValidHomeDirecotry,
+}
 
-#[derive(Debug, Clone, Error)]
-pub enum Error {}
+pub type Result<T> = std::result::Result<T, Error>;
