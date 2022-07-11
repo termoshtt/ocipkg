@@ -111,6 +111,11 @@ fn generate_image_name(package: &Package) -> anyhow::Result<ImageName> {
 }
 
 fn main() -> anyhow::Result<()> {
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Info)
+        .parse_default_env()
+        .init();
+
     match Opt::from_args() {
         Opt::Ocipkg(Ocipkg::Build {
             package_name,

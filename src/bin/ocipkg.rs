@@ -42,7 +42,11 @@ enum Opt {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
-    env_logger::init();
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Info)
+        .parse_default_env()
+        .init();
+
     match Opt::from_args() {
         Opt::Pack {
             input_directory,
