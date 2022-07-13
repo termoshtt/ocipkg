@@ -1,32 +1,36 @@
 use oci_spec::image::*;
 
-#[derive(Debug)]
-pub struct Target {
-    pub arch: Arch,
-    pub os: Os,
-    pub os_version: Option<String>,
-    pub os_feature: Option<String>,
-    pub variant: Option<String>,
+pub trait PlatformEx: Sized {
+    fn from_cargo_cfg() -> Self;
+    fn from_target_triple() -> anyhow::Result<Self>;
 }
 
-impl Target {
-    pub fn from_cargo_cfg() -> Self {
-        let arch = if cfg!(x86_64) {
-            Arch::Amd64
+impl PlatformEx for Platform {
+    fn from_cargo_cfg() -> Self {
+        let (arch, variant): (Arch, Option<String>) = if cfg!(x86_64) {
+            (Arch::Amd64, None)
+        } else if cfg!(aarch64) {
+            (Arch::ARM64, Some("v8".to_string()))
         } else {
+            // FIXME Support other CPU
             unreachable!()
         };
         let os = if cfg!(linux) {
             Os::Linux
+        } else if cfg!(windows) {
+            Os::Windows
         } else {
+            // FIXME Support other OS
             unreachable!()
         };
-        Target {
-            arch,
-            os,
-            os_version: None,
-            os_feature: None,
-            variant: None,
+        let mut builder = PlatformBuilder::default().os(os).architecture(arch);
+        if let Some(variant) = variant {
+            builder = builder.variant(variant);
         }
+        builder.build().unwrap()
+    }
+
+    fn from_target_triple() -> anyhow::Result<Self> {
+        todo!()
     }
 }
