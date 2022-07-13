@@ -5,7 +5,10 @@ use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
 use std::{collections::HashMap, convert::TryFrom, fs, io, path::Path, time::SystemTime};
 
-use crate::{Digest, ImageName};
+use crate::{
+    digest::{Digest, DigestBuf},
+    ImageName,
+};
 
 /// Build a container in oci-archive format based
 /// on the [OCI image spec](https://github.com/opencontainers/image-spec)
@@ -14,6 +17,7 @@ pub struct Builder<W: io::Write> {
     builder: Option<tar::Builder<W>>,
     name: Option<ImageName>,
     config: Option<Descriptor>,
+    diff_ids: Vec<Digest>,
     layers: Vec<Descriptor>,
 }
 
@@ -23,6 +27,7 @@ impl<W: io::Write> Builder<W> {
             builder: Some(tar::Builder::new(writer)),
             name: None,
             config: None,
+            diff_ids: Vec::new(),
             layers: Vec::new(),
         }
     }
@@ -52,10 +57,12 @@ impl<W: io::Write> Builder<W> {
         }
     }
 
-    /// Append a files as a layer
+    /// Append a files as a layer, return layer's DiffID
     pub fn append_files(&mut self, ps: &[impl AsRef<Path>]) -> anyhow::Result<()> {
-        let encoder = GzEncoder::new(Vec::new(), Compression::default());
-        let mut ar = tar::Builder::new(encoder);
+        let mut ar = tar::Builder::new(DigestBuf::new(GzEncoder::new(
+            Vec::new(),
+            Compression::default(),
+        )));
         for path in ps {
             let path = path.as_ref();
             if !path.is_file() {
@@ -70,9 +77,12 @@ impl<W: io::Write> Builder<W> {
             ar.append_file(name, &mut f)
                 .context("Error while reading input directory")?;
         }
-        let buf = ar
+        let (gz, digest) = ar
             .into_inner()
             .expect("This never fails since tar arhive is creating on memory")
+            .finish();
+        self.diff_ids.push(digest);
+        let buf = gz
             .finish()
             .expect("This never fails since zip is creating on memory");
         let layer_desc = self.save_blob(MediaType::ImageLayerGzip, &buf)?;
@@ -80,18 +90,23 @@ impl<W: io::Write> Builder<W> {
         Ok(())
     }
 
-    /// Append directory as a layer
+    /// Append directory as a layer, return layer's DiffID
     pub fn append_dir_all(&mut self, path: &Path) -> anyhow::Result<()> {
         if !path.is_dir() {
             bail!("Not a directory, or not exist: {}", path.display());
         }
-        let encoder = GzEncoder::new(Vec::new(), Compression::default());
-        let mut ar = tar::Builder::new(encoder);
+        let mut ar = tar::Builder::new(DigestBuf::new(GzEncoder::new(
+            Vec::new(),
+            Compression::default(),
+        )));
         ar.append_dir_all("", path)
             .context("Error while reading input directory")?;
-        let buf = ar
+        let (gz, digest) = ar
             .into_inner()
             .expect("This never fails since tar arhive is creating on memory")
+            .finish();
+        self.diff_ids.push(digest);
+        let buf = gz
             .finish()
             .expect("This never fails since zip is creating on memory");
         let layer_desc = self.save_blob(MediaType::ImageLayerGzip, &buf)?;
@@ -105,13 +120,13 @@ impl<W: io::Write> Builder<W> {
     }
 
     fn finish(&mut self) -> anyhow::Result<()> {
+        let cfg = self
+            .config
+            .take()
+            .context("ImageConfiguration is not set")?;
         let image_manifest = ImageManifestBuilder::default()
             .schema_version(SCHEMA_VERSION)
-            .config(
-                self.config
-                    .take()
-                    .context("ImageConfiguration is not set")?,
-            )
+            .config(cfg)
             .layers(std::mem::take(&mut self.layers))
             .build()?;
         let mut buf = Vec::new();
