@@ -1,12 +1,19 @@
 use oci_spec::image::*;
 
+/// Extension of [Platform]
 pub trait PlatformEx: Sized {
-    fn from_cargo_cfg() -> Self;
+    /// Create [Platform] using [std::cfg] macro
+    fn from_cfg_macro() -> Self;
+
+    /// Create [Platform] from target-triple.
+    ///
+    /// This does not support unnormalized target triple which LLVM may accept,
+    /// e.g. `x86_64`, `x86_64-linux`, and so on.
     fn from_target_triple(target_triple: &str) -> anyhow::Result<Self>;
 }
 
 impl PlatformEx for Platform {
-    fn from_cargo_cfg() -> Self {
+    fn from_cfg_macro() -> Self {
         let (arch, variant): (Arch, Option<String>) = if cfg!(target_arch = "x86_64") {
             (Arch::Amd64, None)
         } else if cfg!(target_arch = "i686") {
@@ -66,7 +73,7 @@ mod test {
     #[test]
     #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
     fn from_cargo_cfg() {
-        let platform = Platform::from_cargo_cfg();
+        let platform = Platform::from_cfg_macro();
         assert_eq!(platform.architecture(), &Arch::Amd64);
         assert_eq!(platform.os(), &Os::Linux);
     }

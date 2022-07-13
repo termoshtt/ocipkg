@@ -1,9 +1,9 @@
 mod annotations;
-mod image_configuration;
+mod platform;
 mod read;
 mod write;
 
 pub use annotations::*;
-pub use image_configuration::*;
+pub use platform::*;
 pub use read::*;
 pub use write::*;
