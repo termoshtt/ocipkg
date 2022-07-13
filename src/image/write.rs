@@ -16,7 +16,9 @@ pub struct Builder<W: io::Write> {
     /// Include a flag to check if finished
     builder: Option<tar::Builder<W>>,
     name: Option<ImageName>,
-    config: Option<Descriptor>,
+    created: Option<String>,
+    author: Option<String>,
+    platform: Option<Platform>,
     diff_ids: Vec<Digest>,
     layers: Vec<Descriptor>,
 }
@@ -26,35 +28,33 @@ impl<W: io::Write> Builder<W> {
         Builder {
             builder: Some(tar::Builder::new(writer)),
             name: None,
-            config: None,
+            created: None,
+            author: None,
+            platform: None,
             diff_ids: Vec::new(),
             layers: Vec::new(),
         }
     }
 
     /// Set name of container, used in `org.opencontainers.image.ref.name` tag.
-    ///
-    /// If not set, a random name using UUID v4 hyphenated is set.
-    pub fn set_name(&mut self, name: &ImageName) -> anyhow::Result<()> {
-        if self.name.replace(name.clone()).is_some() {
-            bail!("Name is set twice.");
-        }
-        Ok(())
+    pub fn set_name(&mut self, name: &ImageName) {
+        self.name = Some(name.clone());
     }
 
-    fn get_name(&self) -> ImageName {
-        self.name.clone().unwrap_or_default()
+    /// Set name of container, used in `org.opencontainers.image.ref.name` tag.
+    pub fn set_created_time(&mut self, created: &str) {
+        self.created = Some(created.to_string());
     }
 
-    pub fn append_config(&mut self, cfg: ImageConfiguration) -> anyhow::Result<()> {
-        let mut buf = Vec::new();
-        cfg.to_writer(&mut buf)?;
-        let config_desc = self.save_blob(MediaType::ImageConfig, &buf)?;
-        if self.config.replace(config_desc).is_some() {
-            bail!("ImageConfiguration is set twice.")
-        } else {
-            Ok(())
-        }
+    /// Set the name and/or email address of the person
+    /// or entity which created and is responsible for maintaining the image.
+    pub fn set_author(&mut self, author: &str) {
+        self.author = Some(author.to_string());
+    }
+
+    /// Set platform consists of architecture and OS info
+    pub fn set_platform(&mut self, platform: &Platform) {
+        self.platform = Some(platform.clone());
     }
 
     /// Append a files as a layer, return layer's DiffID
@@ -119,14 +119,28 @@ impl<W: io::Write> Builder<W> {
         Ok(self.builder.take().unwrap().into_inner()?)
     }
 
+    fn create_config(&self) -> ImageConfiguration {
+        let mut builder = ImageConfigurationBuilder::default();
+        // TODO created
+        if let Some(ref author) = self.author {
+            builder = builder.author(author);
+        }
+        if let Some(ref platform) = self.platform {
+            builder = builder.os(platform.os().clone());
+            builder = builder.architecture(platform.architecture().clone());
+        }
+        builder.build().unwrap()
+    }
+
     fn finish(&mut self) -> anyhow::Result<()> {
-        let cfg = self
-            .config
-            .take()
-            .context("ImageConfiguration is not set")?;
+        let cfg = self.create_config();
+        let mut buf = Vec::new();
+        cfg.to_writer(&mut buf)?;
+        let cfg_desc = self.save_blob(MediaType::ImageConfig, &buf)?;
+
         let image_manifest = ImageManifestBuilder::default()
             .schema_version(SCHEMA_VERSION)
-            .config(cfg)
+            .config(cfg_desc)
             .layers(std::mem::take(&mut self.layers))
             .build()?;
         let mut buf = Vec::new();
@@ -134,7 +148,7 @@ impl<W: io::Write> Builder<W> {
         let mut image_manifest_desc = self.save_blob(MediaType::ImageManifest, &buf)?;
         image_manifest_desc.set_annotations(Some(HashMap::from([(
             "org.opencontainers.image.ref.name".to_string(),
-            self.get_name().to_string(),
+            self.name.clone().unwrap_or_default().to_string(),
         )])));
 
         let index = ImageIndexBuilder::default()
