@@ -17,6 +17,8 @@ pub enum Error {
     InvalidReference(String),
     #[error(transparent)]
     InvalidUrl(#[from] url::ParseError),
+    #[error("Invalid target-triple: {0}")]
+    InvalidTargetTriple(String),
     #[error("Not a file, or not exist: {0}")]
     NotAFile(PathBuf),
     #[error("Not a directory, or not exist: {0}")]
