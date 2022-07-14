@@ -1,6 +1,6 @@
 use regex::Regex;
 use sha2::{Digest as _, Sha256};
-use std::{fmt, path::PathBuf};
+use std::{fmt, io, path::PathBuf};
 
 /// Digest of contents
 ///
@@ -62,5 +62,43 @@ impl Digest {
             algorithm: "sha256".to_string(),
             encoded: digest,
         }
+    }
+}
+
+/// Wrapper for calculating hash
+pub struct DigestBuf<W: io::Write> {
+    inner: W,
+    hasher: Sha256,
+}
+
+impl<W: io::Write> DigestBuf<W> {
+    pub fn new(inner: W) -> Self {
+        DigestBuf {
+            inner,
+            hasher: Sha256::new(),
+        }
+    }
+
+    pub fn finish(self) -> (W, Digest) {
+        let hash = self.hasher.finalize();
+        let digest = base16ct::lower::encode_string(&hash);
+        (
+            self.inner,
+            Digest {
+                algorithm: "sha256".to_string(),
+                encoded: digest,
+            },
+        )
+    }
+}
+
+impl<W: io::Write> io::Write for DigestBuf<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.hasher.update(buf);
+        self.inner.write(buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
     }
 }
