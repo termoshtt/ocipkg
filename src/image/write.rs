@@ -1,9 +1,10 @@
 //! Compose directory as a container tar
 
 use anyhow::{bail, Context};
+use chrono::{DateTime, Utc};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
-use std::{collections::HashMap, convert::TryFrom, fs, io, path::Path, time::SystemTime};
+use std::{collections::HashMap, convert::TryFrom, fs, io, path::Path};
 
 use crate::{
     digest::{Digest, DigestBuf},
@@ -16,7 +17,7 @@ pub struct Builder<W: io::Write> {
     /// Include a flag to check if finished
     builder: Option<tar::Builder<W>>,
     name: Option<ImageName>,
-    created: Option<String>,
+    created: Option<DateTime<Utc>>,
     author: Option<String>,
     platform: Option<Platform>,
     diff_ids: Vec<Digest>,
@@ -41,9 +42,9 @@ impl<W: io::Write> Builder<W> {
         self.name = Some(name.clone());
     }
 
-    /// Set name of container, used in `org.opencontainers.image.ref.name` tag.
-    pub fn set_created_time(&mut self, created: &str) {
-        self.created = Some(created.to_string());
+    /// Set created date time in UTC
+    pub fn set_created(&mut self, created: DateTime<Utc>) {
+        self.created = Some(created);
     }
 
     /// Set the name and/or email address of the person
@@ -121,7 +122,8 @@ impl<W: io::Write> Builder<W> {
 
     fn create_config(&self) -> ImageConfiguration {
         let mut builder = ImageConfigurationBuilder::default();
-        // TODO created
+        let created = self.created.clone().unwrap_or(Utc::now());
+        builder = builder.created(created.to_rfc3339());
         if let Some(ref author) = self.author {
             builder = builder.author(author);
         }
@@ -129,6 +131,17 @@ impl<W: io::Write> Builder<W> {
             builder = builder.os(platform.os().clone());
             builder = builder.architecture(platform.architecture().clone());
         }
+        let rootfs = RootFsBuilder::default()
+            .typ("layers".to_string())
+            .diff_ids(
+                self.diff_ids
+                    .iter()
+                    .map(|digest| digest.to_string())
+                    .collect::<Vec<_>>(),
+            )
+            .build()
+            .unwrap();
+        builder = builder.rootfs(rootfs);
         builder.build().unwrap()
     }
 
@@ -208,18 +221,11 @@ impl<W: io::Write> Drop for Builder<W> {
     }
 }
 
-fn now_mtime() -> u64 {
-    match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(n) => n.as_secs(),
-        Err(_) => panic!("SystemTime before UNIX EPOCH!"),
-    }
-}
-
 fn create_header(size: usize) -> tar::Header {
     let mut header = tar::Header::new_gnu();
     header.set_size(u64::try_from(size).unwrap());
     header.set_cksum();
     header.set_mode(0b110100100); // rw-r--r--
-    header.set_mtime(now_mtime());
+    header.set_mtime(Utc::now().timestamp() as u64);
     header
 }
