@@ -1,11 +1,15 @@
 //! Compose directory as a container tar
 
-use anyhow::Context;
+use chrono::{DateTime, Utc};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
-use std::{collections::HashMap, convert::TryFrom, fs, io, path::Path, time::SystemTime};
+use std::{collections::HashMap, convert::TryFrom, fs, io, path::Path};
 
-use crate::{error::*, Digest, ImageName};
+use crate::{
+    digest::{Digest, DigestBuf},
+    error::*,
+    ImageName,
+};
 
 /// Build a container in oci-archive format based
 /// on the [OCI image spec](https://github.com/opencontainers/image-spec)
@@ -13,7 +17,10 @@ pub struct Builder<W: io::Write> {
     /// Include a flag to check if finished
     builder: Option<tar::Builder<W>>,
     name: Option<ImageName>,
-    config: Option<Descriptor>,
+    created: Option<DateTime<Utc>>,
+    author: Option<String>,
+    platform: Option<Platform>,
+    diff_ids: Vec<Digest>,
     layers: Vec<Descriptor>,
 }
 
@@ -22,7 +29,10 @@ impl<W: io::Write> Builder<W> {
         Builder {
             builder: Some(tar::Builder::new(writer)),
             name: None,
-            config: None,
+            created: None,
+            author: None,
+            platform: None,
+            diff_ids: Vec::new(),
             layers: Vec::new(),
         }
     }
@@ -31,25 +41,31 @@ impl<W: io::Write> Builder<W> {
     ///
     /// If not set, a random name using UUID v4 hyphenated is set.
     pub fn set_name(&mut self, name: &ImageName) {
-        self.name.replace(name.clone());
+        self.name = Some(name.clone());
     }
 
-    fn get_name(&self) -> ImageName {
-        self.name.clone().unwrap_or_default()
+    /// Set created date time in UTC
+    pub fn set_created(&mut self, created: DateTime<Utc>) {
+        self.created = Some(created);
     }
 
-    pub fn append_config(&mut self, cfg: ImageConfiguration) -> Result<()> {
-        let mut buf = Vec::new();
-        cfg.to_writer(&mut buf)?;
-        let config_desc = self.save_blob(MediaType::ImageConfig, &buf)?;
-        self.config.replace(config_desc);
-        Ok(())
+    /// Set the name and/or email address of the person
+    /// or entity which created and is responsible for maintaining the image.
+    pub fn set_author(&mut self, author: &str) {
+        self.author = Some(author.to_string());
+    }
+
+    /// Set platform consists of architecture and OS info
+    pub fn set_platform(&mut self, platform: &Platform) {
+        self.platform = Some(platform.clone());
     }
 
     /// Append a files as a layer
     pub fn append_files(&mut self, ps: &[impl AsRef<Path>]) -> Result<()> {
-        let encoder = GzEncoder::new(Vec::new(), Compression::default());
-        let mut ar = tar::Builder::new(encoder);
+        let mut ar = tar::Builder::new(DigestBuf::new(GzEncoder::new(
+            Vec::new(),
+            Compression::default(),
+        )));
         for path in ps {
             let path = path.as_ref();
             if !path.is_file() {
@@ -63,9 +79,12 @@ impl<W: io::Write> Builder<W> {
             let mut f = fs::File::open(path)?;
             ar.append_file(name, &mut f)?;
         }
-        let buf = ar
+        let (gz, digest) = ar
             .into_inner()
             .expect("This never fails since tar arhive is creating on memory")
+            .finish();
+        self.diff_ids.push(digest);
+        let buf = gz
             .finish()
             .expect("This never fails since zip is creating on memory");
         let layer_desc = self.save_blob(MediaType::ImageLayerGzip, &buf)?;
@@ -78,12 +97,17 @@ impl<W: io::Write> Builder<W> {
         if !path.is_dir() {
             return Err(Error::NotADirectory(path.to_owned()));
         }
-        let encoder = GzEncoder::new(Vec::new(), Compression::default());
-        let mut ar = tar::Builder::new(encoder);
+        let mut ar = tar::Builder::new(DigestBuf::new(GzEncoder::new(
+            Vec::new(),
+            Compression::default(),
+        )));
         ar.append_dir_all("", path)?;
-        let buf = ar
+        let (gz, digest) = ar
             .into_inner()
             .expect("This never fails since tar arhive is creating on memory")
+            .finish();
+        self.diff_ids.push(digest);
+        let buf = gz
             .finish()
             .expect("This never fails since zip is creating on memory");
         let layer_desc = self.save_blob(MediaType::ImageLayerGzip, &buf)?;
@@ -96,14 +120,40 @@ impl<W: io::Write> Builder<W> {
         Ok(self.builder.take().unwrap().into_inner()?)
     }
 
+    fn create_config(&self) -> ImageConfiguration {
+        let mut builder = ImageConfigurationBuilder::default();
+        let created = self.created.unwrap_or_else(Utc::now);
+        builder = builder.created(created.to_rfc3339());
+        if let Some(ref author) = self.author {
+            builder = builder.author(author);
+        }
+        if let Some(ref platform) = self.platform {
+            builder = builder.os(platform.os().clone());
+            builder = builder.architecture(platform.architecture().clone());
+        }
+        let rootfs = RootFsBuilder::default()
+            .typ("layers".to_string())
+            .diff_ids(
+                self.diff_ids
+                    .iter()
+                    .map(|digest| digest.to_string())
+                    .collect::<Vec<_>>(),
+            )
+            .build()
+            .unwrap();
+        builder = builder.rootfs(rootfs);
+        builder.build().unwrap()
+    }
+
     fn finish(&mut self) -> anyhow::Result<()> {
+        let cfg = self.create_config();
+        let mut buf = Vec::new();
+        cfg.to_writer(&mut buf)?;
+        let cfg_desc = self.save_blob(MediaType::ImageConfig, &buf)?;
+
         let image_manifest = ImageManifestBuilder::default()
             .schema_version(SCHEMA_VERSION)
-            .config(
-                self.config
-                    .take()
-                    .context("ImageConfiguration is not set")?,
-            )
+            .config(cfg_desc)
             .layers(std::mem::take(&mut self.layers))
             .build()?;
         let mut buf = Vec::new();
@@ -111,7 +161,7 @@ impl<W: io::Write> Builder<W> {
         let mut image_manifest_desc = self.save_blob(MediaType::ImageManifest, &buf)?;
         image_manifest_desc.set_annotations(Some(HashMap::from([(
             "org.opencontainers.image.ref.name".to_string(),
-            self.get_name().to_string(),
+            self.name.clone().unwrap_or_default().to_string(),
         )])));
 
         let index = ImageIndexBuilder::default()
@@ -169,18 +219,11 @@ impl<W: io::Write> Drop for Builder<W> {
     }
 }
 
-fn now_mtime() -> u64 {
-    match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(n) => n.as_secs(),
-        Err(_) => panic!("SystemTime before UNIX EPOCH!"),
-    }
-}
-
 fn create_header(size: usize) -> tar::Header {
     let mut header = tar::Header::new_gnu();
     header.set_size(u64::try_from(size).unwrap());
     header.set_cksum();
     header.set_mode(0b110100100); // rw-r--r--
-    header.set_mtime(now_mtime());
+    header.set_mtime(Utc::now().timestamp() as u64);
     header
 }

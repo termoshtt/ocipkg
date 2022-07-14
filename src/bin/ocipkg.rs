@@ -63,8 +63,6 @@ async fn main() -> anyhow::Result<()> {
             if let Some(name) = tag {
                 b.set_name(&ocipkg::ImageName::parse(&name)?);
             }
-            let cfg = oci_spec::image::ImageConfigurationBuilder::default().build()?;
-            b.append_config(cfg)?;
             b.append_dir_all(&input_directory)?;
             let _output = b.into_inner()?;
         }
