@@ -35,6 +35,14 @@ pub enum Error {
     InvalidJson(#[from] serde_json::error::Error),
 
     //
+    // Error from OCI registry
+    //
+    #[error(transparent)]
+    NetworkError(#[from] reqwest::Error),
+    #[error(transparent)]
+    RegistryError(#[from] oci_spec::distribution::ErrorResponse),
+
+    //
     // System error
     //
     #[error("No valid home directory path could be retrieved from the operating system.")]

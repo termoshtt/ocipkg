@@ -1,10 +1,8 @@
-use anyhow::Context;
 use bytes::Bytes;
 use oci_spec::{distribution::*, image::*};
-use serde::Deserialize;
 use url::Url;
 
-use crate::{distribution::*, Digest};
+use crate::{distribution::*, error::*, Digest};
 
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client {
@@ -15,15 +13,8 @@ pub struct Client {
     name: Name,
 }
 
-/// Response of `/v2/<name>/tags/list`
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-struct TagList {
-    name: String,
-    tags: Vec<String>,
-}
-
 impl Client {
-    pub fn new(url: &Url, name: &str) -> anyhow::Result<Self> {
+    pub fn new(url: &Url, name: &str) -> Result<Self> {
         let client = reqwest::Client::new();
         let name = Name::new(name)?;
         Ok(Client {
@@ -40,18 +31,22 @@ impl Client {
     /// ```
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#content-discovery) for detail.
-    pub async fn get_tags(&self) -> anyhow::Result<Vec<String>> {
-        let tag_list = self
+    pub async fn get_tags(&self) -> Result<Vec<String>> {
+        let res = self
             .client
             .get(
                 self.url
                     .join(&format!("/v2/{}/tags/list", self.name.as_str()))?,
             )
             .send()
-            .await?
-            .json::<TagList>()
             .await?;
-        Ok(tag_list.tags)
+        if res.status().is_success() {
+            let tag_list = res.json::<TagList>().await?;
+            Ok(tag_list.tags().to_vec())
+        } else {
+            let err = res.json::<ErrorResponse>().await?;
+            Err(Error::RegistryError(err))
+        }
     }
 
     /// Get manifest for given repository
@@ -61,22 +56,31 @@ impl Client {
     /// ```
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests) for detail.
-    pub async fn get_manifest(&self, reference: &str) -> anyhow::Result<ImageManifest> {
+    pub async fn get_manifest(&self, reference: &str) -> Result<ImageManifest> {
         let reference = Reference::new(reference)?;
-        let manifest = self
+        let res = self
             .client
             .get(self.url.join(&format!(
                 "/v2/{}/manifests/{}",
                 self.name.as_str(),
                 reference.as_str()
             ))?)
-            .header("Accept", MediaType::ImageManifest.to_docker_v2s2()?)
+            .header(
+                "Accept",
+                MediaType::ImageManifest
+                    .to_docker_v2s2()
+                    .expect("Never fails since ImageManifest is supported"),
+            )
             .send()
-            .await?
-            .text()
             .await?;
-        let manifest = ImageManifest::from_reader(manifest.as_bytes())?;
-        Ok(manifest)
+        if res.status().is_success() {
+            let manifest = res.text().await?;
+            let manifest = ImageManifest::from_reader(manifest.as_bytes())?;
+            Ok(manifest)
+        } else {
+            let err = res.json::<ErrorResponse>().await?;
+            Err(Error::RegistryError(err))
+        }
     }
 
     /// Push manifest to registry
@@ -88,11 +92,7 @@ impl Client {
     /// Manifest must be pushed after blobs are updated.
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests) for detail.
-    pub async fn push_manifest(
-        &self,
-        reference: &str,
-        manifest: &ImageManifest,
-    ) -> anyhow::Result<Url> {
+    pub async fn push_manifest(&self, reference: &str, manifest: &ImageManifest) -> Result<Url> {
         let reference = Reference::new(reference)?;
         let mut buf = Vec::new();
         manifest.to_writer(&mut buf)?;
@@ -117,19 +117,23 @@ impl Client {
     /// ```
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs) for detail.
-    pub async fn get_blob(&self, digest: &str) -> anyhow::Result<Bytes> {
+    pub async fn get_blob(&self, digest: &str) -> Result<Bytes> {
         let digest = Digest::new(digest)?;
-        let blob = self
+        let res = self
             .client
             .get(
                 self.url
                     .join(&format!("/v2/{}/blobs/{}", self.name.as_str(), digest,))?,
             )
             .send()
-            .await?
-            .bytes()
             .await?;
-        Ok(blob)
+        if res.status().is_success() {
+            let blob = res.bytes().await?;
+            Ok(blob)
+        } else {
+            let err = res.json::<ErrorResponse>().await?;
+            Err(Error::RegistryError(err))
+        }
     }
 
     /// Push blob to registry
@@ -141,7 +145,7 @@ impl Client {
     /// and following `PUT` to URL obtained by `POST`.
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests) for detail.
-    pub async fn push_blob(&self, blob: &[u8]) -> anyhow::Result<Url> {
+    pub async fn push_blob(&self, blob: &[u8]) -> Result<Url> {
         let res = self
             .client
             .post(
@@ -150,9 +154,7 @@ impl Client {
             )
             .send()
             .await?;
-        let url = response_with_location(res)
-            .await
-            .context("POST /v2/<name>/blobs/uploads/ failed")?;
+        let url = response_with_location(res).await?;
 
         let digest = Digest::from_buf_sha256(blob);
         let res = self
@@ -164,24 +166,26 @@ impl Client {
             .body(blob.to_vec())
             .send()
             .await?;
-        let url = response_with_location(res)
-            .await
-            .with_context(|| format!("PUT to {} failed", url))?;
+        let url = response_with_location(res).await?;
         Ok(url)
     }
 }
 
 // Most of API returns `Location: <location>`
-async fn response_with_location(res: reqwest::Response) -> anyhow::Result<Url> {
+async fn response_with_location(res: reqwest::Response) -> Result<Url> {
     if res.status().is_success() {
         let location = res
             .headers()
             .get("Location")
-            .context("Location not included in response")?;
-        Ok(Url::parse(location.to_str()?)?)
+            .expect("Location header is lacked, invalid response of OCI registry");
+        Ok(Url::parse(
+            location
+                .to_str()
+                .expect("Invalid charactor in OCI registry response"),
+        )?)
     } else {
         let err = res.json::<ErrorResponse>().await?;
-        Err(anyhow::Error::new(err))
+        Err(Error::RegistryError(err))
     }
 }
 
@@ -201,7 +205,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn get_tags() -> anyhow::Result<()> {
+    async fn get_tags() -> Result<()> {
         let client = Client::new(&test_url(), TEST_REPO)?;
         let mut tags = client.get_tags().await?;
         tags.sort_unstable();
@@ -214,7 +218,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn get_images() -> anyhow::Result<()> {
+    async fn get_images() -> Result<()> {
         let client = Client::new(&test_url(), TEST_REPO)?;
         for tag in ["tag1", "tag2", "tag3"] {
             let manifest = client.get_manifest(tag).await?;
@@ -228,7 +232,7 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
-    async fn push_blob() -> anyhow::Result<()> {
+    async fn push_blob() -> Result<()> {
         let client = Client::new(&test_url(), TEST_REPO)?;
         let url = client.push_blob("test string".as_bytes()).await?;
         dbg!(url);
