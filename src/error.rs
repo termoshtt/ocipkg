@@ -33,6 +33,8 @@ pub enum Error {
     MissingIndex,
     #[error("index.json does not have image name in manifest annotation")]
     MissingManifestName,
+    #[error("No layer found in manifest")]
+    MissingLayer,
     #[error(transparent)]
     InvalidJson(#[from] serde_json::error::Error),
 
