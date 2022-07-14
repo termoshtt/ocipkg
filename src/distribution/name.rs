@@ -1,3 +1,4 @@
+use crate::error::*;
 use derive_more::Deref;
 use regex::Regex;
 use std::fmt;
@@ -28,11 +29,11 @@ impl Name {
         &self.0
     }
 
-    pub fn new(name: &str) -> anyhow::Result<Self> {
+    pub fn new(name: &str) -> Result<Self> {
         if NAME_RE.is_match(name) {
             Ok(Name(name.to_string()))
         } else {
-            anyhow::bail!("Invalid name for repository: {}", name);
+            Err(Error::InvalidName(name.to_string()))
         }
     }
 }

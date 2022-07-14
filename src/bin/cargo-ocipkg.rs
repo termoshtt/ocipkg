@@ -1,7 +1,6 @@
-use anyhow::{bail, Context};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
-use clap::*;
-use ocipkg::ImageName;
+use clap::{Parser, Subcommand};
+use ocipkg::{error::*, ImageName};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -30,35 +29,35 @@ enum Ocipkg {
     },
 }
 
-fn get_metadata() -> anyhow::Result<Metadata> {
+fn get_metadata() -> Metadata {
     let mut args = std::env::args().skip_while(|val| !val.starts_with("--manifest-path"));
     let mut cmd = MetadataCommand::new();
     match args.next() {
         Some(ref p) if p == "--manifest-path" => {
-            cmd.manifest_path(args.next().context("Manifest path not found")?);
+            cmd.manifest_path(args.next().expect("Manifest path not found"));
         }
         Some(p) => {
             cmd.manifest_path(p.trim_start_matches("--manifest-path="));
         }
         None => {}
     };
-    let metadata = cmd.exec()?;
-    Ok(metadata)
+
+    cmd.exec().expect("cargo metadata command failed")
 }
 
 /// `-p`|`--package-name` option has higher priority than current directory
-fn get_package(metadata: &Metadata, package_name: Option<String>) -> anyhow::Result<Package> {
+fn get_package(metadata: &Metadata, package_name: Option<String>) -> Package {
     if let Some(name) = package_name {
         for pkg in metadata.workspace_packages() {
             if pkg.name == name {
-                return Ok(pkg.clone());
+                return pkg.clone();
             }
         }
     }
     if let Some(pkg) = metadata.root_package() {
-        return Ok(pkg.clone());
+        return pkg.clone();
     }
-    bail!("Target package is not specified.")
+    panic!("Target package is not specified.")
 }
 
 fn get_build_dir(metadata: &Metadata, release: bool) -> PathBuf {
@@ -70,60 +69,68 @@ fn get_build_dir(metadata: &Metadata, release: bool) -> PathBuf {
     }
 }
 
-fn get_revision(manifest_path: &Path) -> anyhow::Result<String> {
-    let repo = git2::Repository::discover(manifest_path)?;
+fn get_revision(manifest_path: &Path) -> String {
+    let repo = git2::Repository::discover(manifest_path).expect("Git repository not found");
     // This means repository is not in rebase or merge process,
     // do not means "not dirty"
     if repo.state() != git2::RepositoryState::Clean {
-        bail!("Git repository is not clean.")
+        panic!("Git repository is not clean: {}", manifest_path.display())
     }
-    let rev = repo.revparse_single("HEAD")?;
-    Ok(rev.id().to_string())
+    let rev = repo
+        .revparse_single("HEAD")
+        .expect("git rev-parse returns unexptected value");
+    rev.id().to_string()
 }
 
-fn generate_image_name(package: &Package) -> anyhow::Result<ImageName> {
+fn generate_image_name(package: &Package) -> ImageName {
     use serde_json::Value;
     match &package.metadata {
         Value::Object(obj) => {
             match obj
                 .get("ocipkg")
-                .context("`package.metadata.ocipkg` is missing")?
+                .expect("`package.metadata.ocipkg` is missing")
             {
                 Value::Object(obj) => {
                     if let Value::String(ref registry) = obj
                         .get("registry")
-                        .context("`package.metadata.ocipkg` does not have `registry`")?
+                        .expect("`package.metadata.ocipkg` does not have `registry`")
                     {
-                        let rev = get_revision(package.manifest_path.as_std_path())?;
-                        let image_name = ImageName::parse(&format!("{}:{}", registry, rev))?;
-                        Ok(image_name)
+                        let rev = get_revision(package.manifest_path.as_std_path());
+
+                        ImageName::parse(&format!("{}:{}", registry, rev))
+                            .expect("Invalud registry URL")
                     } else {
-                        bail!("`package.metadata.ocipkg.registry` must be a string")
+                        panic!("`package.metadata.ocipkg.registry` must be a string")
                     }
                 }
-                _ => bail!("`package.metadata.ocipkg` must be a map"),
+                _ => panic!("`package.metadata.ocipkg` must be a map"),
             }
         }
         _ => {
-            bail!("`package.metadata.ocipkg` in Cargo.toml is required to generate container name")
+            panic!("`package.metadata.ocipkg` in Cargo.toml is required to generate container name")
         }
     }
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<()> {
+    env_logger::Builder::new()
+        .filter_level(log::LevelFilter::Info)
+        .parse_default_env()
+        .init();
+
     match Opt::from_args() {
         Opt::Ocipkg(Ocipkg::Build {
             package_name,
             release,
             tag,
         }) => {
-            let metadata = get_metadata()?;
-            let package = get_package(&metadata, package_name)?;
+            let metadata = get_metadata();
+            let package = get_package(&metadata, package_name);
             let build_dir = get_build_dir(&metadata, release);
             let image_name = if let Some(ref tag) = tag {
                 ImageName::parse(tag)?
             } else {
-                generate_image_name(&package)?
+                generate_image_name(&package)
             };
 
             let mut cmd = Command::new("cargo");
@@ -154,7 +161,7 @@ fn main() -> anyhow::Result<()> {
                 }
 
                 if targets.is_empty() {
-                    bail!("No target exists for packing. Only staticlib or cdylib are suppoted.");
+                    panic!("No target exists for packing. Only staticlib or cdylib are suppoted.");
                 }
 
                 let dest = build_dir.join(format!("{}.tar", target.name));

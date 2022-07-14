@@ -1,3 +1,4 @@
+use crate::error::*;
 use oci_spec::image::*;
 
 /// Extension of [Platform]
@@ -9,7 +10,7 @@ pub trait PlatformEx: Sized {
     ///
     /// This does not support unnormalized target triple which LLVM may accept,
     /// e.g. `x86_64`, `x86_64-linux`, and so on.
-    fn from_target_triple(target_triple: &str) -> anyhow::Result<Self>;
+    fn from_target_triple(target_triple: &str) -> Result<Self>;
 }
 
 impl PlatformEx for Platform {
@@ -39,24 +40,24 @@ impl PlatformEx for Platform {
         builder.build().unwrap()
     }
 
-    fn from_target_triple(target_triple: &str) -> anyhow::Result<Self> {
+    fn from_target_triple(target_triple: &str) -> Result<Self> {
         let parts: Vec<&str> = target_triple.split('-').collect();
         let (arch, os) = match parts[..] {
             [arch, _vender, os, _env] => (arch, os),
             [arch, os, _env] => (arch, os),
-            _ => anyhow::bail!("Unknown target triple: {}", target_triple),
+            _ => return Err(Error::InvalidTargetTriple(target_triple.to_string())),
         };
         let (arch, variant) = match arch {
             "x86_64" => (Arch::Amd64, None),
             "i686" => (Arch::i386, None),
             "aarch64" => (Arch::ARM64, Some("v8".to_string())),
-            _ => anyhow::bail!("Unsupported arch: {}", arch),
+            _ => return Err(Error::InvalidTargetTriple(target_triple.to_string())),
         };
         let os = match os {
             "linux" => Os::Linux,
             "windows" => Os::Windows,
             "apple" => Os::Darwin,
-            _ => anyhow::bail!("Unsupported OS: {}", os),
+            _ => return Err(Error::InvalidTargetTriple(target_triple.to_string())),
         };
         let mut builder = PlatformBuilder::default().os(os).architecture(arch);
         if let Some(variant) = variant {

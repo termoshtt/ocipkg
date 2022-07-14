@@ -1,4 +1,7 @@
-use crate::distribution::{Name, Reference};
+use crate::{
+    distribution::{Name, Reference},
+    error::*,
+};
 use std::fmt;
 use url::Url;
 
@@ -42,7 +45,7 @@ use url::Url;
 ///         reference: Reference::new("latest")?,
 ///     }
 /// );
-/// # Ok::<(), anyhow::Error>(())
+/// # Ok::<(), ocipkg::error::Error>(())
 /// ```
 ///
 /// If a port number is included:
@@ -67,7 +70,7 @@ use url::Url;
 ///         reference: Reference::new("latest")?,
 ///     }
 /// );
-/// # Ok::<(), anyhow::Error>(())
+/// # Ok::<(), ocipkg::error::Error>(())
 /// ```
 ///
 /// Default values
@@ -86,7 +89,7 @@ use url::Url;
 ///         reference: Reference::new("20.04")?,
 ///     }
 /// );
-/// # Ok::<(), anyhow::Error>(())
+/// # Ok::<(), ocipkg::error::Error>(())
 /// ```
 ///
 /// If `reference` is absent, use `latest`:
@@ -103,7 +106,7 @@ use url::Url;
 ///         reference: Reference::new("latest")?,
 ///     }
 /// );
-/// # Ok::<(), anyhow::Error>(())
+/// # Ok::<(), ocipkg::error::Error>(())
 /// ```
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -136,7 +139,7 @@ impl Default for ImageName {
 }
 
 impl ImageName {
-    pub fn parse(name: &str) -> anyhow::Result<Self> {
+    pub fn parse(name: &str) -> Result<Self> {
         let (hostname, name) = name
             .split_once('/')
             .unwrap_or(("registry-1.docker.io", name));
@@ -155,7 +158,7 @@ impl ImageName {
     }
 
     /// URL for OCI distribution API endpoint
-    pub fn registry_url(&self) -> anyhow::Result<Url> {
+    pub fn registry_url(&self) -> Result<Url> {
         let hostname = if let Some(port) = self.port {
             format!("{}:{}", self.hostname, port)
         } else {

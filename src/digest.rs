@@ -1,3 +1,4 @@
+use crate::error::*;
 use regex::Regex;
 use sha2::{Digest as _, Sha256};
 use std::{fmt, io, path::PathBuf};
@@ -25,13 +26,13 @@ lazy_static::lazy_static! {
 }
 
 impl fmt::Display for Digest {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}", self.algorithm, self.encoded)
     }
 }
 
 impl Digest {
-    pub fn new(input: &str) -> anyhow::Result<Self> {
+    pub fn new(input: &str) -> Result<Self> {
         let mut iter = input.split(':');
         match (iter.next(), iter.next(), iter.next()) {
             (Some(algorithm), Some(encoded), None) => {
@@ -42,10 +43,10 @@ impl Digest {
                         encoded: encoded.to_string(),
                     })
                 } else {
-                    anyhow::bail!("Invalid digest: {}", input);
+                    Err(Error::InvalidDigest(input.to_string()))
                 }
             }
-            _ => anyhow::bail!("Invalid digest: {}", input),
+            _ => Err(Error::InvalidDigest(input.to_string())),
         }
     }
 

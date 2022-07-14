@@ -8,15 +8,14 @@ pub use client::Client;
 pub use name::Name;
 pub use reference::Reference;
 
-use crate::{Digest, ImageName};
-use anyhow::bail;
+use crate::{error::*, Digest, ImageName};
 use oci_spec::image::*;
 use std::{fs, io::Read, path::Path};
 
 /// Push image to registry
-pub async fn push_image(path: &Path) -> anyhow::Result<()> {
+pub async fn push_image(path: &Path) -> Result<()> {
     if !path.is_file() {
-        bail!("Not an oci-archive: {}", path.display())
+        return Err(Error::NotAFile(path.to_owned()));
     }
     let mut f = fs::File::open(&path)?;
     let mut ar = crate::image::Archive::new(&mut f);
@@ -42,7 +41,7 @@ pub async fn push_image(path: &Path) -> anyhow::Result<()> {
 }
 
 /// Get image from registry and save it into local storage
-pub async fn get_image(image_name: &ImageName) -> anyhow::Result<()> {
+pub async fn get_image(image_name: &ImageName) -> Result<()> {
     let ImageName {
         name, reference, ..
     } = image_name;
@@ -65,5 +64,5 @@ pub async fn get_image(image_name: &ImageName) -> anyhow::Result<()> {
         tar::Archive::new(buf).unpack(dest)?;
         return Ok(());
     }
-    anyhow::bail!("Layer not found")
+    Err(Error::MissingLayer)
 }

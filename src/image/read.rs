@@ -1,4 +1,4 @@
-use anyhow::Context;
+use crate::error::*;
 use oci_spec::image::*;
 use std::{
     fs,
@@ -22,7 +22,7 @@ impl<'buf, W: Read + Seek> Archive<'buf, W> {
         }
     }
 
-    pub fn entries(&mut self) -> anyhow::Result<tar::Entries<&'buf mut W>> {
+    pub fn entries(&mut self) -> Result<tar::Entries<&'buf mut W>> {
         let raw = self
             .archive
             .take()
@@ -37,21 +37,15 @@ impl<'buf, W: Read + Seek> Archive<'buf, W> {
             .entries_with_seek()?)
     }
 
-    pub fn get_manifests(&mut self) -> anyhow::Result<Vec<(ImageName, ImageManifest)>> {
+    pub fn get_manifests(&mut self) -> Result<Vec<(ImageName, ImageManifest)>> {
         let index = self.get_index()?;
         index
             .manifests()
             .iter()
             .map(|manifest| {
-                let annotations = Annotations::from_map(
-                    manifest
-                        .annotations()
-                        .as_ref()
-                        .context("annotations of manifest must exist")?,
-                );
-                let image_name = annotations
-                    .ref_name
-                    .context("index.json does not has image ref name")?;
+                let annotations =
+                    Annotations::from_map(&manifest.annotations().clone().unwrap_or_default());
+                let image_name = annotations.ref_name.ok_or(Error::MissingManifestName)?;
                 let image_name = ImageName::parse(&image_name)?;
                 let digest = Digest::new(manifest.digest())?;
                 let manifest = self.get_manifest(&digest)?;
@@ -60,7 +54,7 @@ impl<'buf, W: Read + Seek> Archive<'buf, W> {
             .collect()
     }
 
-    pub fn get_index(&mut self) -> anyhow::Result<ImageIndex> {
+    pub fn get_index(&mut self) -> Result<ImageIndex> {
         for entry in self.entries()? {
             let mut entry = entry?;
             if entry.path()?.as_os_str() == "index.json" {
@@ -69,30 +63,30 @@ impl<'buf, W: Read + Seek> Archive<'buf, W> {
                 return Ok(ImageIndex::from_reader(&*out)?);
             }
         }
-        anyhow::bail!("index.json not found")
+        Err(Error::MissingIndex)
     }
 
-    pub fn get_blob(&mut self, digest: &Digest) -> anyhow::Result<tar::Entry<&'buf mut W>> {
+    pub fn get_blob(&mut self, digest: &Digest) -> Result<tar::Entry<&'buf mut W>> {
         for entry in self.entries()? {
             let entry = entry?;
             if entry.path()? == digest.as_path() {
                 return Ok(entry);
             }
         }
-        anyhow::bail!("No blob found with digest: {}", digest)
+        Err(Error::UnknownDigest(digest.clone()))
     }
 
-    pub fn get_manifest(&mut self, digest: &Digest) -> anyhow::Result<ImageManifest> {
+    pub fn get_manifest(&mut self, digest: &Digest) -> Result<ImageManifest> {
         let entry = self.get_blob(digest)?;
         Ok(ImageManifest::from_reader(entry)?)
     }
 
-    pub fn get_config(&mut self, digest: &Digest) -> anyhow::Result<ImageConfiguration> {
+    pub fn get_config(&mut self, digest: &Digest) -> Result<ImageConfiguration> {
         let entry = self.get_blob(digest)?;
         Ok(ImageConfiguration::from_reader(entry)?)
     }
 
-    pub fn unpack_layer(&mut self, layer: &Descriptor, dest: &Path) -> anyhow::Result<()> {
+    pub fn unpack_layer(&mut self, layer: &Descriptor, dest: &Path) -> Result<()> {
         let digest = Digest::new(layer.digest())?;
         let blob = self.get_blob(&digest)?;
         match layer.media_type() {
@@ -101,23 +95,25 @@ impl<'buf, W: Read + Seek> Archive<'buf, W> {
                 tar::Archive::new(buf).unpack(dest)?;
                 Ok(())
             }
-            _ => anyhow::bail!("Unsupported layer type"),
+            _ => unimplemented!("Unsupported layer type"),
         }
     }
 }
 
 /// Load oci-archive into local storage
-pub fn load(input: &Path) -> anyhow::Result<()> {
-    if !input.exists() {
-        anyhow::bail!("Input file does not exist");
-    }
+pub fn load(input: &Path) -> Result<()> {
     let mut f = fs::File::open(input)?;
     let mut ar = Archive::new(&mut f);
     for (image_name, manifest) in ar.get_manifests()? {
         let dest = crate::config::image_dir(&image_name)?;
         if dest.exists() {
+            log::warn!(
+                "Local image aleady exists, skip loading: {}",
+                dest.display()
+            );
             continue;
         }
+        log::info!("Create local image: {}", dest.display());
         fs::create_dir_all(&dest)?;
         for layer in manifest.layers() {
             ar.unpack_layer(layer, &dest)?;
