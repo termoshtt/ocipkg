@@ -115,7 +115,7 @@ impl<W: io::Write> Builder<W> {
         Ok(())
     }
 
-    pub fn into_inner(mut self) -> anyhow::Result<W> {
+    pub fn into_inner(mut self) -> Result<W> {
         self.finish()?;
         Ok(self.builder.take().unwrap().into_inner()?)
     }
@@ -145,7 +145,7 @@ impl<W: io::Write> Builder<W> {
         builder.build().unwrap()
     }
 
-    fn finish(&mut self) -> anyhow::Result<()> {
+    fn finish(&mut self) -> Result<()> {
         let cfg = self.create_config();
         let mut buf = Vec::new();
         cfg.to_writer(&mut buf)?;
@@ -155,7 +155,8 @@ impl<W: io::Write> Builder<W> {
             .schema_version(SCHEMA_VERSION)
             .config(cfg_desc)
             .layers(std::mem::take(&mut self.layers))
-            .build()?;
+            .build()
+            .unwrap();
         let mut buf = Vec::new();
         image_manifest.to_writer(&mut buf)?;
         let mut image_manifest_desc = self.save_blob(MediaType::ImageManifest, &buf)?;
@@ -170,7 +171,7 @@ impl<W: io::Write> Builder<W> {
             .build()?;
         let mut index_json = Vec::new();
         index.to_writer(&mut index_json)?;
-        let index_json = String::from_utf8(index_json)?;
+        let index_json = String::from_utf8(index_json).expect("ImageIndex must returns valid JSON");
         self.save_file(Path::new("index.json"), &index_json)?;
 
         let version = r#"{"imageLayoutVersion":"1.0.0"}"#;
