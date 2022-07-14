@@ -1,4 +1,5 @@
 use clap::Parser;
+use ocipkg::error::*;
 use std::{fs, path::PathBuf};
 
 #[derive(Debug, Parser)]
@@ -41,7 +42,7 @@ enum Opt {
 }
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<()> {
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Info)
         .parse_default_env()
@@ -56,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
             let mut output = output;
             output.set_extension("tar");
             if output.exists() {
-                anyhow::bail!("Output already exists");
+                panic!("Output already exists: {}", output.display());
             }
             let f = fs::File::create(output)?;
             let mut b = ocipkg::image::Builder::new(f);
