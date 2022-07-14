@@ -45,7 +45,7 @@ use url::Url;
 ///         reference: Reference::new("latest")?,
 ///     }
 /// );
-/// # Ok::<(), anyhow::Error>(())
+/// # Ok::<(), ocipkg::error::Error>(())
 /// ```
 ///
 /// If a port number is included:
@@ -70,7 +70,7 @@ use url::Url;
 ///         reference: Reference::new("latest")?,
 ///     }
 /// );
-/// # Ok::<(), anyhow::Error>(())
+/// # Ok::<(), ocipkg::error::Error>(())
 /// ```
 ///
 /// Default values
@@ -89,7 +89,7 @@ use url::Url;
 ///         reference: Reference::new("20.04")?,
 ///     }
 /// );
-/// # Ok::<(), anyhow::Error>(())
+/// # Ok::<(), ocipkg::error::Error>(())
 /// ```
 ///
 /// If `reference` is absent, use `latest`:
@@ -106,7 +106,7 @@ use url::Url;
 ///         reference: Reference::new("latest")?,
 ///     }
 /// );
-/// # Ok::<(), anyhow::Error>(())
+/// # Ok::<(), ocipkg::error::Error>(())
 /// ```
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

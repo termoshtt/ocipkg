@@ -6,7 +6,6 @@ edition = "2018"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-anyhow = { version = "1.0.57", features = ["backtrace"] }
 base16ct = { version = "0.1.1", features = ["alloc"] }
 bytes = "1.1.0"
 derive_more = "0.99.17"
