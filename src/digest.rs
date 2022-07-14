@@ -95,7 +95,7 @@ impl<W: io::Write> DigestBuf<W> {
 impl<W: io::Write> io::Write for DigestBuf<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.hasher.update(buf);
-        Ok(self.inner.write(buf)?)
+        self.inner.write(buf)
     }
 
     fn flush(&mut self) -> io::Result<()> {

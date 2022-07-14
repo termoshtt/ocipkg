@@ -122,7 +122,7 @@ impl<W: io::Write> Builder<W> {
 
     fn create_config(&self) -> ImageConfiguration {
         let mut builder = ImageConfigurationBuilder::default();
-        let created = self.created.clone().unwrap_or(Utc::now());
+        let created = self.created.unwrap_or_else(Utc::now);
         builder = builder.created(created.to_rfc3339());
         if let Some(ref author) = self.author {
             builder = builder.author(author);
