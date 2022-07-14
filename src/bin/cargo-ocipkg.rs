@@ -41,8 +41,8 @@ fn get_metadata() -> Metadata {
         }
         None => {}
     };
-    let metadata = cmd.exec().expect("cargo metadata command failed");
-    metadata
+
+    cmd.exec().expect("cargo metadata command failed")
 }
 
 /// `-p`|`--package-name` option has higher priority than current directory
@@ -96,9 +96,9 @@ fn generate_image_name(package: &Package) -> ImageName {
                         .expect("`package.metadata.ocipkg` does not have `registry`")
                     {
                         let rev = get_revision(package.manifest_path.as_std_path());
-                        let image_name = ImageName::parse(&format!("{}:{}", registry, rev))
-                            .expect("Invalud registry URL");
-                        image_name
+
+                        ImageName::parse(&format!("{}:{}", registry, rev))
+                            .expect("Invalud registry URL")
                     } else {
                         panic!("`package.metadata.ocipkg.registry` must be a string")
                     }
