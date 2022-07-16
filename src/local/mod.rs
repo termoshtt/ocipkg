@@ -55,11 +55,9 @@ fn path_to_image_name(path: &Path) -> Result<ImageName> {
 
     let mut iter = registry.split("__");
     let hostname = iter.next().unwrap().to_string();
-    let port = if let Some(port) = iter.next() {
-        Some(u16::from_str_radix(port, 10).expect("Invalid port number"))
-    } else {
-        None
-    };
+    let port = iter
+        .next()
+        .map(|port| str::parse(port).expect("Invalid port number"));
     Ok(ImageName {
         hostname,
         port,
@@ -86,7 +84,7 @@ pub fn get_image_list() -> Result<Vec<ImageName>> {
             .to_str()
             .expect("Non UTF-8 path is never created in data directory");
         if name.starts_with("__") {
-            images.push(path_to_image_name(&path)?);
+            images.push(path_to_image_name(path)?);
         }
     }
     Ok(images)
