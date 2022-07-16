@@ -3,19 +3,25 @@ ocipkg
 
 [![cargo-doc](https://img.shields.io/badge/master-ocipkg-green)](https://termoshtt.github.io/ocipkg/ocipkg/index.html)
 
-WIP: OCI Registry for binary distribution.
-
-**This is design document for pre-implementation. These features are not implmeneted yet.**
+OCI Registry for package distribution.
 
 Features
 ---------
 - You can distribute your binary including static or shared library
   through OCI registry (e.g. GitHub Container Registry) by your own authority.
-  - Optionally, support container signing in [sigstore/cosign][cosign] way.
+  - [WIP:](https://github.com/termoshtt/ocipkg/issues/46) Optionally, support container signing in [sigstore/cosign](https://github.com/sigstore/cosign) way.
 - Users can download your binary without container runtime (e.g. docker or podman).
 - Binaries are stored in local file system (typically under `$XDG_DATA_HOME/ocipkg`)
   with image name and tags, and safely shared by several local projects.
 - Integration to linking libraries. Users can link same library specified by image name and tag everywhere.
+
+Examples
+---------
+
+- [Use in build.rs](./examples/rust-exe)
+- [Create package in Rust](./examples/rust-exe)
+- [WIP:](https://github.com/termoshtt/ocipkg/issues/23) Use in cmake
+- [WIP:](https://github.com/termoshtt/ocipkg/issues/23) Create package in cmake
 
 Why ocipkg?
 -------------
@@ -47,11 +53,24 @@ We have three options:
 ocipkg focuses on 3., i.e. helping distributing binary compiled
 by the developer through OCI registry.
 
-Examples
----------
+Links
+------
 
-- [Use in Rust](./examples/rust-exe)
-- [Create package in Rust](./examples/rust-exe)
+[Open Container Initiative (OCI)](https://opencontainers.org/) is a project under [Linux Foundation](https://www.linuxfoundation.org/).
+
+- [OCI Image Format Specification](https://github.com/opencontainers/image-spec)
+- [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
+
+The idea that distribute binary files (not a system image) using OCI registry is based on [ORAS][oras].
+
+- [OCI Registry As Storage][oras]
+
+[oras]: https://oras.land/
+
+Similar projects trying to distribute packages using OCI registries:
+
+- [OCI transport plugin for apt-get](https://github.com/AkihiroSuda/apt-transport-oci)
+- [Homebrew](https://github.com/orgs/Homebrew/packages)
 
 License
 --------
@@ -64,11 +83,3 @@ This project is licensed under either of
 - MIT license ([LICENSE-MIT](LICENSE-MIT) or https://opensource.org/licenses/MIT)
 
 at your option.
-
-[image-spec]: https://github.com/opencontainers/image-spec
-[runtime-spec]: https://github.com/opencontainers/runtime-spec
-[distribution-spec]: https://github.com/opencontainers/distribution-spec
-
-[oras]: https://github.com/oras-project/oras
-[oci-artifacts]: https://github.com/opencontainers/artifacts
-[cosign]: https://github.com/sigstore/cosign
