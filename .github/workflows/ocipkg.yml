@@ -67,7 +67,35 @@ jobs:
     - name: get image
       run: ocipkg get localhost:5000/test_repo:tag1
     - name: Show alpine version
-      run: cat $HOME/.local/share/ocipkg/localhost/test_repo/__tag1/etc/alpine-release
+      run: cat $HOME/.local/share/ocipkg/localhost__5000/test_repo/__tag1/etc/alpine-release
+
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
+
+  list:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v1
+    - uses: Swatinem/rust-cache@v1
+    - uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: --path=. -f
+    - name: Add path
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Setup registry
+      run: |
+        ./test/fixture.sh
+    - name: get image
+      run: |
+        ocipkg get localhost:5000/test_repo:tag1
+        ocipkg get localhost:5000/test_repo:tag2
+    - name: list
+      run: test $(ocipkg list | wc -l) -eq 2
 
     services:
       registry:

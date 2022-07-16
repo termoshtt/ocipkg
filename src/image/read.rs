@@ -105,7 +105,7 @@ pub fn load(input: &Path) -> Result<()> {
     let mut f = fs::File::open(input)?;
     let mut ar = Archive::new(&mut f);
     for (image_name, manifest) in ar.get_manifests()? {
-        let dest = crate::config::image_dir(&image_name)?;
+        let dest = crate::local::image_dir(&image_name)?;
         if dest.exists() {
             log::warn!(
                 "Local image aleady exists, skip loading: {}",

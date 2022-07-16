@@ -1,3 +1,5 @@
+//! Read and Write images based on [OCI image specification](https://github.com/opencontainers/image-spec)
+
 mod annotations;
 mod platform;
 mod read;

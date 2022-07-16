@@ -1,4 +1,4 @@
-//! Rust binding to [OCI distribution spec](https://github.com/opencontainers/distribution-spec)
+//! Pull and Push images to OCI registry based on [OCI distribution specification](https://github.com/opencontainers/distribution-spec)
 
 mod client;
 mod name;
@@ -47,7 +47,7 @@ pub async fn get_image(image_name: &ImageName) -> Result<()> {
     } = image_name;
     let client = Client::new(&image_name.registry_url()?, name)?;
     let manifest = client.get_manifest(reference).await?;
-    let dest = crate::config::image_dir(image_name)?;
+    let dest = crate::local::image_dir(image_name)?;
     for layer in manifest.layers() {
         let blob = client.get_blob(layer.digest()).await?;
         match layer.media_type() {
