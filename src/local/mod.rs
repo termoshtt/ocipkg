@@ -14,8 +14,15 @@ pub fn data_dir() -> Result<PathBuf> {
 /// Create data directory for each image
 pub fn image_dir(name: &ImageName) -> Result<PathBuf> {
     let dir = data_dir()?;
-    Ok(dir.join(format!(
-        "{}/{}/__{}",
-        name.hostname, name.name, name.reference
-    )))
+    if let Some(port) = name.port {
+        Ok(dir.join(format!(
+            "{}__{}/{}/__{}",
+            name.hostname, port, name.name, name.reference
+        )))
+    } else {
+        Ok(dir.join(format!(
+            "{}/{}/__{}",
+            name.hostname, name.name, name.reference
+        )))
+    }
 }
