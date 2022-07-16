@@ -28,7 +28,9 @@ enum Opt {
     },
 
     /// Get and save in local storage
-    Get { image_name: String },
+    Get {
+        image_name: String,
+    },
 
     /// Push oci-archive to registry
     Push {
@@ -38,7 +40,11 @@ enum Opt {
     },
 
     /// Get image directory to be used by ocipkg for given container name
-    ImageDirectory { image_name: String },
+    ImageDirectory {
+        image_name: String,
+    },
+
+    List,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -84,6 +90,13 @@ async fn main() -> Result<()> {
         Opt::ImageDirectory { image_name } => {
             let image_name = ocipkg::ImageName::parse(&image_name)?;
             println!("{}", ocipkg::local::image_dir(&image_name)?.display());
+        }
+
+        Opt::List => {
+            let images = ocipkg::local::get_image_list()?;
+            for image in images {
+                println!("{}", image);
+            }
         }
     }
     Ok(())

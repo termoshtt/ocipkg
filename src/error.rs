@@ -67,3 +67,9 @@ impl From<OciSpecError> for Error {
         }
     }
 }
+
+impl From<walkdir::Error> for Error {
+    fn from(e: walkdir::Error) -> Self {
+        Self::UnknownIo(e.into())
+    }
+}
