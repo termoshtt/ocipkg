@@ -83,7 +83,7 @@ async fn main() -> Result<()> {
 
         Opt::ImageDirectory { image_name } => {
             let image_name = ocipkg::ImageName::parse(&image_name)?;
-            println!("{}", ocipkg::config::image_dir(&image_name)?.display());
+            println!("{}", ocipkg::local::image_dir(&image_name)?.display());
         }
     }
     Ok(())
