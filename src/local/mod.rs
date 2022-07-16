@@ -1,3 +1,5 @@
+//! Manage container images stored in local storage
+
 use crate::{
     distribution::{Name, Reference},
     error::*,
@@ -15,7 +17,7 @@ pub fn data_dir() -> Result<PathBuf> {
     Ok(dir.to_owned())
 }
 
-/// Create data directory for each image
+/// Resolve a path to local storage where the image will be stored
 pub fn image_dir(name: &ImageName) -> Result<PathBuf> {
     let dir = data_dir()?;
     if let Some(port) = name.port {
@@ -66,6 +68,7 @@ fn path_to_image_name(path: &Path) -> Result<ImageName> {
     })
 }
 
+/// Get images stored in local storage
 pub fn get_image_list() -> Result<Vec<ImageName>> {
     let data_dir = data_dir()?;
     if !data_dir.exists() {

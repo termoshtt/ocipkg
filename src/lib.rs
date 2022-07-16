@@ -1,5 +1,8 @@
-//! ocipkg
-//! =======
+//! Executables and Rust crate for handling OCI images without container runtime.
+//!
+//! See [README.md at GitHub](https://github.com/termoshtt/ocipkg) for usage of the executables.
+//! This reference describes the crate part.
+//!
 
 pub mod distribution;
 pub mod error;
@@ -15,7 +18,7 @@ pub use image_name::ImageName;
 use crate::error::*;
 use std::fs;
 
-/// Get and link package to current crate using [cargo link instructions](https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script).
+/// Get and link package in `build.rs` with [cargo link instructions](https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script).
 ///
 /// This is aimed to use in [build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html) a.k.a. `build.rs`.
 pub fn link_package(image_name: &str) -> Result<()> {

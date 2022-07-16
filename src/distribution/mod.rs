@@ -1,4 +1,4 @@
-//! Rust binding to [OCI distribution spec](https://github.com/opencontainers/distribution-spec)
+//! Pull and Push images to OCI registry based on [OCI distribution specification](https://github.com/opencontainers/distribution-spec)
 
 mod client;
 mod name;
