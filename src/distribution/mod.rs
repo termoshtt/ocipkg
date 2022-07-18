@@ -13,7 +13,7 @@ use oci_spec::image::*;
 use std::{fs, io::Read, path::Path};
 
 /// Push image to registry
-pub async fn push_image(path: &Path) -> Result<()> {
+pub fn push_image(path: &Path) -> Result<()> {
     if !path.is_file() {
         return Err(Error::NotAFile(path.to_owned()));
     }
@@ -26,20 +26,20 @@ pub async fn push_image(path: &Path) -> Result<()> {
             let mut entry = ar.get_blob(&digest)?;
             let mut buf = Vec::new();
             entry.read_to_end(&mut buf)?;
-            client.push_blob(&buf).await?;
+            client.push_blob(&buf)?;
         }
         let digest = Digest::new(manifest.config().digest())?;
         let mut entry = ar.get_blob(&digest)?;
         let mut buf = Vec::new();
         entry.read_to_end(&mut buf)?;
-        client.push_blob(&buf).await?;
+        client.push_blob(&buf)?;
         client.push_manifest(image_name.reference.as_str(), &manifest)?;
     }
     Ok(())
 }
 
 /// Get image from registry and save it into local storage
-pub async fn get_image(image_name: &ImageName) -> Result<()> {
+pub fn get_image(image_name: &ImageName) -> Result<()> {
     let ImageName {
         name, reference, ..
     } = image_name;

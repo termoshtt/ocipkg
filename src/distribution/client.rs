@@ -5,7 +5,6 @@ use crate::{distribution::*, error::*, Digest};
 
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client {
-    client: reqwest::Client,
     agent: ureq::Agent,
     /// URL to registry server
     url: Url,
@@ -15,13 +14,10 @@ pub struct Client {
 
 impl Client {
     pub fn new(url: &Url, name: &str) -> Result<Self> {
-        let client = reqwest::Client::new();
-        let name = Name::new(name)?;
         Ok(Client {
-            client,
             agent: ureq::Agent::new(),
             url: url.clone(),
-            name,
+            name: Name::new(name)?,
         })
     }
 
@@ -96,15 +92,7 @@ impl Client {
             .put(url.as_str())
             .set("Content-Type", &MediaType::ImageManifest.to_string())
             .send_bytes(&buf)?;
-        if res.status() == 201 {
-            let location = res
-                .header("Location")
-                .expect("Location header is lacked, invalid response of OCI registry");
-            Ok(Url::parse(location)?)
-        } else {
-            let err = res.into_json::<ErrorResponse>()?;
-            Err(Error::RegistryError(err))
-        }
+        response_to_url(res)
     }
 
     /// Get blob for given digest
@@ -139,47 +127,36 @@ impl Client {
     /// and following `PUT` to URL obtained by `POST`.
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests) for detail.
-    pub async fn push_blob(&self, blob: &[u8]) -> Result<Url> {
-        let res = self
-            .client
-            .post(
-                self.url
-                    .join(&format!("/v2/{}/blobs/uploads/", self.name))?,
-            )
-            .send()
-            .await?;
-        let url = response_with_location(res).await?;
-
+    pub fn push_blob(&self, blob: &[u8]) -> Result<Url> {
+        let url = self
+            .url
+            .join(&format!("/v2/{}/blobs/uploads/", self.name))?;
+        let res = self.agent.post(url.as_str()).call()?;
+        let url = response_to_url(res)?;
         let digest = Digest::from_buf_sha256(blob);
         let res = self
-            .client
-            .put(url.clone())
-            .query(&[("digest", digest.to_string())])
-            .header("Content-Length", blob.len())
-            .header("Content-Type", "application/octet-stream")
-            .body(blob.to_vec())
-            .send()
-            .await?;
-        let url = response_with_location(res).await?;
-        Ok(url)
+            .agent
+            .put(url.as_str())
+            .query("digest", &digest.to_string())
+            .set("Content-Length", &blob.len().to_string())
+            .set("Content-Type", "application/octet-stream")
+            .send_bytes(blob)?;
+        response_to_url(res)
     }
 }
 
-// Most of API returns `Location: <location>`
-async fn response_with_location(res: reqwest::Response) -> Result<Url> {
-    if res.status().is_success() {
-        let location = res
-            .headers()
-            .get("Location")
-            .expect("Location header is lacked, invalid response of OCI registry");
-        Ok(Url::parse(
-            location
-                .to_str()
-                .expect("Invalid charactor in OCI registry response"),
-        )?)
-    } else {
-        let err = res.json::<ErrorResponse>().await?;
-        Err(Error::RegistryError(err))
+fn response_to_url(res: ureq::Response) -> Result<Url> {
+    match res.status() {
+        200 | 201 | 202 => {
+            let location = res
+                .header("Location")
+                .expect("Location header is lacked, invalid response of OCI registry");
+            Ok(Url::parse(location)?)
+        }
+        _ => {
+            let err = res.into_json::<ErrorResponse>()?;
+            Err(Error::RegistryError(err))
+        }
     }
 }
 
@@ -197,9 +174,9 @@ mod tests {
     }
     const TEST_REPO: &str = "test_repo";
 
-    #[tokio::test]
+    #[test]
     #[ignore]
-    async fn get_tags() -> Result<()> {
+    fn get_tags() -> Result<()> {
         let client = Client::new(&test_url(), TEST_REPO)?;
         let mut tags = client.get_tags()?;
         tags.sort_unstable();
@@ -210,9 +187,9 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[test]
     #[ignore]
-    async fn get_images() -> Result<()> {
+    fn get_images() -> Result<()> {
         let client = Client::new(&test_url(), TEST_REPO)?;
         for tag in ["tag1", "tag2", "tag3"] {
             let manifest = client.get_manifest(tag)?;
@@ -224,11 +201,11 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[test]
     #[ignore]
-    async fn push_blob() -> Result<()> {
+    fn push_blob() -> Result<()> {
         let client = Client::new(&test_url(), TEST_REPO)?;
-        let url = client.push_blob("test string".as_bytes()).await?;
+        let url = client.push_blob("test string".as_bytes())?;
         dbg!(url);
         Ok(())
     }
