@@ -7,23 +7,27 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 base16ct = { version = "0.1.1", features = ["alloc"] }
+chrono = "0.4.19"
 directories = "4.0.1"
-env_logger = "0.9.0"
 flate2 = "1.0.24"
+git2 = "0.14.4"
 lazy_static = "1.4.0"
 log = "0.4.17"
+oci-spec = "0.5.7"
 regex = "1.5.6"
 serde = "1.0.137"
+serde_json = "1.0.82"
 sha2 = "0.10.2"
 tar = "0.4.38"
-url = "2.2.2"
-cargo_metadata = "0.15.0"
-uuid = { version = "1.1.2", features = ["v4"] }
-clap = { version = "3.2.8", features = ["derive"] }
-serde_json = "1.0.82"
-git2 = "0.14.4"
 thiserror = "1.0.31"
-chrono = "0.4.19"
-oci-spec = "0.5.7"
+uuid = { version = "1.1.2", features = ["v4"] }
 walkdir = "2.3.2"
+
+# Networking
 ureq = { version = "2.5.0", features = ["json"] }
+url = "2.2.2"
+
+# CLI
+cargo_metadata = "0.15.0"
+clap = { version = "3.2.8", features = ["derive"] }
+env_logger = "0.9.0"
