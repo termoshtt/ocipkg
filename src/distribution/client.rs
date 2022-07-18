@@ -52,29 +52,26 @@ impl Client {
     /// ```
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests) for detail.
-    pub async fn get_manifest(&self, reference: &str) -> Result<ImageManifest> {
+    pub fn get_manifest(&self, reference: &str) -> Result<ImageManifest> {
         let reference = Reference::new(reference)?;
+        let url = self
+            .url
+            .join(&format!("/v2/{}/manifests/{}", self.name, reference))?;
         let res = self
-            .client
-            .get(self.url.join(&format!(
-                "/v2/{}/manifests/{}",
-                self.name.as_str(),
-                reference.as_str()
-            ))?)
-            .header(
+            .agent
+            .get(url.as_str())
+            .set(
                 "Accept",
                 MediaType::ImageManifest
                     .to_docker_v2s2()
                     .expect("Never fails since ImageManifest is supported"),
             )
-            .send()
-            .await?;
-        if res.status().is_success() {
-            let manifest = res.text().await?;
-            let manifest = ImageManifest::from_reader(manifest.as_bytes())?;
+            .call()?;
+        if res.status() == 200 {
+            let manifest = ImageManifest::from_reader(res.into_reader())?;
             Ok(manifest)
         } else {
-            let err = res.json::<ErrorResponse>().await?;
+            let err = res.into_json::<ErrorResponse>()?;
             Err(Error::RegistryError(err))
         }
     }
@@ -217,7 +214,7 @@ mod tests {
     async fn get_images() -> Result<()> {
         let client = Client::new(&test_url(), TEST_REPO)?;
         for tag in ["tag1", "tag2", "tag3"] {
-            let manifest = client.get_manifest(tag).await?;
+            let manifest = client.get_manifest(tag)?;
             for layer in manifest.layers() {
                 let buf = client.get_blob(layer.digest()).await?;
                 dbg!(buf.len());
