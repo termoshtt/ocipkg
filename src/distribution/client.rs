@@ -7,6 +7,7 @@ use crate::{distribution::*, error::*, Digest};
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client {
     client: reqwest::Client,
+    agent: ureq::Agent,
     /// URL to registry server
     url: Url,
     /// Name of repository
@@ -19,6 +20,7 @@ impl Client {
         let name = Name::new(name)?;
         Ok(Client {
             client,
+            agent: ureq::Agent::new(),
             url: url.clone(),
             name,
         })
@@ -31,20 +33,14 @@ impl Client {
     /// ```
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#content-discovery) for detail.
-    pub async fn get_tags(&self) -> Result<Vec<String>> {
-        let res = self
-            .client
-            .get(
-                self.url
-                    .join(&format!("/v2/{}/tags/list", self.name.as_str()))?,
-            )
-            .send()
-            .await?;
-        if res.status().is_success() {
-            let tag_list = res.json::<TagList>().await?;
+    pub fn get_tags(&self) -> Result<Vec<String>> {
+        let url = self.url.join(&format!("/v2/{}/tags/list", self.name))?;
+        let res = self.agent.get(url.as_str()).call()?;
+        if res.status() == 200 {
+            let tag_list = res.into_json::<TagList>()?;
             Ok(tag_list.tags().to_vec())
         } else {
-            let err = res.json::<ErrorResponse>().await?;
+            let err = res.into_json::<ErrorResponse>()?;
             Err(Error::RegistryError(err))
         }
     }
@@ -207,7 +203,7 @@ mod tests {
     #[ignore]
     async fn get_tags() -> Result<()> {
         let client = Client::new(&test_url(), TEST_REPO)?;
-        let mut tags = client.get_tags().await?;
+        let mut tags = client.get_tags()?;
         tags.sort_unstable();
         assert_eq!(
             tags,

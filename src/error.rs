@@ -44,6 +44,8 @@ pub enum Error {
     #[error(transparent)]
     NetworkError(#[from] reqwest::Error),
     #[error(transparent)]
+    NetworkError2(#[from] ureq::Error),
+    #[error(transparent)]
     RegistryError(#[from] oci_spec::distribution::ErrorResponse),
 
     //
