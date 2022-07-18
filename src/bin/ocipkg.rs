@@ -47,8 +47,7 @@ enum Opt {
     List,
 }
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     env_logger::Builder::new()
         .filter_level(log::LevelFilter::Info)
         .parse_default_env()
@@ -80,11 +79,11 @@ async fn main() -> Result<()> {
 
         Opt::Get { image_name } => {
             let image_name = ocipkg::ImageName::parse(&image_name)?;
-            ocipkg::distribution::get_image(&image_name).await?;
+            ocipkg::distribution::get_image(&image_name)?;
         }
 
         Opt::Push { input } => {
-            ocipkg::distribution::push_image(&input).await?;
+            ocipkg::distribution::push_image(&input)?;
         }
 
         Opt::ImageDirectory { image_name } => {

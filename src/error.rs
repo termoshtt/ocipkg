@@ -42,7 +42,7 @@ pub enum Error {
     // Error from OCI registry
     //
     #[error(transparent)]
-    NetworkError(#[from] reqwest::Error),
+    NetworkError(#[from] ureq::Error),
     #[error(transparent)]
     RegistryError(#[from] oci_spec::distribution::ErrorResponse),
 
