@@ -11,11 +11,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
-    - uses: Swatinem/rust-cache@v1
     - uses: actions-rs/cargo@v1
       with:
         command: install
-        args: --path=. -f
+        args: --features=cli --path=. -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
@@ -31,11 +30,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
-    - uses: Swatinem/rust-cache@v1
     - uses: actions-rs/cargo@v1
       with:
         command: install
-        args: --path=. -f
+        args: --features=cli --path=. -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
@@ -53,11 +51,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
-    - uses: Swatinem/rust-cache@v1
     - uses: actions-rs/cargo@v1
       with:
         command: install
-        args: --path=. -f
+        args: --features=cli --path=. -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
@@ -79,11 +76,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
-    - uses: Swatinem/rust-cache@v1
     - uses: actions-rs/cargo@v1
       with:
         command: install
-        args: --path=. -f
+        args: --features=cli --path=. -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
@@ -107,11 +103,10 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v1
-    - uses: Swatinem/rust-cache@v1
     - uses: actions-rs/cargo@v1
       with:
         command: install
-        args: --path=. -f
+        args: --features=cli --path=. -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
