@@ -27,6 +27,7 @@ uuid = { version = "1.1.2", features = ["v4"] }
 walkdir = "2.3.2"
 
 # Networking
+oauth2 = { version = "4.2.3", features = ["ureq"], default-features = false }
 ureq = { version = "2.5.0", features = ["json"] }
 url = "2.2.2"
 
