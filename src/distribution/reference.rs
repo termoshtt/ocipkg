@@ -1,5 +1,4 @@
 use crate::error::*;
-use derive_more::Deref;
 use regex::Regex;
 use std::fmt;
 
@@ -12,8 +11,15 @@ use std::fmt;
 /// > [a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}
 /// > ```
 /// This struct checks this restriction at creation.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deref)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Reference(String);
+
+impl std::ops::Deref for Reference {
+    type Target = str;
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
 
 impl fmt::Display for Reference {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
