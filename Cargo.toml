@@ -29,3 +29,4 @@ thiserror = "1.0.31"
 chrono = "0.4.19"
 oci-spec = "0.5.7"
 walkdir = "2.3.2"
+ureq = { version = "2.5.0", features = ["json"] }
