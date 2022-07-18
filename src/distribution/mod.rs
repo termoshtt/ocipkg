@@ -33,9 +33,7 @@ pub async fn push_image(path: &Path) -> Result<()> {
         let mut buf = Vec::new();
         entry.read_to_end(&mut buf)?;
         client.push_blob(&buf).await?;
-        client
-            .push_manifest(image_name.reference.as_str(), &manifest)
-            .await?;
+        client.push_manifest(image_name.reference.as_str(), &manifest)?;
     }
     Ok(())
 }

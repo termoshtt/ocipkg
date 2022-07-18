@@ -85,22 +85,27 @@ impl Client {
     /// Manifest must be pushed after blobs are updated.
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests) for detail.
-    pub async fn push_manifest(&self, reference: &str, manifest: &ImageManifest) -> Result<Url> {
+    pub fn push_manifest(&self, reference: &str, manifest: &ImageManifest) -> Result<Url> {
         let reference = Reference::new(reference)?;
         let mut buf = Vec::new();
         manifest.to_writer(&mut buf)?;
+        let url = self
+            .url
+            .join(&format!("/v2/{}/manifests/{}", self.name, reference))?;
         let res = self
-            .client
-            .put(
-                self.url
-                    .join(&format!("/v2/{}/manifests/{}", self.name, reference))?,
-            )
-            .header("Content-Type", MediaType::ImageManifest.to_string())
-            .body(buf)
-            .send()
-            .await?;
-        let url = response_with_location(res).await?;
-        Ok(url)
+            .agent
+            .put(url.as_str())
+            .set("Content-Type", &MediaType::ImageManifest.to_string())
+            .send_bytes(&buf)?;
+        if res.status() == 201 {
+            let location = res
+                .header("Location")
+                .expect("Location header is lacked, invalid response of OCI registry");
+            Ok(Url::parse(location)?)
+        } else {
+            let err = res.into_json::<ErrorResponse>()?;
+            Err(Error::RegistryError(err))
+        }
     }
 
     /// Get blob for given digest
