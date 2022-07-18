@@ -47,7 +47,7 @@ pub async fn get_image(image_name: &ImageName) -> Result<()> {
     let manifest = client.get_manifest(reference)?;
     let dest = crate::local::image_dir(image_name)?;
     for layer in manifest.layers() {
-        let blob = client.get_blob(layer.digest()).await?;
+        let blob = client.get_blob(layer.digest())?;
         match layer.media_type() {
             MediaType::ImageLayerGzip => {}
             MediaType::Other(ty) => {
@@ -58,7 +58,7 @@ pub async fn get_image(image_name: &ImageName) -> Result<()> {
             }
             _ => continue,
         }
-        let buf = flate2::read::GzDecoder::new(blob.as_ref());
+        let buf = flate2::read::GzDecoder::new(blob.as_slice());
         tar::Archive::new(buf).unpack(dest)?;
         return Ok(());
     }

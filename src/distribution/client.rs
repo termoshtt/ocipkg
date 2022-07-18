@@ -1,4 +1,3 @@
-use bytes::Bytes;
 use oci_spec::{distribution::*, image::*};
 use url::Url;
 
@@ -115,21 +114,18 @@ impl Client {
     /// ```
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs) for detail.
-    pub async fn get_blob(&self, digest: &str) -> Result<Bytes> {
+    pub fn get_blob(&self, digest: &str) -> Result<Vec<u8>> {
         let digest = Digest::new(digest)?;
-        let res = self
-            .client
-            .get(
-                self.url
-                    .join(&format!("/v2/{}/blobs/{}", self.name.as_str(), digest,))?,
-            )
-            .send()
-            .await?;
-        if res.status().is_success() {
-            let blob = res.bytes().await?;
-            Ok(blob)
+        let url = self
+            .url
+            .join(&format!("/v2/{}/blobs/{}", self.name.as_str(), digest,))?;
+        let res = self.agent.get(url.as_str()).call()?;
+        if res.status() == 200 {
+            let mut bytes = Vec::new();
+            res.into_reader().read_to_end(&mut bytes)?;
+            Ok(bytes)
         } else {
-            let err = res.json::<ErrorResponse>().await?;
+            let err = res.into_json::<ErrorResponse>()?;
             Err(Error::RegistryError(err))
         }
     }
@@ -221,7 +217,7 @@ mod tests {
         for tag in ["tag1", "tag2", "tag3"] {
             let manifest = client.get_manifest(tag)?;
             for layer in manifest.layers() {
-                let buf = client.get_blob(layer.digest()).await?;
+                let buf = client.get_blob(layer.digest())?;
                 dbg!(buf.len());
             }
         }
