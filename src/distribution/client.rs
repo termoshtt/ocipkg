@@ -13,11 +13,11 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(url: &Url, name: &str) -> Result<Self> {
+    pub fn new(url: Url, name: Name) -> Result<Self> {
         Ok(Client {
             agent: ureq::Agent::new(),
-            url: url.clone(),
-            name: Name::new(name)?,
+            url,
+            name,
         })
     }
 
@@ -47,8 +47,7 @@ impl Client {
     /// ```
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests) for detail.
-    pub fn get_manifest(&self, reference: &str) -> Result<ImageManifest> {
-        let reference = Reference::new(reference)?;
+    pub fn get_manifest(&self, reference: &Reference) -> Result<ImageManifest> {
         let url = self
             .url
             .join(&format!("/v2/{}/manifests/{}", self.name, reference))?;
@@ -80,8 +79,7 @@ impl Client {
     /// Manifest must be pushed after blobs are updated.
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests) for detail.
-    pub fn push_manifest(&self, reference: &str, manifest: &ImageManifest) -> Result<Url> {
-        let reference = Reference::new(reference)?;
+    pub fn push_manifest(&self, reference: &Reference, manifest: &ImageManifest) -> Result<Url> {
         let mut buf = Vec::new();
         manifest.to_writer(&mut buf)?;
         let url = self
@@ -102,8 +100,7 @@ impl Client {
     /// ```
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs) for detail.
-    pub fn get_blob(&self, digest: &str) -> Result<Vec<u8>> {
-        let digest = Digest::new(digest)?;
+    pub fn get_blob(&self, digest: &Digest) -> Result<Vec<u8>> {
         let url = self
             .url
             .join(&format!("/v2/{}/blobs/{}", self.name.as_str(), digest,))?;
@@ -172,12 +169,14 @@ mod tests {
     fn test_url() -> Url {
         Url::parse("http://localhost:5000").unwrap()
     }
-    const TEST_REPO: &str = "test_repo";
+    fn test_name() -> Name {
+        Name::new("test_repo").unwrap()
+    }
 
     #[test]
     #[ignore]
     fn get_tags() -> Result<()> {
-        let client = Client::new(&test_url(), TEST_REPO)?;
+        let client = Client::new(test_url(), test_name())?;
         let mut tags = client.get_tags()?;
         tags.sort_unstable();
         assert_eq!(
@@ -190,11 +189,11 @@ mod tests {
     #[test]
     #[ignore]
     fn get_images() -> Result<()> {
-        let client = Client::new(&test_url(), TEST_REPO)?;
+        let client = Client::new(test_url(), test_name())?;
         for tag in ["tag1", "tag2", "tag3"] {
-            let manifest = client.get_manifest(tag)?;
+            let manifest = client.get_manifest(&Reference::new(tag)?)?;
             for layer in manifest.layers() {
-                let buf = client.get_blob(layer.digest())?;
+                let buf = client.get_blob(&Digest::new(layer.digest())?)?;
                 dbg!(buf.len());
             }
         }
@@ -204,7 +203,7 @@ mod tests {
     #[test]
     #[ignore]
     fn push_blob() -> Result<()> {
-        let client = Client::new(&test_url(), TEST_REPO)?;
+        let client = Client::new(test_url(), test_name())?;
         let url = client.push_blob("test string".as_bytes())?;
         dbg!(url);
         Ok(())

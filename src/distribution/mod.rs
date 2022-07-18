@@ -20,7 +20,7 @@ pub fn push_image(path: &Path) -> Result<()> {
     let mut f = fs::File::open(&path)?;
     let mut ar = crate::image::Archive::new(&mut f);
     for (image_name, manifest) in ar.get_manifests()? {
-        let client = Client::new(&image_name.registry_url()?, image_name.name.as_str())?;
+        let client = Client::new(image_name.registry_url()?, image_name.name)?;
         for layer in manifest.layers() {
             let digest = Digest::new(layer.digest())?;
             let mut entry = ar.get_blob(&digest)?;
@@ -33,7 +33,7 @@ pub fn push_image(path: &Path) -> Result<()> {
         let mut buf = Vec::new();
         entry.read_to_end(&mut buf)?;
         client.push_blob(&buf)?;
-        client.push_manifest(image_name.reference.as_str(), &manifest)?;
+        client.push_manifest(&image_name.reference, &manifest)?;
     }
     Ok(())
 }
@@ -43,11 +43,11 @@ pub fn get_image(image_name: &ImageName) -> Result<()> {
     let ImageName {
         name, reference, ..
     } = image_name;
-    let client = Client::new(&image_name.registry_url()?, name)?;
+    let client = Client::new(image_name.registry_url()?, name.clone())?;
     let manifest = client.get_manifest(reference)?;
     let dest = crate::local::image_dir(image_name)?;
     for layer in manifest.layers() {
-        let blob = client.get_blob(layer.digest())?;
+        let blob = client.get_blob(&Digest::new(layer.digest())?)?;
         match layer.media_type() {
             MediaType::ImageLayerGzip => {}
             MediaType::Other(ty) => {
