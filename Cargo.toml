@@ -8,7 +8,6 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 base16ct = { version = "0.1.1", features = ["alloc"] }
 bytes = "1.1.0"
-derive_more = "0.99.17"
 directories = "4.0.1"
 env_logger = "0.9.0"
 flate2 = "1.0.24"
