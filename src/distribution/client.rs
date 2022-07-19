@@ -150,7 +150,7 @@ impl CheckResponse for std::result::Result<ureq::Response, ureq::Error> {
                 let err = res.into_json::<ErrorResponse>()?;
                 Err(Error::RegistryError(err))
             }
-            Err(ureq::Error::Transport(e)) => Err(Error::NetworkError3(e)),
+            Err(ureq::Error::Transport(e)) => Err(Error::NetworkError(e)),
         }
     }
 }
