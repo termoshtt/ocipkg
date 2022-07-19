@@ -63,14 +63,10 @@ impl Client {
                     .to_docker_v2s2()
                     .expect("Never fails since ImageManifest is supported"),
             )
-            .call()?;
-        if res.status() == 200 {
-            let manifest = ImageManifest::from_reader(res.into_reader())?;
-            Ok(manifest)
-        } else {
-            let err = res.into_json::<ErrorResponse>()?;
-            Err(Error::RegistryError(err))
-        }
+            .call()
+            .check_response()?;
+        let manifest = ImageManifest::from_reader(res.into_reader())?;
+        Ok(manifest)
     }
 
     /// Push manifest to registry
@@ -142,6 +138,23 @@ impl Client {
             .set("Content-Type", "application/octet-stream")
             .send_bytes(blob)?;
         response_to_url(res)
+    }
+}
+
+trait CheckResponse {
+    fn check_response(self) -> Result<ureq::Response>;
+}
+
+impl CheckResponse for std::result::Result<ureq::Response, ureq::Error> {
+    fn check_response(self) -> Result<ureq::Response> {
+        match self {
+            Ok(res) => Ok(res),
+            Err(ureq::Error::Status(_status, res)) => {
+                let err = res.into_json::<ErrorResponse>()?;
+                Err(Error::RegistryError(err))
+            }
+            Err(ureq::Error::Transport(e)) => Err(Error::NetworkError3(e)),
+        }
     }
 }
 
