@@ -146,7 +146,15 @@ impl CheckResponse for std::result::Result<ureq::Response, ureq::Error> {
     fn check_response(self) -> Result<ureq::Response> {
         match self {
             Ok(res) => Ok(res),
-            Err(ureq::Error::Status(_status, res)) => {
+            Err(ureq::Error::Status(status, res)) => {
+                match status {
+                    401 => {
+                        if let Some(msg) = res.header("www-authenticate") {
+                            log::error!("Server returns WWW-Authenticate header: {}", msg);
+                        }
+                    }
+                    _ => {}
+                }
                 let err = res.into_json::<ErrorResponse>()?;
                 Err(Error::RegistryError(err))
             }
