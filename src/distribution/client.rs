@@ -30,17 +30,9 @@ impl Client {
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#content-discovery) for detail.
     pub fn get_tags(&self) -> Result<Vec<String>> {
         let url = self.url.join(&format!("/v2/{}/tags/list", self.name))?;
-        match self.agent.get(url.as_str()).call() {
-            Ok(res) => {
-                let tag_list = res.into_json::<TagList>()?;
-                Ok(tag_list.tags().to_vec())
-            }
-            Err(ureq::Error::Status(_code, res)) => {
-                let err = res.into_json::<ErrorResponse>()?;
-                Err(Error::RegistryError(err))
-            }
-            Err(ureq::Error::Transport(e)) => Err(Error::NetworkError3(e)),
-        }
+        let res = self.agent.get(url.as_str()).call().check_response()?;
+        let tag_list = res.into_json::<TagList>()?;
+        Ok(tag_list.tags().to_vec())
     }
 
     /// Get manifest for given repository
@@ -88,8 +80,11 @@ impl Client {
             .agent
             .put(url.as_str())
             .set("Content-Type", &MediaType::ImageManifest.to_string())
-            .send_bytes(&buf)?;
-        response_to_url(res)
+            .send_bytes(&buf)
+            .check_response()?;
+        Ok(Url::parse(res.header("Location").expect(
+            "Location header is lacked in OCI registry response",
+        ))?)
     }
 
     /// Get blob for given digest
@@ -103,15 +98,10 @@ impl Client {
         let url = self
             .url
             .join(&format!("/v2/{}/blobs/{}", self.name.as_str(), digest,))?;
-        let res = self.agent.get(url.as_str()).call()?;
-        if res.status() == 200 {
-            let mut bytes = Vec::new();
-            res.into_reader().read_to_end(&mut bytes)?;
-            Ok(bytes)
-        } else {
-            let err = res.into_json::<ErrorResponse>()?;
-            Err(Error::RegistryError(err))
-        }
+        let res = self.agent.get(url.as_str()).call().check_response()?;
+        let mut bytes = Vec::new();
+        res.into_reader().read_to_end(&mut bytes)?;
+        Ok(bytes)
     }
 
     /// Push blob to registry
@@ -127,8 +117,12 @@ impl Client {
         let url = self
             .url
             .join(&format!("/v2/{}/blobs/uploads/", self.name))?;
-        let res = self.agent.post(url.as_str()).call()?;
-        let url = response_to_url(res)?;
+        let res = self.agent.post(url.as_str()).call().check_response()?;
+        let url = Url::parse(
+            res.header("Location")
+                .expect("Location header is lacked in OCI registry response"),
+        )?;
+
         let digest = Digest::from_buf_sha256(blob);
         let res = self
             .agent
@@ -136,8 +130,11 @@ impl Client {
             .query("digest", &digest.to_string())
             .set("Content-Length", &blob.len().to_string())
             .set("Content-Type", "application/octet-stream")
-            .send_bytes(blob)?;
-        response_to_url(res)
+            .send_bytes(blob)
+            .check_response()?;
+        Ok(Url::parse(res.header("Location").expect(
+            "Location header is lacked in OCI registry response",
+        ))?)
     }
 }
 
@@ -154,21 +151,6 @@ impl CheckResponse for std::result::Result<ureq::Response, ureq::Error> {
                 Err(Error::RegistryError(err))
             }
             Err(ureq::Error::Transport(e)) => Err(Error::NetworkError3(e)),
-        }
-    }
-}
-
-fn response_to_url(res: ureq::Response) -> Result<Url> {
-    match res.status() {
-        200 | 201 | 202 => {
-            let location = res
-                .header("Location")
-                .expect("Location header is lacked, invalid response of OCI registry");
-            Ok(Url::parse(location)?)
-        }
-        _ => {
-            let err = res.into_json::<ErrorResponse>()?;
-            Err(Error::RegistryError(err))
         }
     }
 }
