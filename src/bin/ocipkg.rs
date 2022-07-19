@@ -1,6 +1,6 @@
 use clap::Parser;
 use ocipkg::error::*;
-use std::{fs, path::PathBuf};
+use std::{fs, path::*};
 
 #[derive(Debug, Parser)]
 #[clap(version)]
@@ -45,6 +45,9 @@ enum Opt {
     },
 
     List,
+
+    /// Login to OCI registry
+    Login,
 }
 
 fn main() -> Result<()> {
@@ -96,6 +99,11 @@ fn main() -> Result<()> {
             for image in images {
                 println!("{}", image);
             }
+        }
+
+        Opt::Login => {
+            let auth = ocipkg::distribution::StoredAuth::load()?;
+            dbg!(auth);
         }
     }
     Ok(())

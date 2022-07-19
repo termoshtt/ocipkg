@@ -51,6 +51,8 @@ pub enum Error {
     //
     #[error("No valid home directory path could be retrieved from the operating system.")]
     NoValidHomeDirecotry,
+    #[error("No valid runtime directory where authentication info will be stored.")]
+    NoValidRuntimeDirectory,
     #[error(transparent)]
     UnknownIo(#[from] std::io::Error),
 }

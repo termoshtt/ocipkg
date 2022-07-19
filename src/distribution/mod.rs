@@ -1,9 +1,11 @@
 //! Pull and Push images to OCI registry based on [OCI distribution specification](https://github.com/opencontainers/distribution-spec)
 
+mod auth;
 mod client;
 mod name;
 mod reference;
 
+pub use auth::*;
 pub use client::Client;
 pub use name::Name;
 pub use reference::Reference;
