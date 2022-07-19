@@ -30,13 +30,16 @@ impl Client {
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#content-discovery) for detail.
     pub fn get_tags(&self) -> Result<Vec<String>> {
         let url = self.url.join(&format!("/v2/{}/tags/list", self.name))?;
-        let res = self.agent.get(url.as_str()).call()?;
-        if res.status() == 200 {
-            let tag_list = res.into_json::<TagList>()?;
-            Ok(tag_list.tags().to_vec())
-        } else {
-            let err = res.into_json::<ErrorResponse>()?;
-            Err(Error::RegistryError(err))
+        match self.agent.get(url.as_str()).call() {
+            Ok(res) => {
+                let tag_list = res.into_json::<TagList>()?;
+                Ok(tag_list.tags().to_vec())
+            }
+            Err(ureq::Error::Status(_code, res)) => {
+                let err = res.into_json::<ErrorResponse>()?;
+                Err(Error::RegistryError(err))
+            }
+            Err(ureq::Error::Transport(e)) => Err(Error::NetworkError3(e)),
         }
     }
 

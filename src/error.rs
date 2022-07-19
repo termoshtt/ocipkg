@@ -44,6 +44,8 @@ pub enum Error {
     #[error(transparent)]
     NetworkError(#[from] ureq::Error),
     #[error(transparent)]
+    NetworkError3(#[from] ureq::Transport),
+    #[error(transparent)]
     RegistryError(#[from] oci_spec::distribution::ErrorResponse),
 
     //
