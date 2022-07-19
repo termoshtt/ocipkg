@@ -1,40 +1,7 @@
 use oci_spec::{distribution::*, image::*};
-use std::env;
 use url::Url;
 
 use crate::{distribution::*, error::*, Digest};
-
-#[derive(Debug, Clone)]
-enum Auth {
-    Basic { username: String, password: String },
-    Bearer { token: String },
-    None,
-}
-
-impl Auth {
-    fn from_env() -> Self {
-        if let (Ok(username), Ok(password)) =
-            (env::var("OCIPKG_USERNAME"), env::var("OCIPKG_PASSWORD"))
-        {
-            return Self::Basic { username, password };
-        }
-        if let Ok(token) = env::var("OCIPKG_TOKEN") {
-            return Self::Bearer { token };
-        }
-        Auth::None
-    }
-
-    fn set_header(&self, req: ureq::Request) -> ureq::Request {
-        match self {
-            Auth::Basic { username, password } => {
-                let auth = base64::encode(format!("{}:{}", username, password));
-                req.set("Authorization", &format!("Basic {}", auth))
-            }
-            Auth::Bearer { token } => req.set("Authorization", &format!("Bearer {}", token)),
-            Auth::None => req,
-        }
-    }
-}
 
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client {
@@ -43,30 +10,40 @@ pub struct Client {
     url: Url,
     /// Name of repository
     name: Name,
-    /// Authorization parameters
-    auth: Auth,
+    /// Authorization token
+    token: Option<String>,
 }
 
 impl Client {
     pub fn new(url: Url, name: Name) -> Result<Self> {
+        let auth = StoredAuth::load_all()?;
+        let token = auth.get_token(&url)?;
         Ok(Client {
             agent: ureq::Agent::new(),
             url,
             name,
-            auth: Auth::from_env(),
+            token,
         })
     }
 
+    fn add_auth_header(&self, req: ureq::Request) -> ureq::Request {
+        if let Some(token) = &self.token {
+            req.set("Authorization", &format!("Bearer {}", token))
+        } else {
+            req
+        }
+    }
+
     fn get(&self, url: &Url) -> ureq::Request {
-        self.auth.set_header(self.agent.get(url.as_str()))
+        self.add_auth_header(self.agent.get(url.as_str()))
     }
 
     fn put(&self, url: &Url) -> ureq::Request {
-        self.auth.set_header(self.agent.put(url.as_str()))
+        self.add_auth_header(self.agent.put(url.as_str()))
     }
 
     fn post(&self, url: &Url) -> ureq::Request {
-        self.auth.set_header(self.agent.post(url.as_str()))
+        self.add_auth_header(self.agent.post(url.as_str()))
     }
 
     /// Get tags of `<name>` repository.

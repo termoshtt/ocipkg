@@ -47,6 +47,14 @@ impl StoredAuth {
         Ok(())
     }
 
+    /// Get token for using in API call
+    ///
+    /// Returns `None` if no authentication is required.
+    pub fn get_token(&self, _url: &url::Url) -> Result<Option<String>> {
+        // TODO
+        Ok(None)
+    }
+
     fn append(&mut self, path: &Path) -> Result<()> {
         let other = Self::from_path(path)?;
         for (key, value) in other.auths.into_iter() {
