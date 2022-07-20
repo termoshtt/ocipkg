@@ -72,9 +72,29 @@ impl StoredAuth {
             log::warn!("Unsupported authenticate type, fallback: {}", ty);
             return Ok(None);
         }
-        let (url, query) = parse_bearer_realm(realm)?;
-        dbg!(url, query);
-        Ok(None)
+        let (token_url, query) = parse_bearer_realm(realm)?;
+
+        let domain = token_url
+            .domain()
+            .expect("www-authenticate header returns invalid URL");
+        if let Some(auth) = self.auths.get(domain) {
+            let mut req = ureq::get(token_url.as_str())
+                .set("Authorization", &format!("Basic {}", auth.auth))
+                .set("Accept", "application/json");
+            for (k, v) in query {
+                req = req.query(k, v);
+            }
+            match req.call() {
+                Ok(res) => {
+                    let token = res.into_json::<Token>()?;
+                    Ok(Some(token.token))
+                }
+                Err(ureq::Error::Status(..)) => Err(Error::AuthorizationFailed(url.clone())),
+                Err(ureq::Error::Transport(e)) => Err(Error::NetworkError(e)),
+            }
+        } else {
+            Ok(None)
+        }
     }
 
     fn append(&mut self, path: &Path) -> Result<()> {
@@ -153,4 +173,9 @@ fn parse_bearer_realm(realm: &str) -> Result<(Url, Vec<(&str, &str)>)> {
         })
         .collect();
     Ok((url, query))
+}
+
+#[derive(Deserialize)]
+struct Token {
+    token: String,
 }
