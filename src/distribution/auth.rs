@@ -1,6 +1,8 @@
 use crate::error::*;
+use oci_spec::distribution::ErrorResponse;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, io, path::*};
+use url::Url;
 
 /// Authentication info stored in filesystem
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -50,8 +52,28 @@ impl StoredAuth {
     /// Get token for using in API call
     ///
     /// Returns `None` if no authentication is required.
-    pub fn get_token(&self, _url: &url::Url) -> Result<Option<String>> {
-        // TODO
+    pub fn get_token(&self, url: &url::Url) -> Result<Option<String>> {
+        let test_url = url.join("/v2/").unwrap();
+        let www_auth = match ureq::get(test_url.as_str()).call() {
+            Ok(_) => return Ok(None),
+            Err(ureq::Error::Status(status, res)) => {
+                if status == 401 {
+                    res.header("www-authenticate").unwrap().to_string()
+                } else {
+                    let err = res.into_json::<ErrorResponse>()?;
+                    return Err(Error::RegistryError(err));
+                }
+            }
+            Err(ureq::Error::Transport(e)) => return Err(Error::NetworkError(e)),
+        };
+
+        let (ty, realm) = parse_www_authenticate_header(&www_auth);
+        if ty != "Bearer" {
+            log::warn!("Unsupported authenticate type, fallback: {}", ty);
+            return Ok(None);
+        }
+        let (url, query) = parse_bearer_realm(realm)?;
+        dbg!(url, query);
         Ok(None)
     }
 
@@ -91,4 +113,44 @@ fn docker_auth_path() -> Option<PathBuf> {
 fn podman_auth_path() -> Option<PathBuf> {
     let dirs = directories::ProjectDirs::from("", "", "containers")?;
     Some(dirs.runtime_dir()?.join("auth.json"))
+}
+
+/// Parse the header of response. It must be in form:
+///
+/// ```text
+/// WWW-Authenticate: <type> realm=<realm>
+/// ```
+///
+/// https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication#www-authenticate_and_proxy-authenticate_headers
+fn parse_www_authenticate_header(header: &str) -> (&str, &str) {
+    let re = regex::Regex::new(r"(\w+) realm=(.+)").unwrap();
+    let cap = re
+        .captures(header)
+        .expect("WWW-Authenticate header is invalid");
+    let ty = cap.get(1).unwrap().as_str();
+    let realm = cap.get(2).unwrap().as_str();
+    (ty, realm)
+}
+
+/// Parse realm
+///
+/// XXX: Where this format is defined?
+///
+/// ghcr.io returns following:
+///
+/// ```text
+/// Bearer realm="https://ghcr.io/token",service="ghcr.io",scope="repository:termoshtt/ocipkg/rust-lib:pull"
+/// ```
+fn parse_bearer_realm(realm: &str) -> Result<(Url, Vec<(&str, &str)>)> {
+    let realm: Vec<_> = realm.split(',').collect();
+    assert!(!realm.is_empty());
+    let url = url::Url::parse(realm[0].trim_matches('"'))?;
+    let query: Vec<_> = realm[1..]
+        .iter()
+        .map(|param| {
+            let q: Vec<_> = param.split('=').collect();
+            (q[0].trim_matches('"'), q[1].trim_matches('"'))
+        })
+        .collect();
+    Ok((url, query))
 }
