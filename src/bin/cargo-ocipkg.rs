@@ -79,7 +79,10 @@ fn get_revision(manifest_path: &Path) -> String {
     let rev = repo
         .revparse_single("HEAD")
         .expect("git rev-parse returns unexptected value");
-    rev.id().to_string()
+    let mut hash = rev.id().to_string();
+    // Default length of `git rev-parse --short`
+    hash.truncate(7);
+    hash
 }
 
 fn generate_image_name(package: &Package) -> ImageName {
