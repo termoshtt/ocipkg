@@ -17,11 +17,13 @@ jobs:
         args: --features=cli --path=. -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-    - name: Build container with cargo-ocipkg
+
+    - name: Build and publish a container with cargo-ocipkg
       run: |
         cd examples/rust-lib
-        cargo ocipkg build -t ghcr.io/termoshtt/ocipkg/rust-lib:latest
-        podman load < ./target/debug/ocipkg-lib-example.tar
+        ocipkg login -u ${{ github.repository_owner }} -p ${{ github.token }} https://ghcr.io
+        cargo ocipkg build
+        cargo ocipkg publish
 
   rust-exe:
     runs-on: ubuntu-22.04
@@ -38,7 +40,7 @@ jobs:
       run: |
         cd examples/rust-lib
         cargo ocipkg build -t ghcr.io/termoshtt/ocipkg/rust-lib:latest
-        ocipkg load ./target/debug/ocipkg-lib-example.tar
+        ocipkg load $(find . -name "ocipkg_*.tar")
 
     - name: Build rust-exe example
       run: |

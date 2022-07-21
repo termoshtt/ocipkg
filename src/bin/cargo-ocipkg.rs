@@ -1,8 +1,11 @@
 use cargo_metadata::{Metadata, MetadataCommand, Package};
 use clap::{Parser, Subcommand};
+use colored::Colorize;
 use ocipkg::{error::*, ImageName};
 use std::{
+    collections::hash_map::DefaultHasher,
     fs,
+    hash::{Hash, Hasher},
     path::{Path, PathBuf},
     process::Command,
 };
@@ -26,6 +29,14 @@ enum Ocipkg {
         /// Name of container
         #[clap(short = 't', long = "tag")]
         tag: Option<String>,
+    },
+
+    /// Publish container to OCI registry
+    Publish {
+        #[clap(short = 'p', long = "package-name")]
+        package_name: Option<String>,
+        #[clap(long)]
+        release: bool,
     },
 }
 
@@ -79,7 +90,10 @@ fn get_revision(manifest_path: &Path) -> String {
     let rev = repo
         .revparse_single("HEAD")
         .expect("git rev-parse returns unexptected value");
-    rev.id().to_string()
+    let mut hash = rev.id().to_string();
+    // Default length of `git rev-parse --short`
+    hash.truncate(7);
+    hash
 }
 
 fn generate_image_name(package: &Package) -> ImageName {
@@ -110,6 +124,17 @@ fn generate_image_name(package: &Package) -> ImageName {
             panic!("`package.metadata.ocipkg` in Cargo.toml is required to generate container name")
         }
     }
+}
+
+fn generate_oci_archive_filename(
+    image_name: &ImageName,
+    target: &cargo_metadata::Target,
+) -> String {
+    let mut hasher = DefaultHasher::new();
+    image_name.hash(&mut hasher);
+    target.hash(&mut hasher);
+    let hash = hasher.finish();
+    format!("ocipkg_{:x}.tar", hash)
 }
 
 fn main() -> Result<()> {
@@ -143,7 +168,7 @@ fn main() -> Result<()> {
 
             for target in package.targets {
                 let mut targets = Vec::new();
-                for ty in target.crate_types {
+                for ty in &target.crate_types {
                     // FIXME support non-Linux OS
                     match ty.as_str() {
                         "staticlib" => {
@@ -159,17 +184,43 @@ fn main() -> Result<()> {
                         _ => {}
                     }
                 }
-
                 if targets.is_empty() {
                     panic!("No target exists for packing. Only staticlib or cdylib are suppoted.");
                 }
 
-                let dest = build_dir.join(format!("{}.tar", target.name));
+                let dest = build_dir.join(generate_oci_archive_filename(&image_name, &target));
+                eprintln!(
+                    "{:>12} oci-archive ({})",
+                    "Creating".green().bold(),
+                    dest.display()
+                );
                 let f = fs::File::create(dest)?;
                 let mut b = ocipkg::image::Builder::new(f);
                 b.set_name(&image_name);
                 b.append_files(&targets)?;
                 let _output = b.into_inner()?;
+            }
+        }
+
+        Opt::Ocipkg(Ocipkg::Publish {
+            release,
+            package_name,
+        }) => {
+            let metadata = get_metadata();
+            let package = get_package(&metadata, package_name);
+            let build_dir = get_build_dir(&metadata, release);
+            let image_name = generate_image_name(&package);
+            for target in package.targets {
+                let dest = build_dir.join(generate_oci_archive_filename(&image_name, &target));
+                if !dest.exists() {
+                    panic!("OCI archive not found: {}", dest.display());
+                }
+                eprintln!(
+                    "{:>12} container ({})",
+                    "Publish".green().bold(),
+                    image_name
+                );
+                ocipkg::distribution::push_image(&dest)?;
             }
         }
     }
