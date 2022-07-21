@@ -27,6 +27,13 @@ enum Ocipkg {
         #[clap(short = 't', long = "tag")]
         tag: Option<String>,
     },
+
+    Publish {
+        #[clap(short = 'p', long = "package-name")]
+        package_name: Option<String>,
+        #[clap(long)]
+        release: bool,
+    },
 }
 
 fn get_metadata() -> Metadata {
@@ -173,6 +180,24 @@ fn main() -> Result<()> {
                 b.set_name(&image_name);
                 b.append_files(&targets)?;
                 let _output = b.into_inner()?;
+            }
+        }
+
+        Opt::Ocipkg(Ocipkg::Publish {
+            release,
+            package_name,
+        }) => {
+            let metadata = get_metadata();
+            let package = get_package(&metadata, package_name);
+            let build_dir = get_build_dir(&metadata, release);
+            let image_name = generate_image_name(&package);
+            for target in package.targets {
+                let dest = build_dir.join(format!("{}.tar", target.name));
+                if !dest.exists() {
+                    panic!("OCI archive not found: {}", dest.display());
+                }
+                log::info!("Publish {}", image_name);
+                ocipkg::distribution::push_image(&dest)?;
             }
         }
     }
