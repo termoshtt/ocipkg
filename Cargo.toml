@@ -11,6 +11,7 @@ cli = ["clap", "cargo_metadata", "env_logger", "git2"]
 
 [dependencies]
 base16ct = { version = "0.1.1", features = ["alloc"] }
+base64 = "0.13.0"
 chrono = "0.4.19"
 directories = "4.0.1"
 flate2 = "1.0.24"
@@ -23,12 +24,10 @@ serde_json = "1.0.82"
 sha2 = "0.10.2"
 tar = "0.4.38"
 thiserror = "1.0.31"
-uuid = { version = "1.1.2", features = ["v4"] }
-walkdir = "2.3.2"
-
-# Networking
 ureq = { version = "2.5.0", features = ["json"] }
 url = "2.2.2"
+uuid = { version = "1.1.2", features = ["v4"] }
+walkdir = "2.3.2"
 
 # CLI
 cargo_metadata = { version = "0.15.0", optional = true }

@@ -1,9 +1,11 @@
 //! Pull and Push images to OCI registry based on [OCI distribution specification](https://github.com/opencontainers/distribution-spec)
 
+mod auth;
 mod client;
 mod name;
 mod reference;
 
+pub use auth::*;
 pub use client::Client;
 pub use name::Name;
 pub use reference::Reference;
@@ -46,6 +48,7 @@ pub fn get_image(image_name: &ImageName) -> Result<()> {
     let client = Client::new(image_name.registry_url()?, name.clone())?;
     let manifest = client.get_manifest(reference)?;
     let dest = crate::local::image_dir(image_name)?;
+    log::info!("Get {} into {}", image_name, dest.display());
     for layer in manifest.layers() {
         let blob = client.get_blob(&Digest::new(layer.digest())?)?;
         match layer.media_type() {

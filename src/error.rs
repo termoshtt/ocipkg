@@ -45,12 +45,16 @@ pub enum Error {
     NetworkError(#[from] ureq::Transport),
     #[error(transparent)]
     RegistryError(#[from] oci_spec::distribution::ErrorResponse),
+    #[error("Authorization failed: {0}")]
+    AuthorizationFailed(url::Url),
 
     //
     // System error
     //
     #[error("No valid home directory path could be retrieved from the operating system.")]
     NoValidHomeDirecotry,
+    #[error("No valid runtime directory where authentication info will be stored.")]
+    NoValidRuntimeDirectory,
     #[error(transparent)]
     UnknownIo(#[from] std::io::Error),
 }

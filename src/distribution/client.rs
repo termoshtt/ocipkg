@@ -10,15 +10,40 @@ pub struct Client {
     url: Url,
     /// Name of repository
     name: Name,
+    /// Authorization token
+    token: Option<String>,
 }
 
 impl Client {
     pub fn new(url: Url, name: Name) -> Result<Self> {
+        let auth = StoredAuth::load_all()?;
+        let token = auth.get_token(&url)?;
         Ok(Client {
             agent: ureq::Agent::new(),
             url,
             name,
+            token,
         })
+    }
+
+    fn add_auth_header(&self, req: ureq::Request) -> ureq::Request {
+        if let Some(token) = &self.token {
+            req.set("Authorization", &format!("Bearer {}", token))
+        } else {
+            req
+        }
+    }
+
+    fn get(&self, url: &Url) -> ureq::Request {
+        self.add_auth_header(self.agent.get(url.as_str()))
+    }
+
+    fn put(&self, url: &Url) -> ureq::Request {
+        self.add_auth_header(self.agent.put(url.as_str()))
+    }
+
+    fn post(&self, url: &Url) -> ureq::Request {
+        self.add_auth_header(self.agent.post(url.as_str()))
     }
 
     /// Get tags of `<name>` repository.
@@ -30,7 +55,7 @@ impl Client {
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#content-discovery) for detail.
     pub fn get_tags(&self) -> Result<Vec<String>> {
         let url = self.url.join(&format!("/v2/{}/tags/list", self.name))?;
-        let res = self.agent.get(url.as_str()).call().check_response()?;
+        let res = self.get(&url).call().check_response()?;
         let tag_list = res.into_json::<TagList>()?;
         Ok(tag_list.tags().to_vec())
     }
@@ -47,13 +72,14 @@ impl Client {
             .url
             .join(&format!("/v2/{}/manifests/{}", self.name, reference))?;
         let res = self
-            .agent
-            .get(url.as_str())
+            .get(&url)
             .set(
                 "Accept",
-                MediaType::ImageManifest
-                    .to_docker_v2s2()
-                    .expect("Never fails since ImageManifest is supported"),
+                &format!(
+                    "{}, {}",
+                    MediaType::ImageManifest.to_docker_v2s2().unwrap(),
+                    MediaType::ImageManifest,
+                ),
             )
             .call()
             .check_response()?;
@@ -77,8 +103,7 @@ impl Client {
             .url
             .join(&format!("/v2/{}/manifests/{}", self.name, reference))?;
         let res = self
-            .agent
-            .put(url.as_str())
+            .put(&url)
             .set("Content-Type", &MediaType::ImageManifest.to_string())
             .send_bytes(&buf)
             .check_response()?;
@@ -98,7 +123,7 @@ impl Client {
         let url = self
             .url
             .join(&format!("/v2/{}/blobs/{}", self.name.as_str(), digest,))?;
-        let res = self.agent.get(url.as_str()).call().check_response()?;
+        let res = self.get(&url).call().check_response()?;
         let mut bytes = Vec::new();
         res.into_reader().read_to_end(&mut bytes)?;
         Ok(bytes)
@@ -117,7 +142,7 @@ impl Client {
         let url = self
             .url
             .join(&format!("/v2/{}/blobs/uploads/", self.name))?;
-        let res = self.agent.post(url.as_str()).call().check_response()?;
+        let res = self.post(&url).call().check_response()?;
         let url = Url::parse(
             res.header("Location")
                 .expect("Location header is lacked in OCI registry response"),
@@ -125,8 +150,7 @@ impl Client {
 
         let digest = Digest::from_buf_sha256(blob);
         let res = self
-            .agent
-            .put(url.as_str())
+            .put(&url)
             .query("digest", &digest.to_string())
             .set("Content-Length", &blob.len().to_string())
             .set("Content-Type", "application/octet-stream")
@@ -146,7 +170,12 @@ impl CheckResponse for std::result::Result<ureq::Response, ureq::Error> {
     fn check_response(self) -> Result<ureq::Response> {
         match self {
             Ok(res) => Ok(res),
-            Err(ureq::Error::Status(_status, res)) => {
+            Err(ureq::Error::Status(status, res)) => {
+                if status == 401 {
+                    if let Some(msg) = res.header("www-authenticate") {
+                        log::error!("Server returns WWW-Authenticate header: {}", msg);
+                    }
+                }
                 let err = res.into_json::<ErrorResponse>()?;
                 Err(Error::RegistryError(err))
             }
