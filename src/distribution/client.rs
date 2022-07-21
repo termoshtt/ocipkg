@@ -75,9 +75,11 @@ impl Client {
             .get(&url)
             .set(
                 "Accept",
-                MediaType::ImageManifest
-                    .to_docker_v2s2()
-                    .expect("Never fails since ImageManifest is supported"),
+                &format!(
+                    "{}, {}",
+                    MediaType::ImageManifest.to_docker_v2s2().unwrap(),
+                    MediaType::ImageManifest,
+                ),
             )
             .call()
             .check_response()?;
