@@ -58,19 +58,11 @@ jobs:
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-    - name: Setup registry
+    - name: get image from ghcr.io
       run: |
-        ./test/fixture.sh
-    - name: get image
-      run: ocipkg get localhost:5000/test_repo:tag1
-    - name: Show alpine version
-      run: cat $HOME/.local/share/ocipkg/localhost__5000/test_repo/__tag1/etc/alpine-release
-
-    services:
-      registry:
-        image: registry:2
-        ports:
-          - 5000:5000
+        ocipkg login -u ${{ github.repository_owner }} -p ${{ github.token }} https://ghcr.io
+        ocipkg get ghcr.io/termoshtt/ocipkg/rust-lib:fe607df8aff71b7ea9f1fbed221d251efe574b41
+        file ~/.local/share/ocipkg/ghcr.io/termoshtt/ocipkg/rust-lib/__fe607df8aff71b7ea9f1fbed221d251efe574b41/libocipkg_lib_example.so
 
   list:
     runs-on: ubuntu-22.04
