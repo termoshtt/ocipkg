@@ -107,9 +107,10 @@ impl Client {
             .set("Content-Type", &MediaType::ImageManifest.to_string())
             .send_bytes(&buf)
             .check_response()?;
-        Ok(Url::parse(res.header("Location").expect(
-            "Location header is lacked in OCI registry response",
-        ))?)
+        let loc = res
+            .header("Location")
+            .expect("Location header is lacked in OCI registry response");
+        Ok(Url::parse(loc).or_else(|_| self.url.join(loc))?)
     }
 
     /// Get blob for given digest
@@ -143,10 +144,10 @@ impl Client {
             .url
             .join(&format!("/v2/{}/blobs/uploads/", self.name))?;
         let res = self.post(&url).call().check_response()?;
-        let url = Url::parse(
-            res.header("Location")
-                .expect("Location header is lacked in OCI registry response"),
-        )?;
+        let loc = res
+            .header("Location")
+            .expect("Location header is lacked in OCI registry response");
+        let url = Url::parse(loc).or_else(|_| self.url.join(loc))?;
 
         let digest = Digest::from_buf_sha256(blob);
         let res = self
@@ -156,9 +157,10 @@ impl Client {
             .set("Content-Type", "application/octet-stream")
             .send_bytes(blob)
             .check_response()?;
-        Ok(Url::parse(res.header("Location").expect(
-            "Location header is lacked in OCI registry response",
-        ))?)
+        let loc = res
+            .header("Location")
+            .expect("Location header is lacked in OCI registry response");
+        Ok(Url::parse(loc).or_else(|_| self.url.join(loc))?)
     }
 }
 
