@@ -47,7 +47,14 @@ enum Opt {
     List,
 
     /// Login to OCI registry
-    Login,
+    Login {
+        /// OCI registry to be logined
+        registry: String,
+        #[clap(short = 'u', long = "--username")]
+        username: Option<String>,
+        #[clap(short = 'p', long = "--password")]
+        password: Option<String>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -101,9 +108,25 @@ fn main() -> Result<()> {
             }
         }
 
-        Opt::Login => {
-            let auth = ocipkg::distribution::StoredAuth::load()?;
-            dbg!(auth);
+        Opt::Login {
+            registry,
+            username,
+            password,
+        } => {
+            let url = url::Url::parse(&registry)?;
+            let octet = base64::encode(format!(
+                "{}:{}",
+                username.expect("username not set"),
+                password.expect("password not set")
+            ));
+            let mut new_auth = ocipkg::distribution::StoredAuth::default();
+            new_auth.insert(&url.domain().unwrap(), octet);
+            let _token = new_auth.get_token(&url)?;
+            println!("Login succeed");
+
+            let mut auth = ocipkg::distribution::StoredAuth::load()?;
+            auth.append(new_auth)?;
+            auth.save()?;
         }
     }
     Ok(())

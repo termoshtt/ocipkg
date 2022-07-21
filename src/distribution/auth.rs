@@ -15,7 +15,8 @@ impl StoredAuth {
     pub fn load() -> Result<Self> {
         let mut auth = StoredAuth::default();
         if let Some(path) = auth_path() {
-            auth.append(&path)?;
+            let new = Self::from_path(&path)?;
+            auth.append(new)?;
         }
         Ok(auth)
     }
@@ -24,13 +25,16 @@ impl StoredAuth {
     pub fn load_all() -> Result<Self> {
         let mut auth = StoredAuth::default();
         if let Some(path) = docker_auth_path() {
-            auth.append(&path)?;
+            let new = Self::from_path(&path)?;
+            auth.append(new)?;
         }
         if let Some(path) = podman_auth_path() {
-            auth.append(&path)?;
+            let new = Self::from_path(&path)?;
+            auth.append(new)?;
         }
         if let Some(path) = auth_path() {
-            auth.append(&path)?;
+            let new = Self::from_path(&path)?;
+            auth.append(new)?;
         }
         Ok(auth)
     }
@@ -41,8 +45,9 @@ impl StoredAuth {
 
     pub fn save(&self) -> Result<()> {
         let path = auth_path().ok_or(Error::NoValidRuntimeDirectory)?;
-        if !path.parent().unwrap().exists() {
-            fs::create_dir_all(&path)?;
+        let parent = path.parent().unwrap();
+        if !parent.exists() {
+            fs::create_dir_all(&parent)?;
         }
         let f = fs::File::create(&path)?;
         serde_json::to_writer_pretty(f, self)?;
@@ -97,8 +102,7 @@ impl StoredAuth {
         }
     }
 
-    fn append(&mut self, path: &Path) -> Result<()> {
-        let other = Self::from_path(path)?;
+    pub fn append(&mut self, other: Self) -> Result<()> {
         for (key, value) in other.auths.into_iter() {
             self.auths.insert(key, value);
         }
