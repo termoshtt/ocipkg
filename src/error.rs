@@ -37,6 +37,8 @@ pub enum Error {
     MissingLayer,
     #[error(transparent)]
     InvalidJson(#[from] serde_json::error::Error),
+    #[error(transparent)]
+    InvalidToml(#[from] toml::de::Error),
 
     //
     // Error from OCI registry

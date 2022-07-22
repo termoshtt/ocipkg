@@ -121,7 +121,11 @@ impl Annotations {
         Ok(serde_json::from_str(input)?)
     }
 
-    pub fn as_map(&self) -> HashMap<String, String> {
+    pub fn from_toml(input: &str) -> Result<Self> {
+        Ok(toml::from_str(input)?)
+    }
+
+    pub fn to_map(&self) -> HashMap<String, String> {
         use serde_json::Value;
         let json = serde_json::to_value(self).unwrap();
         if let Value::Object(map) = json {
@@ -137,6 +141,10 @@ impl Annotations {
         } else {
             unreachable!()
         }
+    }
+
+    pub fn to_toml(&self) -> String {
+        toml::to_string_pretty(self).unwrap()
     }
 }
 
@@ -173,17 +181,49 @@ mod test {
     }
 
     #[test]
-    fn as_map() {
+    fn to_map() {
         let a = Annotations {
             url: Some("https://github.com/termoshtt/ocipkg".to_string()),
             ..Default::default()
         };
         assert_eq!(
-            a.as_map(),
+            a.to_map(),
             maplit::hashmap!(
                 "org.opencontainers.image.url".to_string()
                 => "https://github.com/termoshtt/ocipkg".to_string(),
             )
+        );
+    }
+
+    #[test]
+    fn from_toml() {
+        let a = Annotations::from_toml(
+            r#"
+            "org.opencontainers.image.url" = 'https://github.com/termoshtt/ocipkg'
+            "#,
+        )
+        .unwrap();
+        assert_eq!(
+            a,
+            Annotations {
+                url: Some("https://github.com/termoshtt/ocipkg".to_string()),
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn to_toml() {
+        let a = Annotations {
+            url: Some("https://github.com/termoshtt/ocipkg".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            a.to_toml().trim(),
+            r#"
+            "org.opencontainers.image.url" = 'https://github.com/termoshtt/ocipkg'
+            "#
+            .trim()
         );
     }
 }
