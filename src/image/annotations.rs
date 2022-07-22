@@ -1,5 +1,4 @@
 use crate::error::*;
-use oci_spec::image::*;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, iter::*};
 
@@ -109,63 +108,38 @@ impl Annotations {
     }
 }
 
-macro_rules! impl_into_iter_part {
-    ($dest:expr, $tag:ident, $member:expr) => {
-        if let Some(value) = $member {
-            $dest.push(($tag.to_string(), value))
-        }
-    };
-}
-
 impl IntoIterator for Annotations {
     type Item = (String, String);
     type IntoIter = std::vec::IntoIter<(String, String)>;
     fn into_iter(self) -> Self::IntoIter {
-        let mut a = Vec::new();
-        impl_into_iter_part!(a, ANNOTATION_AUTHORS, self.authors);
-        impl_into_iter_part!(a, ANNOTATION_BASE_IMAGE_DIGEST, self.base_digest);
-        impl_into_iter_part!(a, ANNOTATION_BASE_IMAGE_NAME, self.base_name);
-        impl_into_iter_part!(a, ANNOTATION_CREATED, self.created);
-        impl_into_iter_part!(a, ANNOTATION_DESCRIPTION, self.description);
-        impl_into_iter_part!(a, ANNOTATION_DOCUMENTATION, self.documentation);
-        impl_into_iter_part!(a, ANNOTATION_LICENSES, self.licenses);
-        impl_into_iter_part!(a, ANNOTATION_REF_NAME, self.ref_name);
-        impl_into_iter_part!(a, ANNOTATION_REVISION, self.revision);
-        impl_into_iter_part!(a, ANNOTATION_TITLE, self.title);
-        impl_into_iter_part!(a, ANNOTATION_URL, self.url);
-        impl_into_iter_part!(a, ANNOTATION_VENDOR, self.vendor);
-        impl_into_iter_part!(a, ANNOTATION_VERSION, self.version);
-        a.into_iter()
+        use serde_json::Value;
+        let json = serde_json::to_value(self).unwrap();
+        if let Value::Object(map) = json {
+            let map: Vec<(String, String)> = map
+                .into_iter()
+                .map(|(key, value)| {
+                    if let serde_json::Value::String(value) = value {
+                        (key, value)
+                    } else {
+                        unreachable!()
+                    }
+                })
+                .collect();
+            map.into_iter()
+        } else {
+            unreachable!()
+        }
     }
 }
 
-impl<'s> std::iter::FromIterator<(&'s str, &'s str)> for Annotations {
+impl<'s> std::iter::FromIterator<(String, String)> for Annotations {
     fn from_iter<T>(iter: T) -> Self
     where
-        T: IntoIterator<Item = (&'s str, &'s str)>,
+        T: IntoIterator<Item = (String, String)>,
     {
-        let mut annotations = Self::default();
-        for (key, value) in iter {
-            // after-priority
-            let _pre = match key {
-                ANNOTATION_AUTHORS => annotations.authors.replace(value.to_string()),
-                ANNOTATION_BASE_IMAGE_DIGEST => annotations.base_digest.replace(value.to_string()),
-                ANNOTATION_BASE_IMAGE_NAME => annotations.base_name.replace(value.to_string()),
-                ANNOTATION_CREATED => annotations.created.replace(value.to_string()),
-                ANNOTATION_DESCRIPTION => annotations.description.replace(value.to_string()),
-                ANNOTATION_DOCUMENTATION => annotations.documentation.replace(value.to_string()),
-                ANNOTATION_LICENSES => annotations.licenses.replace(value.to_string()),
-                ANNOTATION_REF_NAME => annotations.ref_name.replace(value.to_string()),
-                ANNOTATION_REVISION => annotations.revision.replace(value.to_string()),
-                ANNOTATION_SOURCE => annotations.source.replace(value.to_string()),
-                ANNOTATION_TITLE => annotations.title.replace(value.to_string()),
-                ANNOTATION_URL => annotations.url.replace(value.to_string()),
-                ANNOTATION_VENDOR => annotations.vendor.replace(value.to_string()),
-                ANNOTATION_VERSION => annotations.version.replace(value.to_string()),
-                _ => None,
-            };
-        }
-        annotations
+        let map =
+            serde_json::Map::from_iter(iter.into_iter().map(|(key, value)| (key, value.into())));
+        serde_json::from_value(map.into()).unwrap()
     }
 }
 
