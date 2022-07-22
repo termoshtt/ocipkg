@@ -1,8 +1,10 @@
+//! Annotations with flat serialization/deserialization
+
 use crate::error::*;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, iter::*};
 
-/// Annotations defined in `org.opencontainers.image.*` namespace
+/// `org.opencontainers.image.*` annotations
 ///
 /// See [Pre-Defined Annotation Keys](https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys)
 /// in OCI image spec.
@@ -101,7 +103,7 @@ pub struct Annotations {
 
     /// `org.opencontainers.image.base.name`
     ///
-    /// Image reference of the image this image is based on (string)
+    /// Annotations reference of the image this image is based on (string)
     #[serde(rename = "org.opencontainers.image.base.name")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub base_name: Option<String>,
@@ -119,10 +121,6 @@ impl Annotations {
 
     pub fn from_json(input: &str) -> Result<Self> {
         Ok(serde_json::from_str(input)?)
-    }
-
-    pub fn from_toml(input: &str) -> Result<Self> {
-        Ok(toml::from_str(input)?)
     }
 
     pub fn to_map(&self) -> HashMap<String, String> {
@@ -145,10 +143,6 @@ impl Annotations {
 
     pub fn to_json(&self) -> String {
         serde_json::to_string_pretty(self).unwrap()
-    }
-
-    pub fn to_toml(&self) -> String {
-        toml::to_string_pretty(self).unwrap()
     }
 }
 
@@ -208,38 +202,6 @@ mod test {
                 "org.opencontainers.image.url".to_string()
                 => "https://github.com/termoshtt/ocipkg".to_string(),
             )
-        );
-    }
-
-    #[test]
-    fn from_toml() {
-        let a = Annotations::from_toml(
-            r#"
-            "org.opencontainers.image.url" = 'https://github.com/termoshtt/ocipkg'
-            "#,
-        )
-        .unwrap();
-        assert_eq!(
-            a,
-            Annotations {
-                url: Some("https://github.com/termoshtt/ocipkg".to_string()),
-                ..Default::default()
-            }
-        );
-    }
-
-    #[test]
-    fn to_toml() {
-        let a = Annotations {
-            url: Some("https://github.com/termoshtt/ocipkg".to_string()),
-            ..Default::default()
-        };
-        assert_eq!(
-            a.to_toml().trim(),
-            r#"
-            "org.opencontainers.image.url" = 'https://github.com/termoshtt/ocipkg'
-            "#
-            .trim()
         );
     }
 }
