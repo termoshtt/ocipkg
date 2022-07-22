@@ -106,17 +106,12 @@ impl Annotations {
     pub fn from_json(input: &str) -> Result<Self> {
         Ok(serde_json::from_str(input)?)
     }
-}
 
-impl IntoIterator for Annotations {
-    type Item = (String, String);
-    type IntoIter = std::vec::IntoIter<(String, String)>;
-    fn into_iter(self) -> Self::IntoIter {
+    pub fn as_map(&self) -> HashMap<String, String> {
         use serde_json::Value;
         let json = serde_json::to_value(self).unwrap();
         if let Value::Object(map) = json {
-            let map: Vec<(String, String)> = map
-                .into_iter()
+            map.into_iter()
                 .map(|(key, value)| {
                     if let serde_json::Value::String(value) = value {
                         (key, value)
@@ -124,15 +119,14 @@ impl IntoIterator for Annotations {
                         unreachable!()
                     }
                 })
-                .collect();
-            map.into_iter()
+                .collect()
         } else {
             unreachable!()
         }
     }
 }
 
-impl<'s> std::iter::FromIterator<(String, String)> for Annotations {
+impl std::iter::FromIterator<(String, String)> for Annotations {
     fn from_iter<T>(iter: T) -> Self
     where
         T: IntoIterator<Item = (String, String)>,
