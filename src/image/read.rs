@@ -44,7 +44,7 @@ impl<'buf, W: Read + Seek> Archive<'buf, W> {
             .iter()
             .map(|manifest| {
                 let annotations =
-                    Annotations::from_map(&manifest.annotations().clone().unwrap_or_default());
+                    Annotations::from_map(manifest.annotations().clone().unwrap_or_default())?;
                 let image_name = annotations.ref_name.ok_or(Error::MissingManifestName)?;
                 let image_name = ImageName::parse(&image_name)?;
                 let digest = Digest::new(manifest.digest())?;
