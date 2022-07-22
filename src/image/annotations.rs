@@ -12,84 +12,98 @@ pub struct Annotations {
     ///
     /// date and time on which the image was built (string, date-time as defined by RFC 3339).
     #[serde(rename = "org.opencontainers.image.created")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created: Option<String>,
 
     /// `org.opencontainers.image.authors`
     ///
     /// contact details of the people or organization responsible for the image (freeform string)
     #[serde(rename = "org.opencontainers.image.authors")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub authors: Option<String>,
 
     /// `org.opencontainers.image.url`
     ///
     /// URL to find more information on the image (string)
     #[serde(rename = "org.opencontainers.image.url")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 
     /// `org.opencontainers.image.documentation`
     ///
     /// URL to get documentation on the image (string)
     #[serde(rename = "org.opencontainers.image.documentation")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub documentation: Option<String>,
 
     /// `org.opencontainers.image.source`
     ///
     /// URL to get source code for building the image (string)
     #[serde(rename = "org.opencontainers.image.source")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
 
     /// `org.opencontainers.image.version`
     ///
     /// version of the packaged software
     #[serde(rename = "org.opencontainers.image.version")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
 
     /// `org.opencontainers.image.revision`
     ///
     /// Source control revision identifier for the packaged software.
     #[serde(rename = "org.opencontainers.image.revision")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub revision: Option<String>,
 
     /// `org.opencontainers.image.vendor`
     ///
     /// Name of the distributing entity, organization or individual.
     #[serde(rename = "org.opencontainers.image.vendor")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vendor: Option<String>,
 
     /// `org.opencontainers.image.licenses`
     ///
     /// License(s) under which contained software is distributed as an SPDX License Expression.
     #[serde(rename = "org.opencontainers.image.licenses")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub licenses: Option<String>,
 
     /// `org.opencontainers.image.ref.name`
     ///
     /// Name of the reference for a target (string).
     #[serde(rename = "org.opencontainers.image.ref.name")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ref_name: Option<String>,
 
     /// `org.opencontainers.image.title`
     ///
     /// Human-readable title of the image (string)
     #[serde(rename = "org.opencontainers.image.title")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
 
     /// `org.opencontainers.image.description`
     ///
     /// Human-readable description of the software packaged in the image (string)
     #[serde(rename = "org.opencontainers.image.description")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 
     /// `org.opencontainers.image.base.digest`
     ///
     /// Digest of the image this image is based on (string)
     #[serde(rename = "org.opencontainers.image.base.digest")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub base_digest: Option<String>,
 
     /// `org.opencontainers.image.base.name`
     ///
     /// Image reference of the image this image is based on (string)
     #[serde(rename = "org.opencontainers.image.base.name")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub base_name: Option<String>,
 }
 
@@ -155,6 +169,21 @@ mod test {
                 url: Some("https://github.com/termoshtt/ocipkg".to_string()),
                 ..Default::default()
             }
+        );
+    }
+
+    #[test]
+    fn as_map() {
+        let a = Annotations {
+            url: Some("https://github.com/termoshtt/ocipkg".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            a.as_map(),
+            maplit::hashmap!(
+                "org.opencontainers.image.url".to_string()
+                => "https://github.com/termoshtt/ocipkg".to_string(),
+            )
         );
     }
 }

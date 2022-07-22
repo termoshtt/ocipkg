@@ -43,3 +43,6 @@ required-features = ["cli"]
 [[bin]]
 name = "cargo-ocipkg"
 required-features = ["cli"]
+
+[dev-dependencies]
+maplit = "1.0.2"
