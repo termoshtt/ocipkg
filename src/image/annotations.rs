@@ -143,6 +143,10 @@ impl Annotations {
         }
     }
 
+    pub fn to_json(&self) -> String {
+        serde_json::to_string_pretty(self).unwrap()
+    }
+
     pub fn to_toml(&self) -> String {
         toml::to_string_pretty(self).unwrap()
     }
@@ -177,6 +181,18 @@ mod test {
                 url: Some("https://github.com/termoshtt/ocipkg".to_string()),
                 ..Default::default()
             }
+        );
+    }
+
+    #[test]
+    fn to_json() {
+        let a = Annotations {
+            url: Some("https://github.com/termoshtt/ocipkg".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            a.to_json().trim(),
+            "{\n  \"org.opencontainers.image.url\": \"https://github.com/termoshtt/ocipkg\"\n}"
         );
     }
 
