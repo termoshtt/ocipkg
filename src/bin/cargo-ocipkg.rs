@@ -188,6 +188,18 @@ fn main() -> Result<()> {
                     panic!("No target exists for packing. Only staticlib or cdylib are suppoted.");
                 }
 
+                let mut annotations = ocipkg::image::annotations::flat::Annotations {
+                    url: package.homepage.clone().or(package.repository.clone()),
+                    licenses: package.license.clone(),
+                    documentation: package.description.clone(),
+                    version: Some(package.version.to_string()),
+                    revision: Some(get_revision(package.manifest_path.as_std_path())),
+                    ..Default::default()
+                };
+                if !package.authors.is_empty() {
+                    annotations.authors = Some(package.authors.join(","))
+                }
+
                 let dest = build_dir.join(generate_oci_archive_filename(&image_name, &target));
                 eprintln!(
                     "{:>12} oci-archive ({})",
@@ -197,6 +209,7 @@ fn main() -> Result<()> {
                 let f = fs::File::create(dest)?;
                 let mut b = ocipkg::image::Builder::new(f);
                 b.set_name(&image_name);
+                b.set_annotations(annotations);
                 b.append_files(&targets)?;
                 let _output = b.into_inner()?;
             }
