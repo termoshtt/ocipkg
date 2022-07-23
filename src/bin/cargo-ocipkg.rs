@@ -191,7 +191,7 @@ fn main() -> Result<()> {
                 let mut annotations = ocipkg::image::annotations::flat::Annotations {
                     url: package.homepage.clone().or(package.repository.clone()),
                     licenses: package.license.clone(),
-                    documentation: package.description.clone(),
+                    description: package.description.clone(),
                     version: Some(package.version.to_string()),
                     revision: Some(get_revision(package.manifest_path.as_std_path())),
                     ..Default::default()
