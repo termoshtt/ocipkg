@@ -188,6 +188,33 @@ impl std::iter::FromIterator<(String, String)> for Annotations {
     }
 }
 
+impl From<super::nested::Annotations> for Annotations {
+    fn from(nested: super::nested::Annotations) -> Self {
+        let ref_name = nested.r#ref.and_then(|r| r.name);
+        let (base_name, base_digest) = if let Some(base) = nested.base {
+            (base.name, base.digest)
+        } else {
+            (None, None)
+        };
+        Annotations {
+            created: nested.created,
+            authors: nested.authors,
+            url: nested.url,
+            documentation: nested.documentation,
+            description: nested.description,
+            title: nested.title,
+            source: nested.source,
+            version: nested.version,
+            revision: nested.revision,
+            vendor: nested.vendor,
+            licenses: nested.licenses,
+            ref_name,
+            base_name,
+            base_digest,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

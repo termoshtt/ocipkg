@@ -122,12 +122,6 @@ pub struct Annotations {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub licenses: Option<String>,
 
-    /// `org.opencontainers.image.ref.name`
-    ///
-    /// Name of the reference for a target (string).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ref_name: Option<String>,
-
     /// `org.opencontainers.image.title`
     ///
     /// Human-readable title of the image (string)
@@ -139,6 +133,10 @@ pub struct Annotations {
     /// Human-readable description of the software packaged in the image (string)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+
+    /// `org.opencontainers.image.ref.*` components
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub r#ref: Option<Ref>,
 
     /// `org.opencontainers.image.base.*` components
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -161,6 +159,16 @@ pub struct Base {
     pub name: Option<String>,
 }
 
+/// `org.opencontainers.image.ref.*` annotations
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct Ref {
+    /// `org.opencontainers.image.ref.name`
+    ///
+    /// Name of the reference for a target (string).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
 impl Annotations {
     pub fn from_toml(input: &str) -> Result<Self> {
         let root: Root = toml::from_str(input)?;
@@ -176,5 +184,34 @@ impl Annotations {
             },
         };
         toml::to_string_pretty(&root).unwrap()
+    }
+}
+
+impl From<super::flat::Annotations> for Annotations {
+    fn from(flat: super::flat::Annotations) -> Self {
+        let base = if flat.base_name.is_none() && flat.base_digest.is_none() {
+            None
+        } else {
+            Some(Base {
+                name: flat.base_name,
+                digest: flat.base_digest,
+            })
+        };
+        let r#ref = flat.ref_name.map(|name| Ref { name: Some(name) });
+        Annotations {
+            created: flat.created,
+            authors: flat.authors,
+            url: flat.url,
+            documentation: flat.documentation,
+            description: flat.description,
+            title: flat.title,
+            source: flat.source,
+            version: flat.version,
+            revision: flat.revision,
+            vendor: flat.vendor,
+            licenses: flat.licenses,
+            r#ref,
+            base,
+        }
     }
 }
