@@ -52,6 +52,7 @@ impl<W: io::Write> Builder<W> {
         self.created = Some(created);
     }
 
+    /// Set additional annotations
     pub fn set_annotations(&mut self, annotations: Annotations) {
         self.annotations = Some(annotations);
     }
@@ -149,6 +150,13 @@ impl<W: io::Write> Builder<W> {
             .build()
             .unwrap();
         builder = builder.rootfs(rootfs);
+
+        let config = ConfigBuilder::default()
+            .labels(self.create_annotations_as_map())
+            .build()
+            .unwrap();
+        builder = builder.config(config);
+
         builder.build().unwrap()
     }
 
@@ -176,7 +184,6 @@ impl<W: io::Write> Builder<W> {
             .schema_version(SCHEMA_VERSION)
             .config(cfg_desc)
             .layers(std::mem::take(&mut self.layers))
-            .annotations(self.create_annotations_as_map())
             .build()
             .unwrap();
         let mut buf = Vec::new();
