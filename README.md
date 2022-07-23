@@ -1,7 +1,9 @@
 ocipkg
 =======
 
-[![cargo-doc](https://img.shields.io/badge/master-ocipkg-green)](https://termoshtt.github.io/ocipkg/ocipkg/index.html)
+[![crate](https://img.shields.io/crates/v/ocipkg.svg)](https://crates.io/crates/ocipkg) 
+[![docs.rs](https://docs.rs/ocipkg/badge.svg)](https://docs.rs/ocipkg) 
+[![master](https://img.shields.io/badge/docs-master-blue)](https://termoshtt.github.io/ocipkg/ocipkg/index.html)
 
 OCI Registry for package distribution.
 
