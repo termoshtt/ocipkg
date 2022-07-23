@@ -8,6 +8,7 @@ use std::{collections::HashMap, convert::TryFrom, fs, io, path::Path};
 use crate::{
     digest::{Digest, DigestBuf},
     error::*,
+    image::annotations::flat::Annotations,
     ImageName,
 };
 
@@ -19,6 +20,7 @@ pub struct Builder<W: io::Write> {
     name: Option<ImageName>,
     created: Option<DateTime<Utc>>,
     author: Option<String>,
+    annotations: Option<Annotations>,
     platform: Option<Platform>,
     diff_ids: Vec<Digest>,
     layers: Vec<Descriptor>,
@@ -32,6 +34,7 @@ impl<W: io::Write> Builder<W> {
             created: None,
             author: None,
             platform: None,
+            annotations: None,
             diff_ids: Vec::new(),
             layers: Vec::new(),
         }
@@ -47,6 +50,10 @@ impl<W: io::Write> Builder<W> {
     /// Set created date time in UTC
     pub fn set_created(&mut self, created: DateTime<Utc>) {
         self.created = Some(created);
+    }
+
+    pub fn set_annotations(&mut self, annotations: Annotations) {
+        self.annotations = Some(annotations);
     }
 
     /// Set the name and/or email address of the person
@@ -145,6 +152,20 @@ impl<W: io::Write> Builder<W> {
         builder.build().unwrap()
     }
 
+    fn create_annotations_as_map(&self) -> HashMap<String, String> {
+        if let Some(mut a) = self.annotations.clone() {
+            if self.created.is_some() && a.created.is_none() {
+                a.created = self.created.as_ref().map(|date| date.to_string());
+            }
+            if self.author.is_some() && a.authors.is_none() {
+                a.authors = self.author.clone();
+            }
+            a.to_map()
+        } else {
+            HashMap::new()
+        }
+    }
+
     fn finish(&mut self) -> Result<()> {
         let cfg = self.create_config();
         let mut buf = Vec::new();
@@ -155,11 +176,17 @@ impl<W: io::Write> Builder<W> {
             .schema_version(SCHEMA_VERSION)
             .config(cfg_desc)
             .layers(std::mem::take(&mut self.layers))
+            .annotations(self.create_annotations_as_map())
             .build()
             .unwrap();
         let mut buf = Vec::new();
         image_manifest.to_writer(&mut buf)?;
         let mut image_manifest_desc = self.save_blob(MediaType::ImageManifest, &buf)?;
+
+        // https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys
+        // > SHOULD only be considered valid when on descriptors on index.json within image layout.
+        //
+        // We need to set `org.opencontainers.image.ref.name` to index.json
         image_manifest_desc.set_annotations(Some(HashMap::from([(
             "org.opencontainers.image.ref.name".to_string(),
             self.name.clone().unwrap_or_default().to_string(),
