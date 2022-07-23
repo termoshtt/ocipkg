@@ -1,0 +1,15 @@
+[package]
+name = "ocipkg-static-rust"
+version = "0.1.0"
+edition = "2021"
+
+description = "Test package with static library"
+repository = "https://github.com/termoshtt/ocipkg"
+
+[package.metadata.ocipkg]
+registry = "ghcr.io/termoshtt/ocipkg/static/rust"
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]

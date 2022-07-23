@@ -1,0 +1,15 @@
+[package]
+name = "ocipkg-dynamic-rust"
+version = "0.1.0"
+edition = "2021"
+
+description = "Test package with dynamic library"
+repository = "https://github.com/termoshtt/ocipkg"
+
+[package.metadata.ocipkg]
+registry = "ghcr.io/termoshtt/ocipkg/dynamic/rust"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
