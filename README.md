@@ -25,6 +25,13 @@ Examples
 - [WIP:](https://github.com/termoshtt/ocipkg/issues/23) Use in cmake
 - [WIP:](https://github.com/termoshtt/ocipkg/issues/23) Create package in cmake
 
+Install CLI
+------------
+
+```bash
+cargo install --features=cli ocipkg@0.1.0-rc.0
+```
+
 Why ocipkg?
 -------------
 I have determined to start this project while writing FFI crate in Rust.
