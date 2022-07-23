@@ -20,16 +20,52 @@ Features
 Examples
 ---------
 
-- [Use in build.rs](./examples/rust-exe)
-- [Create package in Rust](./examples/rust-exe)
-- [WIP:](https://github.com/termoshtt/ocipkg/issues/23) Use in cmake
-- [WIP:](https://github.com/termoshtt/ocipkg/issues/23) Create package in cmake
+| Library type | Create package in Rust | Use package from Rust |
+|:-------------|:-----------------------|:----------------------|
+| static       |[examples/static/rust/lib](./examples/static/rust/lib)   | [examples/static/rust/exe](./examples/static/rust/exe) |
+| dynamic      |[examples/dynamic/rust/lib](./examples/dynamic/rust/lib) | [examples/dynamic/rust/exe](./examples/dynamic/rust/exe) |
 
-Install CLI
-------------
+CLI tools
+----------
+
+### Install
 
 ```bash
 cargo install --features=cli ocipkg@0.1.0-rc.0
+```
+
+### `ocipkg` command
+
+TBW
+
+### `cargo-ocipkg` command
+
+A tool for creating and publishing container using
+library built by `cargo build`.
+
+```
+$ cargo ocipkg build --release
+    Finished release [optimized] target(s) in 0.00s
+    Creating oci-archive (/home/teramura/github.com/termoshtt/ocipkg/examples/dynamic/rust/lib/target/release/ocipkg_dd0c7a812fd0fcbc.tar)
+```
+
+The filename is in form of `ocipkg_{{ hash }}.tar`,
+and this hash is calculated from image name and `Cargo.toml`.
+
+Container image name is determined using git commit hash
+as `{{ registry }}:$(git rev-parse HEAD --short)`
+where registry name is set by `Cargo.toml`:
+
+```toml
+[package.metadata.ocipkg]
+registry = "ghcr.io/termoshtt/ocipkg/dynamic/rust"
+```
+
+This container can be published by `cargo-ocipkg publish`:
+
+```
+$ cargo ocipkg publish --release
+     Publish container (ghcr.io/termoshtt/ocipkg/dynamic/rust:be7f108)
 ```
 
 Why ocipkg?
