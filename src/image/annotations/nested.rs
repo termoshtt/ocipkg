@@ -1,11 +1,20 @@
 //! Annotations with nested serialization/deserialization
 
+use crate::error::*;
 use serde::{Deserialize, Serialize};
+
+/// Root namespace for annotations
+///
+/// See [Annotations] document.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct Root {
+    org: Org,
+}
 
 /// `org.*` annotations
 ///
 /// See [Annotations] document.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct Org {
     pub opencontainers: OpenContainers,
 }
@@ -13,7 +22,7 @@ pub struct Org {
 /// `org.opencontainers.*` annotations
 ///
 /// See [Annotations] document.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct OpenContainers {
     pub image: Annotations,
 }
@@ -22,7 +31,42 @@ pub struct OpenContainers {
 ///
 /// See [Pre-Defined Annotation Keys](https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys)
 /// in OCI image spec.
-#[derive(Debug, Serialize, Deserialize)]
+///
+/// This is designed to use with TOML:
+///
+/// ```
+/// use ocipkg::image::annotations::nested::*;
+///
+/// // Read TOML
+/// let a = Annotations::from_toml(
+///     r#"
+///     [org.opencontainers.image]
+///     url = "https://github.com/termoshtt/ocipkg"
+///     "#,
+/// )
+/// .unwrap();
+/// assert_eq!(
+///     a,
+///     Annotations {
+///         url: Some("https://github.com/termoshtt/ocipkg".to_string()),
+///         ..Default::default()
+///     }
+/// );
+///
+/// // Dump to TOML
+/// let a = Annotations {
+///     url: Some("https://github.com/termoshtt/ocipkg".to_string()),
+///     ..Default::default()
+/// };
+/// assert_eq!(
+///     a.to_toml().trim(),
+///     r#"
+/// [org.opencontainers.image]
+/// url = 'https://github.com/termoshtt/ocipkg'
+///     "#.trim()
+/// );
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct Annotations {
     /// `org.opencontainers.image.created`
     ///
@@ -102,7 +146,7 @@ pub struct Annotations {
 }
 
 /// `org.opencontainers.image.base.*` annotations
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct Base {
     /// `org.opencontainers.image.base.digest`
     ///
@@ -115,4 +159,22 @@ pub struct Base {
     /// Annotations reference of the image this image is based on (string)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+}
+
+impl Annotations {
+    pub fn from_toml(input: &str) -> Result<Self> {
+        let root: Root = toml::from_str(input)?;
+        Ok(root.org.opencontainers.image)
+    }
+
+    pub fn to_toml(&self) -> String {
+        let root = Root {
+            org: Org {
+                opencontainers: OpenContainers {
+                    image: self.clone(),
+                },
+            },
+        };
+        toml::to_string_pretty(&root).unwrap()
+    }
 }
