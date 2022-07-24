@@ -31,7 +31,7 @@ CLI tools
 ### Install
 
 ```bash
-cargo install --features=cli ocipkg@0.1.0-rc.0
+cargo install --features=cli ocipkg
 ```
 
 ### `ocipkg` command
