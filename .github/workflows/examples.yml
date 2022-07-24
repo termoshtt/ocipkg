@@ -9,6 +9,10 @@ on:
 jobs:
   rust-lib:
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        linkage: [static, dynamic]
+    continue-on-error: true
     steps:
     - uses: actions/checkout@v1
     - uses: actions-rs/cargo@v1
@@ -17,16 +21,21 @@ jobs:
         args: --features=cli --path=. -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Login to GitHub Container Registry
+      run: ocipkg login -u ${{ github.repository_owner }} -p ${{ github.token }} https://ghcr.io
 
     - name: Build and publish a container with cargo-ocipkg
       run: |
-        cd examples/rust-lib
-        ocipkg login -u ${{ github.repository_owner }} -p ${{ github.token }} https://ghcr.io
-        cargo ocipkg build
-        cargo ocipkg publish
+        cd examples/${{ matrix.linkage }}/rust/lib
+        cargo ocipkg build --release
+        cargo ocipkg publish --release
 
   rust-exe:
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        linkage: [static, dynamic]
     steps:
     - uses: actions/checkout@v1
     - uses: actions-rs/cargo@v1
@@ -36,13 +45,10 @@ jobs:
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-    - name: Build container of rust-lib example
-      run: |
-        cd examples/rust-lib
-        cargo ocipkg build -t ghcr.io/termoshtt/ocipkg/rust-lib:latest
-        ocipkg load $(find . -name "ocipkg_*.tar")
+    - name: Login to GitHub Container Registry
+      run: ocipkg login -u ${{ github.repository_owner }} -p ${{ github.token }} https://ghcr.io
 
     - name: Build rust-exe example
       run: |
-        cd examples/rust-exe
-        cargo build
+        cd examples/${{ matrix.linkage }}/rust/exe
+        cargo run
