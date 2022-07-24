@@ -48,6 +48,10 @@ pub fn link_package(image_name: &str) -> Result<()> {
                 }
                 if ext == "so" {
                     println!("cargo:rustc-link-lib=dylib={}", name);
+                    println!(
+                        "cargo:rustc-link-arg=-Wl,-rpath={}",
+                        path.parent().unwrap().display()
+                    );
                 }
             }
         }
