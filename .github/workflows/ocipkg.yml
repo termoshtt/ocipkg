@@ -61,7 +61,7 @@ jobs:
     - name: get image from ghcr.io
       run: |
         ocipkg login -u ${{ github.repository_owner }} -p ${{ github.token }} https://ghcr.io
-        ocipkg get docker pull ghcr.io/termoshtt/ocipkg/dynamic/rust:1d23f83
+        ocipkg get ghcr.io/termoshtt/ocipkg/dynamic/rust:1d23f83
         file ~/.local/share/ocipkg/ghcr.io/termoshtt/ocipkg/dynamic/rust/__1d23f83/libocipkg_lib_example.so
 
   list:
