@@ -62,7 +62,6 @@ jobs:
       run: |
         ocipkg login -u ${{ github.repository_owner }} -p ${{ github.token }} https://ghcr.io
         ocipkg get ghcr.io/termoshtt/ocipkg/dynamic/rust:1d23f83
-        file ~/.local/share/ocipkg/ghcr.io/termoshtt/ocipkg/dynamic/rust/__1d23f83/libocipkg_lib_example.so
 
   list:
     runs-on: ubuntu-22.04
