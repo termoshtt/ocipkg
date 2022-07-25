@@ -74,8 +74,8 @@ TBW
 
 ### `cargo-ocipkg` command
 
-A tool for creating and publishing container using
-library built by `cargo build`.
+A tool for creating and publishing container consists of
+static or dynamic library built by `cargo build`:
 
 ```
 $ cargo ocipkg build --release
@@ -110,7 +110,10 @@ Links
 - [OCI Image Format Specification](https://github.com/opencontainers/image-spec)
 - [OCI Distribution Specification](https://github.com/opencontainers/distribution-spec)
 
-The idea that distribute binary files (not a system image) using OCI registry is based on [ORAS][oras].
+This project does not depend on [OCI Runtime specification](https://github.com/opencontainers/runtime-spec)
+since we never run a container.
+
+The idea that distribute any files (not a system image) using OCI registry is based on [ORAS][oras].
 
 - [OCI Registry As Storage][oras]
 
