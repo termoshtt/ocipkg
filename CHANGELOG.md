@@ -15,6 +15,7 @@ In addition to original Keep-a-Changelog, we use following rules:
 ## Unreleased
 
 ### Added
+- Start CHANGELOG.md https://github.com/termoshtt/ocipkg/pull/58
 
 ### Changed
 
