@@ -80,6 +80,14 @@ mod test {
     }
 
     #[test]
+    #[cfg(all(target_arch = "x86_64", target_os = "windows"))]
+    fn from_cargo_cfg() {
+        let platform = Platform::from_cfg_macro();
+        assert_eq!(platform.architecture(), &Arch::Amd64);
+        assert_eq!(platform.os(), &Os::Windows);
+    }
+
+    #[test]
     fn from_target_triple() {
         fn test(target_triple: &str, arch: &Arch, os: &Os) {
             let platform = Platform::from_target_triple(target_triple).unwrap();
