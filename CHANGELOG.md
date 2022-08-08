@@ -19,6 +19,7 @@ In addition to original Keep-a-Changelog, we use following rules:
 ### Changed
 
 ### Fixed
+- Make vergen build-dependency optional https://github.com/termoshtt/ocipkg/pull/63
 
 ### Internal
 
