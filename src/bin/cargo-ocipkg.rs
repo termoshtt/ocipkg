@@ -239,7 +239,7 @@ fn main() -> Result<()> {
             }
         }
 
-        Opt::Version(version) => {
+        Opt::Ocipkg(Ocipkg::Version(version)) => {
             clap_vergen::print!(version);
         }
     }
