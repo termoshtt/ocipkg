@@ -140,7 +140,7 @@ fn main() -> Result<()> {
         }
 
         Opt::Version(version) => {
-            version.print()?;
+            clap_vergen::print!(version);
         }
     }
     Ok(())
