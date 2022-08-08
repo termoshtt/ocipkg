@@ -15,14 +15,18 @@ In addition to original Keep-a-Changelog, we use following rules:
 ## Unreleased
 
 ### Added
-- `version` subcommand https://github.com/termoshtt/ocipkg/pull/62
-- Start CHANGELOG.md https://github.com/termoshtt/ocipkg/pull/58
 
 ### Changed
 
 ### Fixed
 
 ### Internal
+
+## 0.1.1 - 2022-08-08
+
+### Added
+- `version` subcommand https://github.com/termoshtt/ocipkg/pull/62
+- Start CHANGELOG.md https://github.com/termoshtt/ocipkg/pull/58
 
 ## 0.1.0 - 2022-07-25
 
