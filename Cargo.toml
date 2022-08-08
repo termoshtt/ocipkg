@@ -11,7 +11,7 @@ repository = "https://github.com/termoshtt/ocipkg"
 
 [features]
 default = []
-cli = ["clap", "clap-vergen", "cargo_metadata", "env_logger", "git2", "colored"]
+cli = ["clap", "clap-vergen", "vergen", "cargo_metadata", "env_logger", "git2", "colored"]
 
 [dependencies]
 base16ct = { version = "0.1.1", features = ["alloc"] }
@@ -53,5 +53,6 @@ required-features = ["cli"]
 [dev-dependencies]
 maplit = "1.0.2"
 
-[build-dependencies]
-vergen = "7.3.2"
+[build-dependencies.vergen]
+version = "7.3.2"
+optional = true
