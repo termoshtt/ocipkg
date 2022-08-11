@@ -14,13 +14,13 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: install
-        args: --features=cli --path=. -f
+        args: --path=ocipkg-cli/ -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
     - name: pack src/
       run: |
-        ocipkg pack src/ out.tar -t test_repo/testing:tag1
+        ocipkg pack ocipkg/src/ out.tar -t test_repo/testing:tag1
     - name: Testing podman can load the generated container
       run: |
         podman load < out.tar
@@ -33,7 +33,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: install
-        args: --features=cli --path=. -f
+        args: --path=ocipkg-cli/ -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
@@ -54,7 +54,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: install
-        args: --features=cli --path=. -f
+        args: --path=ocipkg-cli/ -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
@@ -70,7 +70,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: install
-        args: --features=cli --path=. -f
+        args: --path=ocipkg-cli/ -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
@@ -97,13 +97,13 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: install
-        args: --features=cli --path=. -f
+        args: --path=ocipkg-cli/ -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
     - name: pack src/ and push
       run: |
-        ocipkg pack src out.tar -t localhost:5000/test_repo:new_tag
+        ocipkg pack ocipkg/src out.tar -t localhost:5000/test_repo:new_tag
         ocipkg push out.tar
     - name: Test image has been pushed
       run: curl -sf localhost:5000/v2/test_repo/tags/list | jq -e '.tags[] | select(test("new_tag"))'

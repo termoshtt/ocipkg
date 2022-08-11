@@ -17,6 +17,7 @@ In addition to original Keep-a-Changelog, we use following rules:
 ### Added
 
 ### Changed
+- Split ocipkg-cli crate https://github.com/termoshtt/ocipkg/pull/65
 
 ### Fixed
 - Drop vergen and clap-vergen which not work with cargo-install https://github.com/termoshtt/ocipkg/pull/64
