@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "ocipkg",
+  "ocipkg-cli",
 ]
 exclude = [
   "examples/dynamic/rust/lib",
