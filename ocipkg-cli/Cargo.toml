@@ -15,7 +15,7 @@ serde_json = "1.0.82"
 url = "2.2.2"
 
 [dependencies.ocipkg]
-version = "0.1.2"
+version = "0.2.0"
 path = "../ocipkg"
 
 [[bin]]
