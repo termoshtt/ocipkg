@@ -65,7 +65,7 @@ CLI tools
 ### Install
 
 ```bash
-cargo install --features=cli ocipkg
+cargo install ocipkg-cli
 ```
 
 ### `ocipkg` command
