@@ -19,11 +19,20 @@ In addition to original Keep-a-Changelog, we use following rules:
 ### Changed
 
 ### Fixed
-- Make vergen build-dependency optional https://github.com/termoshtt/ocipkg/pull/63
+- Drop vergen and clap-vergen which not work with cargo-install https://github.com/termoshtt/ocipkg/pull/64
 
 ### Internal
 
+## 0.1.2 - 2022-08-08
+
+HotFix to 0.1.1
+
+### Fixed
+- Make vergen build-dependency optional https://github.com/termoshtt/ocipkg/pull/63
+
 ## 0.1.1 - 2022-08-08
+
+This has been yanked because it cannot compile without `cli` feature.
 
 ### Added
 - `version` subcommand https://github.com/termoshtt/ocipkg/pull/62

@@ -59,8 +59,6 @@ enum Opt {
         #[clap(short = 'p', long = "--password")]
         password: String,
     },
-
-    Version(clap_vergen::Version),
 }
 
 fn main() -> Result<()> {
@@ -137,10 +135,6 @@ fn main() -> Result<()> {
             let mut auth = ocipkg::distribution::StoredAuth::load()?;
             auth.append(new_auth)?;
             auth.save()?;
-        }
-
-        Opt::Version(version) => {
-            clap_vergen::print!(version);
         }
     }
     Ok(())
