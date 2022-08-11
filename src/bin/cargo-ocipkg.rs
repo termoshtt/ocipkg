@@ -38,8 +38,6 @@ enum Ocipkg {
         #[clap(long)]
         release: bool,
     },
-
-    Version(clap_vergen::Version),
 }
 
 fn get_metadata() -> Metadata {
@@ -237,10 +235,6 @@ fn main() -> Result<()> {
                 );
                 ocipkg::distribution::push_image(&dest)?;
             }
-        }
-
-        Opt::Ocipkg(Ocipkg::Version(version)) => {
-            clap_vergen::print!(version);
         }
     }
     Ok(())
