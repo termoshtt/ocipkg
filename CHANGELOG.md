@@ -17,11 +17,15 @@ In addition to original Keep-a-Changelog, we use following rules:
 ### Added
 
 ### Changed
-- Set MSRV to 1.57.0 https://github.com/termoshtt/ocipkg/pull/66
 
 ### Fixed
 
 ### Internal
+
+## 0.2.2 - 2022-08-11
+
+### Changed
+- Set MSRV to 1.57.0 https://github.com/termoshtt/ocipkg/pull/66
 
 ## 0.2.1 - 2022-08-11
 
