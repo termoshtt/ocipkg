@@ -17,10 +17,9 @@ In addition to original Keep-a-Changelog, we use following rules:
 ### Added
 
 ### Changed
-- Split ocipkg-cli crate https://github.com/termoshtt/ocipkg/pull/65
+- Set MSRV to 1.57.0 https://github.com/termoshtt/ocipkg/pull/66
 
 ### Fixed
-- Drop vergen and clap-vergen which not work with cargo-install https://github.com/termoshtt/ocipkg/pull/64
 
 ### Internal
 
