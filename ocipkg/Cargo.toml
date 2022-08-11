@@ -8,6 +8,7 @@ license = "MIT OR Apache-2.0"
 description = "OCI registry for package distribution"
 documentation = "https://docs.rs/ocipkg"
 repository = "https://github.com/termoshtt/ocipkg"
+readme = "../README.md"
 
 [dependencies]
 base16ct = { version = "0.1.1", features = ["alloc"] }
