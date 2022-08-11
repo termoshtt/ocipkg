@@ -24,6 +24,21 @@ In addition to original Keep-a-Changelog, we use following rules:
 
 ### Internal
 
+## 0.2.1 - 2022-08-11
+
+Hot Fix of 0.2.1 because rejected from crates.io
+
+### Fixed
+- Add Cargo.toml metadata of ocipkg-cli crate
+
+## 0.2.0 - 2022-08-11
+
+### Changed
+- Split ocipkg-cli crate https://github.com/termoshtt/ocipkg/pull/65
+
+### Fixed
+- Drop vergen and clap-vergen which not work with cargo-install https://github.com/termoshtt/ocipkg/pull/64
+
 ## 0.1.2 - 2022-08-08
 
 HotFix to 0.1.1
