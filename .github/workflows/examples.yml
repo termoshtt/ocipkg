@@ -10,6 +10,7 @@ jobs:
   rust-lib:
     runs-on: ubuntu-22.04
     strategy:
+      fail-fast: false
       matrix:
         linkage: [static, dynamic]
     continue-on-error: true
@@ -18,7 +19,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: install
-        args: --features=cli --path=. -f
+        args: --path=ocipkg-cli/ -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
@@ -34,6 +35,7 @@ jobs:
   rust-exe:
     runs-on: ubuntu-22.04
     strategy:
+      fail-fast: false
       matrix:
         linkage: [static, dynamic]
     steps:
@@ -41,7 +43,7 @@ jobs:
     - uses: actions-rs/cargo@v1
       with:
         command: install
-        args: --features=cli --path=. -f
+        args: --path=ocipkg-cli/ -f
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
