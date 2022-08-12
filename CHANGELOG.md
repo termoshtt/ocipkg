@@ -17,6 +17,7 @@ In addition to original Keep-a-Changelog, we use following rules:
 ### Added
 
 ### Changed
+- Fallback to use ~/.ocipkg/config.json if XDG_RUNTIME_DIR not set https://github.com/termoshtt/ocipkg/pull/67
 
 ### Fixed
 
