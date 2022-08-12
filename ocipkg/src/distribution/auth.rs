@@ -125,8 +125,14 @@ struct Auth {
 }
 
 fn auth_path() -> Option<PathBuf> {
-    let dirs = directories::ProjectDirs::from("", "", "ocipkg")?;
-    Some(dirs.runtime_dir()?.join("auth.json"))
+    directories::ProjectDirs::from("", "", "ocipkg")
+        .and_then(|dirs| Some(dirs.runtime_dir()?.join("auth.json")))
+        .or_else(|| {
+            // Most of container does not set XDG_RUNTIME_DIR,
+            // and then this fallback to `~/.ocipkg/config.json` like docker.
+            let dirs = directories::BaseDirs::new()?;
+            Some(dirs.home_dir().join(".ocipkg/config.json"))
+        })
 }
 
 fn docker_auth_path() -> Option<PathBuf> {
