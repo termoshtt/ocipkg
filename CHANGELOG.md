@@ -17,11 +17,15 @@ In addition to original Keep-a-Changelog, we use following rules:
 ### Added
 
 ### Changed
-- Do not panic in `link_package` https://github.com/termoshtt/ocipkg/pull/69
 
 ### Fixed
 
 ### Internal
+
+## 0.2.4 - 2022-08-25
+
+### Changed
+- Do not panic in `link_package` https://github.com/termoshtt/ocipkg/pull/69
 
 ## 0.2.3 - 2022-08-12
 
