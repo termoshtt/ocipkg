@@ -15,6 +15,7 @@ In addition to original Keep-a-Changelog, we use following rules:
 ## Unreleased
 
 ### Added
+- Set GitHub label by YAML file https://github.com/termoshtt/ocipkg/pull/71
 
 ### Changed
 
