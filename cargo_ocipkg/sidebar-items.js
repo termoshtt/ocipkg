@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["Ocipkg",""],["Opt",""]],"fn":[["generate_image_name",""],["generate_oci_archive_filename",""],["get_build_dir",""],["get_metadata",""],["get_package","`-p`|`--package-name` option has higher priority than current directory"],["get_revision",""],["main",""]]};
