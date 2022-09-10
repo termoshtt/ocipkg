@@ -22,7 +22,7 @@ pub fn push_image(path: &Path) -> Result<()> {
     let mut f = fs::File::open(&path)?;
     let mut ar = crate::image::Archive::new(&mut f);
     for (image_name, manifest) in ar.get_manifests()? {
-        let client = Client::new(image_name.registry_url()?, image_name.name)?;
+        let mut client = Client::new(image_name.registry_url()?, image_name.name)?;
         for layer in manifest.layers() {
             let digest = Digest::new(layer.digest())?;
             let mut entry = ar.get_blob(&digest)?;
@@ -45,7 +45,7 @@ pub fn get_image(image_name: &ImageName) -> Result<()> {
     let ImageName {
         name, reference, ..
     } = image_name;
-    let client = Client::new(image_name.registry_url()?, name.clone())?;
+    let mut client = Client::new(image_name.registry_url()?, name.clone())?;
     let manifest = client.get_manifest(reference)?;
     let dest = crate::local::image_dir(image_name)?;
     log::info!("Get {} into {}", image_name, dest.display());
