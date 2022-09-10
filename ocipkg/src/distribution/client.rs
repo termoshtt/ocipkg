@@ -30,10 +30,9 @@ impl Client {
 
     fn call(&mut self, req: ureq::Request) -> Result<ureq::Response> {
         if let Some(token) = &self.token {
-            return req
+            return Ok(req
                 .set("Authorization", &format!("Bearer {}", token))
-                .call()
-                .check_response();
+                .call()?);
         }
 
         // Try get token
@@ -55,24 +54,16 @@ impl Client {
         return self.call(req);
     }
 
-    fn add_auth_header(&self, req: ureq::Request) -> ureq::Request {
-        if let Some(token) = &self.token {
-            req.set("Authorization", &format!("Bearer {}", token))
-        } else {
-            req
-        }
-    }
-
     fn get(&self, url: &Url) -> ureq::Request {
-        self.add_auth_header(self.agent.get(url.as_str()))
+        self.agent.get(url.as_str())
     }
 
     fn put(&self, url: &Url) -> ureq::Request {
-        self.add_auth_header(self.agent.put(url.as_str()))
+        self.agent.put(url.as_str())
     }
 
     fn post(&self, url: &Url) -> ureq::Request {
-        self.add_auth_header(self.agent.post(url.as_str()))
+        self.agent.post(url.as_str())
     }
 
     /// Get tags of `<name>` repository.
@@ -127,11 +118,14 @@ impl Client {
         let url = self
             .url
             .join(&format!("/v2/{}/manifests/{}", self.name, reference))?;
-        let res = self
+        let mut req = self
             .put(&url)
-            .set("Content-Type", &MediaType::ImageManifest.to_string())
-            .send_bytes(&buf)
-            .check_response()?;
+            .set("Content-Type", &MediaType::ImageManifest.to_string());
+        if let Some(token) = self.token.as_ref() {
+            // Authorization must be done while blobs push
+            req = req.set("Authorization", &format!("Bearer {}", token));
+        }
+        let res = req.send_bytes(&buf)?;
         let loc = res
             .header("Location")
             .expect("Location header is lacked in OCI registry response");
@@ -175,39 +169,20 @@ impl Client {
         let url = Url::parse(loc).or_else(|_| self.url.join(loc))?;
 
         let digest = Digest::from_buf_sha256(blob);
-        let res = self
+        let mut req = self
             .put(&url)
             .query("digest", &digest.to_string())
             .set("Content-Length", &blob.len().to_string())
-            .set("Content-Type", "application/octet-stream")
-            .send_bytes(blob)
-            .check_response()?;
+            .set("Content-Type", "application/octet-stream");
+        if let Some(token) = self.token.as_ref() {
+            // Authorization must be done while the first POST
+            req = req.set("Authorization", &format!("Bearer {}", token))
+        }
+        let res = req.send_bytes(blob)?;
         let loc = res
             .header("Location")
             .expect("Location header is lacked in OCI registry response");
         Ok(Url::parse(loc).or_else(|_| self.url.join(loc))?)
-    }
-}
-
-trait CheckResponse {
-    fn check_response(self) -> Result<ureq::Response>;
-}
-
-impl CheckResponse for std::result::Result<ureq::Response, ureq::Error> {
-    fn check_response(self) -> Result<ureq::Response> {
-        match self {
-            Ok(res) => Ok(res),
-            Err(ureq::Error::Status(status, res)) => {
-                if status == 401 {
-                    if let Some(msg) = res.header("www-authenticate") {
-                        log::error!("Server returns WWW-Authenticate header: {}", msg);
-                    }
-                }
-                let err = res.into_json::<ErrorResponse>()?;
-                Err(Error::RegistryError(err))
-            }
-            Err(ureq::Error::Transport(e)) => Err(Error::NetworkError(e)),
-        }
     }
 }
 
