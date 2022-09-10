@@ -1,7 +1,10 @@
 # Keep-a-Changelog style release note
 changelog:
   categories:
-    - title: Added
+    - title: Bug fixes
+      labels:
+        - bug
+    - title: New features
       labels:
         - add
     - title: Changed
@@ -10,9 +13,6 @@ changelog:
     - title: Deprecated
       labels:
         - deprecate
-    - title: Fixed
-      labels:
-        - fix
     - title: Removed
       labels:
         - remove
