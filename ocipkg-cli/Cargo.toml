@@ -2,7 +2,7 @@
 name = "ocipkg-cli"
 authors = ["Toshiki Teramura <toshiki.teramura@gmail.com>"]
 license = "MIT OR Apache-2.0"
-version = "0.2.5"
+version = "0.2.6"
 edition = "2021"
 rust-version = "1.57.0"
 description = "CLI for ocipkg"
