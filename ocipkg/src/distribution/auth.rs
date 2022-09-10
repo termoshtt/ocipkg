@@ -72,13 +72,8 @@ impl StoredAuth {
             Err(ureq::Error::Transport(e)) => return Err(Error::NetworkError(e)),
         };
 
-        let (ty, realm) = parse_www_authenticate_header(&www_auth);
-        if ty != "Bearer" {
-            log::warn!("Unsupported authenticate type, fallback: {}", ty);
-            return Ok(None);
-        }
-        let (token_url, query) = parse_bearer_realm(realm)?;
-
+        let challenge = AuthChallenge::from_header(&www_auth)?;
+        let token_url = Url::parse(&challenge.url)?;
         let domain = token_url
             .domain()
             .expect("www-authenticate header returns invalid URL");
@@ -86,9 +81,9 @@ impl StoredAuth {
             let mut req = ureq::get(token_url.as_str())
                 .set("Authorization", &format!("Basic {}", auth.auth))
                 .set("Accept", "application/json");
-            for (k, v) in query {
-                req = req.query(k, v);
-            }
+            req = req
+                .query("scope", &challenge.scope)
+                .query("service", &challenge.service);
             match req.call() {
                 Ok(res) => {
                     let token = res.into_json::<Token>()?;
@@ -145,44 +140,55 @@ fn podman_auth_path() -> Option<PathBuf> {
     Some(dirs.runtime_dir()?.join("auth.json"))
 }
 
-/// Parse the header of response. It must be in form:
+/// WWW-Authentication challenge
 ///
-/// ```text
-/// WWW-Authenticate: <type> realm=<realm>
 /// ```
+/// use ocipkg::distribution::AuthChallenge;
 ///
-/// https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication#www-authenticate_and_proxy-authenticate_headers
-fn parse_www_authenticate_header(header: &str) -> (&str, &str) {
-    let re = regex::Regex::new(r"(\w+) realm=(.+)").unwrap();
-    let cap = re
-        .captures(header)
-        .expect("WWW-Authenticate header is invalid");
-    let ty = cap.get(1).unwrap().as_str();
-    let realm = cap.get(2).unwrap().as_str();
-    (ty, realm)
+/// let auth = AuthChallenge::from_header(
+///   r#"Bearer realm="https://ghcr.io/token",service="ghcr.io",scope="repository:termoshtt/ocipkg/rust-lib:pull""#,
+/// ).unwrap();
+///
+/// assert_eq!(auth, AuthChallenge {
+///   url: "https://ghcr.io/token".to_string(),
+///   service: "ghcr.io".to_string(),
+///   scope: "repository:termoshtt/ocipkg/rust-lib:pull".to_string(),
+/// });
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AuthChallenge {
+    pub url: String,
+    pub service: String,
+    pub scope: String,
 }
 
-/// Parse realm
-///
-/// XXX: Where this format is defined?
-///
-/// ghcr.io returns following:
-///
-/// ```text
-/// Bearer realm="https://ghcr.io/token",service="ghcr.io",scope="repository:termoshtt/ocipkg/rust-lib:pull"
-/// ```
-fn parse_bearer_realm(realm: &str) -> Result<(Url, Vec<(&str, &str)>)> {
-    let realm: Vec<_> = realm.split(',').collect();
-    assert!(!realm.is_empty());
-    let url = url::Url::parse(realm[0].trim_matches('"'))?;
-    let query: Vec<_> = realm[1..]
-        .iter()
-        .map(|param| {
-            let q: Vec<_> = param.split('=').collect();
-            (q[0].trim_matches('"'), q[1].trim_matches('"'))
+impl AuthChallenge {
+    pub fn from_header(header: &str) -> Result<Self> {
+        let err = || Error::UnSupportedAuthHeader(header.to_string());
+        let (ty, realm) = header.split_once(' ').ok_or_else(err)?;
+        if ty != "Bearer" {
+            return Err(err());
+        }
+
+        let mut url = None;
+        let mut service = None;
+        let mut scope = None;
+        for param in realm.split(',') {
+            let (key, value) = param.split_once('=').ok_or_else(err)?;
+            let value = value.trim_matches('"').to_string();
+            match key {
+                "realm" => url = Some(value),
+                "service" => service = Some(value),
+                "scope" => scope = Some(value),
+                _ => continue,
+            }
+        }
+        Ok(Self {
+            url: url.ok_or_else(err)?,
+            service: service.ok_or_else(err)?,
+            scope: scope.ok_or_else(err)?,
         })
-        .collect();
-    Ok((url, query))
+    }
 }
 
 #[derive(Deserialize)]

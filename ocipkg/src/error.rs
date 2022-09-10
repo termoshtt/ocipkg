@@ -49,6 +49,8 @@ pub enum Error {
     RegistryError(#[from] oci_spec::distribution::ErrorResponse),
     #[error("Authorization failed: {0}")]
     AuthorizationFailed(url::Url),
+    #[error("Unsupported WWW-Authentication header: {0}")]
+    UnSupportedAuthHeader(String),
 
     //
     // System error
