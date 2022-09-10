@@ -54,7 +54,7 @@ impl StoredAuth {
         Ok(())
     }
 
-    /// Get token for using in API call
+    /// Get token by trying to access API root `/v2/`
     ///
     /// Returns `None` if no authentication is required.
     pub fn get_token(&self, url: &url::Url) -> Result<Option<String>> {
@@ -73,27 +73,30 @@ impl StoredAuth {
         };
 
         let challenge = AuthChallenge::from_header(&www_auth)?;
+        self.challenge(&challenge).map(|token| Some(token))
+    }
+
+    /// Get token based on WWW-Authentication header
+    pub fn challenge(&self, challenge: &AuthChallenge) -> Result<String> {
         let token_url = Url::parse(&challenge.url)?;
         let domain = token_url
             .domain()
             .expect("www-authenticate header returns invalid URL");
+
+        let mut req = ureq::get(token_url.as_str()).set("Accept", "application/json");
         if let Some(auth) = self.auths.get(domain) {
-            let mut req = ureq::get(token_url.as_str())
-                .set("Authorization", &format!("Basic {}", auth.auth))
-                .set("Accept", "application/json");
-            req = req
-                .query("scope", &challenge.scope)
-                .query("service", &challenge.service);
-            match req.call() {
-                Ok(res) => {
-                    let token = res.into_json::<Token>()?;
-                    Ok(Some(token.token))
-                }
-                Err(ureq::Error::Status(..)) => Err(Error::AuthorizationFailed(url.clone())),
-                Err(ureq::Error::Transport(e)) => Err(Error::NetworkError(e)),
+            req = req.set("Authorization", &format!("Basic {}", auth.auth))
+        }
+        req = req
+            .query("scope", &challenge.scope)
+            .query("service", &challenge.service);
+        match req.call() {
+            Ok(res) => {
+                let token = res.into_json::<Token>()?;
+                Ok(token.token)
             }
-        } else {
-            Ok(None)
+            Err(ureq::Error::Status(..)) => Err(Error::AuthorizationFailed(token_url.clone())),
+            Err(ureq::Error::Transport(e)) => Err(Error::NetworkError(e)),
         }
     }
 
