@@ -1,6 +1,6 @@
 - name: add
   description: Add new features.
-  color: "00ff00"
+  color: "006400"
 - name: change
   description: Change existing functionality.
   color: "fbca04"
@@ -12,7 +12,7 @@
   color: "dda0dd"
 - name: bug
   description: Fix bug.
-  color: "ff4500"
+  color: "dc143c"
 - name: security
   description: In case of vulnerabilities.
   color: "800080"
