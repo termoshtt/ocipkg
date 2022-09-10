@@ -1,5 +1,5 @@
 use crate::Digest;
-use oci_spec::OciSpecError;
+use oci_spec::{distribution::ErrorResponse, OciSpecError};
 use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
@@ -46,9 +46,11 @@ pub enum Error {
     #[error(transparent)]
     NetworkError(#[from] ureq::Transport),
     #[error(transparent)]
-    RegistryError(#[from] oci_spec::distribution::ErrorResponse),
+    RegistryError(#[from] ErrorResponse),
     #[error("Authorization failed: {0}")]
     AuthorizationFailed(url::Url),
+    #[error("Unsupported WWW-Authentication header: {0}")]
+    UnSupportedAuthHeader(String),
 
     //
     // System error
@@ -77,5 +79,17 @@ impl From<OciSpecError> for Error {
 impl From<walkdir::Error> for Error {
     fn from(e: walkdir::Error) -> Self {
         Self::UnknownIo(e.into())
+    }
+}
+
+impl From<ureq::Error> for Error {
+    fn from(e: ureq::Error) -> Self {
+        match e {
+            ureq::Error::Status(_status, res) => match res.into_json::<ErrorResponse>() {
+                Ok(err) => Error::RegistryError(err),
+                Err(e) => Error::UnknownIo(e),
+            },
+            ureq::Error::Transport(e) => Error::NetworkError(e),
+        }
     }
 }

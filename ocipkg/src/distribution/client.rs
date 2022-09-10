@@ -10,40 +10,60 @@ pub struct Client {
     url: Url,
     /// Name of repository
     name: Name,
-    /// Authorization token
+    /// Loaded authentication info from filesystem
+    auth: StoredAuth,
+    /// Cached token
     token: Option<String>,
 }
 
 impl Client {
     pub fn new(url: Url, name: Name) -> Result<Self> {
         let auth = StoredAuth::load_all()?;
-        let token = auth.get_token(&url)?;
         Ok(Client {
             agent: ureq::Agent::new(),
             url,
             name,
-            token,
+            auth,
+            token: None,
         })
     }
 
-    fn add_auth_header(&self, req: ureq::Request) -> ureq::Request {
+    fn call(&mut self, req: ureq::Request) -> Result<ureq::Response> {
         if let Some(token) = &self.token {
-            req.set("Authorization", &format!("Bearer {}", token))
-        } else {
-            req
+            return Ok(req
+                .set("Authorization", &format!("Bearer {}", token))
+                .call()?);
         }
+
+        // Try get token
+        let try_req = req.clone();
+        let www_auth = match try_req.call() {
+            Ok(res) => return Ok(res),
+            Err(ureq::Error::Status(status, res)) => {
+                if status == 401 && res.has("www-authenticate") {
+                    res.header("www-authenticate").unwrap().to_string()
+                } else {
+                    let err = res.into_json::<ErrorResponse>()?;
+                    return Err(Error::RegistryError(err));
+                }
+            }
+            Err(ureq::Error::Transport(e)) => return Err(Error::NetworkError(e)),
+        };
+        let challenge = AuthChallenge::from_header(&www_auth)?;
+        self.token = Some(self.auth.challenge(&challenge)?);
+        return self.call(req);
     }
 
     fn get(&self, url: &Url) -> ureq::Request {
-        self.add_auth_header(self.agent.get(url.as_str()))
+        self.agent.get(url.as_str())
     }
 
     fn put(&self, url: &Url) -> ureq::Request {
-        self.add_auth_header(self.agent.put(url.as_str()))
+        self.agent.put(url.as_str())
     }
 
     fn post(&self, url: &Url) -> ureq::Request {
-        self.add_auth_header(self.agent.post(url.as_str()))
+        self.agent.post(url.as_str())
     }
 
     /// Get tags of `<name>` repository.
@@ -53,9 +73,9 @@ impl Client {
     /// ```
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#content-discovery) for detail.
-    pub fn get_tags(&self) -> Result<Vec<String>> {
+    pub fn get_tags(&mut self) -> Result<Vec<String>> {
         let url = self.url.join(&format!("/v2/{}/tags/list", self.name))?;
-        let res = self.get(&url).call().check_response()?;
+        let res = self.call(self.get(&url))?;
         let tag_list = res.into_json::<TagList>()?;
         Ok(tag_list.tags().to_vec())
     }
@@ -67,22 +87,18 @@ impl Client {
     /// ```
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-manifests) for detail.
-    pub fn get_manifest(&self, reference: &Reference) -> Result<ImageManifest> {
+    pub fn get_manifest(&mut self, reference: &Reference) -> Result<ImageManifest> {
         let url = self
             .url
             .join(&format!("/v2/{}/manifests/{}", self.name, reference))?;
-        let res = self
-            .get(&url)
-            .set(
-                "Accept",
-                &format!(
-                    "{}, {}",
-                    MediaType::ImageManifest.to_docker_v2s2().unwrap(),
-                    MediaType::ImageManifest,
-                ),
-            )
-            .call()
-            .check_response()?;
+        let res = self.call(self.get(&url).set(
+            "Accept",
+            &format!(
+                "{}, {}",
+                MediaType::ImageManifest.to_docker_v2s2().unwrap(),
+                MediaType::ImageManifest,
+            ),
+        ))?;
         let manifest = ImageManifest::from_reader(res.into_reader())?;
         Ok(manifest)
     }
@@ -102,11 +118,14 @@ impl Client {
         let url = self
             .url
             .join(&format!("/v2/{}/manifests/{}", self.name, reference))?;
-        let res = self
+        let mut req = self
             .put(&url)
-            .set("Content-Type", &MediaType::ImageManifest.to_string())
-            .send_bytes(&buf)
-            .check_response()?;
+            .set("Content-Type", &MediaType::ImageManifest.to_string());
+        if let Some(token) = self.token.as_ref() {
+            // Authorization must be done while blobs push
+            req = req.set("Authorization", &format!("Bearer {}", token));
+        }
+        let res = req.send_bytes(&buf)?;
         let loc = res
             .header("Location")
             .expect("Location header is lacked in OCI registry response");
@@ -120,11 +139,11 @@ impl Client {
     /// ```
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pulling-blobs) for detail.
-    pub fn get_blob(&self, digest: &Digest) -> Result<Vec<u8>> {
+    pub fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>> {
         let url = self
             .url
             .join(&format!("/v2/{}/blobs/{}", self.name.as_str(), digest,))?;
-        let res = self.get(&url).call().check_response()?;
+        let res = self.call(self.get(&url))?;
         let mut bytes = Vec::new();
         res.into_reader().read_to_end(&mut bytes)?;
         Ok(bytes)
@@ -139,50 +158,31 @@ impl Client {
     /// and following `PUT` to URL obtained by `POST`.
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests) for detail.
-    pub fn push_blob(&self, blob: &[u8]) -> Result<Url> {
+    pub fn push_blob(&mut self, blob: &[u8]) -> Result<Url> {
         let url = self
             .url
             .join(&format!("/v2/{}/blobs/uploads/", self.name))?;
-        let res = self.post(&url).call().check_response()?;
+        let res = self.call(self.post(&url))?;
         let loc = res
             .header("Location")
             .expect("Location header is lacked in OCI registry response");
         let url = Url::parse(loc).or_else(|_| self.url.join(loc))?;
 
         let digest = Digest::from_buf_sha256(blob);
-        let res = self
+        let mut req = self
             .put(&url)
             .query("digest", &digest.to_string())
             .set("Content-Length", &blob.len().to_string())
-            .set("Content-Type", "application/octet-stream")
-            .send_bytes(blob)
-            .check_response()?;
+            .set("Content-Type", "application/octet-stream");
+        if let Some(token) = self.token.as_ref() {
+            // Authorization must be done while the first POST
+            req = req.set("Authorization", &format!("Bearer {}", token))
+        }
+        let res = req.send_bytes(blob)?;
         let loc = res
             .header("Location")
             .expect("Location header is lacked in OCI registry response");
         Ok(Url::parse(loc).or_else(|_| self.url.join(loc))?)
-    }
-}
-
-trait CheckResponse {
-    fn check_response(self) -> Result<ureq::Response>;
-}
-
-impl CheckResponse for std::result::Result<ureq::Response, ureq::Error> {
-    fn check_response(self) -> Result<ureq::Response> {
-        match self {
-            Ok(res) => Ok(res),
-            Err(ureq::Error::Status(status, res)) => {
-                if status == 401 {
-                    if let Some(msg) = res.header("www-authenticate") {
-                        log::error!("Server returns WWW-Authenticate header: {}", msg);
-                    }
-                }
-                let err = res.into_json::<ErrorResponse>()?;
-                Err(Error::RegistryError(err))
-            }
-            Err(ureq::Error::Transport(e)) => Err(Error::NetworkError(e)),
-        }
     }
 }
 
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     #[ignore]
     fn get_tags() -> Result<()> {
-        let client = Client::new(test_url(), test_name())?;
+        let mut client = Client::new(test_url(), test_name())?;
         let mut tags = client.get_tags()?;
         tags.sort_unstable();
         assert_eq!(
@@ -218,7 +218,7 @@ mod tests {
     #[test]
     #[ignore]
     fn get_images() -> Result<()> {
-        let client = Client::new(test_url(), test_name())?;
+        let mut client = Client::new(test_url(), test_name())?;
         for tag in ["tag1", "tag2", "tag3"] {
             let manifest = client.get_manifest(&Reference::new(tag)?)?;
             for layer in manifest.layers() {
@@ -232,7 +232,7 @@ mod tests {
     #[test]
     #[ignore]
     fn push_blob() -> Result<()> {
-        let client = Client::new(test_url(), test_name())?;
+        let mut client = Client::new(test_url(), test_name())?;
         let url = client.push_blob("test string".as_bytes())?;
         dbg!(url);
         Ok(())
