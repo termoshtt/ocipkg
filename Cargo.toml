@@ -4,8 +4,6 @@ members = [
   "ocipkg-cli",
 ]
 exclude = [
-  "examples/dynamic/rust/lib",
-  "examples/dynamic/rust/exe",
-  "examples/static/rust/lib",
-  "examples/static/rust/exe",
+  "examples/rust/lib",
+  "examples/rust/exe",
 ]
