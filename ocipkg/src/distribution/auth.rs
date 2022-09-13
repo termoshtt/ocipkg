@@ -25,12 +25,14 @@ impl StoredAuth {
     pub fn load_all() -> Result<Self> {
         let mut auth = StoredAuth::default();
         if let Some(path) = docker_auth_path() {
-            let new = Self::from_path(&path)?;
-            auth.append(new)?;
+            if let Ok(new) = Self::from_path(&path) {
+                auth.append(new)?;
+            }
         }
         if let Some(path) = podman_auth_path() {
-            let new = Self::from_path(&path)?;
-            auth.append(new)?;
+            if let Ok(new) = Self::from_path(&path) {
+                auth.append(new)?;
+            }
         }
         if let Some(path) = auth_path() {
             let new = Self::from_path(&path)?;
