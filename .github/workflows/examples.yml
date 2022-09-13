@@ -9,10 +9,6 @@ on:
 jobs:
   rust-lib:
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        linkage: [static, dynamic]
     continue-on-error: true
     steps:
     - uses: actions/checkout@v1
@@ -28,16 +24,12 @@ jobs:
 
     - name: Build and publish a container with cargo-ocipkg
       run: |
-        cd examples/${{ matrix.linkage }}/rust/lib
+        cd examples/rust/lib
         cargo ocipkg build --release
         cargo ocipkg publish --release
 
   rust-exe:
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        linkage: [static, dynamic]
     steps:
     - uses: actions/checkout@v1
     - uses: actions-rs/cargo@v1
@@ -52,5 +44,5 @@ jobs:
 
     - name: Build rust-exe example
       run: |
-        cd examples/${{ matrix.linkage }}/rust/exe
+        cd examples/rust/exe
         cargo run
