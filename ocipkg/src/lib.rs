@@ -28,31 +28,23 @@ pub fn link_package(image_name: &str) -> Result<()> {
         distribution::get_image(&image_name)?;
     }
     println!("cargo:rustc-link-search={}", dir.display());
-    for entry in fs::read_dir(&dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_file() {
-            let name = path
-                .file_stem()
-                .unwrap()
-                .to_str()
-                .expect("Non UTF-8 is not supported");
-            let name = if let Some(name) = name.strip_prefix("lib") {
-                name
-            } else {
-                continue;
-            };
-            if let Some(ext) = path.extension() {
-                if ext == "a" {
-                    println!("cargo:rustc-link-lib=static={}", name);
-                }
-                if ext == "so" {
-                    println!("cargo:rustc-link-lib=dylib={}", name);
-                    println!(
-                        "cargo:rustc-link-arg=-Wl,-rpath={}",
-                        path.parent().unwrap().display()
-                    );
-                }
+    for path in fs::read_dir(&dir)?.filter_map(|entry| {
+        let path = entry.ok()?.path();
+        path.is_file().then(|| path)
+    }) {
+        let name = path
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .expect("Non UTF-8 is not supported");
+        let name = if let Some(name) = name.strip_prefix("lib") {
+            name
+        } else {
+            continue;
+        };
+        if let Some(ext) = path.extension() {
+            if ext == "a" {
+                println!("cargo:rustc-link-lib=static={}", name);
             }
         }
     }
