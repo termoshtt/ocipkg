@@ -18,6 +18,18 @@ pub use image_name::ImageName;
 use crate::error::*;
 use std::fs;
 
+const STATIC_PREFIX: &str = if cfg!(target_os = "windows") {
+    ""
+} else {
+    "lib"
+};
+
+const STATIC_EXTENSION: &str = if cfg!(target_os = "windows") {
+    "lib"
+} else {
+    "a"
+};
+
 /// Get and link package in `build.rs` with [cargo link instructions](https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script).
 ///
 /// This is aimed to use in [build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html) a.k.a. `build.rs`.
@@ -37,13 +49,13 @@ pub fn link_package(image_name: &str) -> Result<()> {
             .unwrap()
             .to_str()
             .expect("Non UTF-8 is not supported");
-        let name = if let Some(name) = name.strip_prefix("lib") {
+        let name = if let Some(name) = name.strip_prefix(STATIC_PREFIX) {
             name
         } else {
             continue;
         };
         if let Some(ext) = path.extension() {
-            if ext == "a" {
+            if ext == STATIC_EXTENSION {
                 println!("cargo:rustc-link-lib=static={}", name);
             }
         }
