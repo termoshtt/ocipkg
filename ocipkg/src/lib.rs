@@ -46,13 +46,6 @@ pub fn link_package(image_name: &str) -> Result<()> {
             if ext == "a" {
                 println!("cargo:rustc-link-lib=static={}", name);
             }
-            if ext == "so" {
-                println!("cargo:rustc-link-lib=dylib={}", name);
-                println!(
-                    "cargo:rustc-link-arg=-Wl,-rpath={}",
-                    path.parent().unwrap().display()
-                );
-            }
         }
     }
     println!("cargo:rerun-if-changed={}", dir.display());
