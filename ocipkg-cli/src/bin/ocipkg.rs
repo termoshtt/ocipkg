@@ -26,6 +26,29 @@ enum Opt {
         annotations: PathBuf,
     },
 
+    /// Compose files into an oci-archive tar file
+    Compose {
+        /// Path of input file to be packed
+        #[clap(parse(from_os_str))]
+        inputs: Vec<PathBuf>,
+
+        /// Path of output tar archive in oci-archive format
+        #[clap(short = 'o', long = "output", parse(from_os_str))]
+        output: PathBuf,
+
+        /// Name of container, use UUID v4 hyphenated if not set.
+        #[clap(short = 't', long = "tag")]
+        tag: Option<String>,
+
+        /// Path to annotations file.
+        #[clap(
+            long = "annotations",
+            parse(from_os_str),
+            default_value = "ocipkg.toml"
+        )]
+        annotations: PathBuf,
+    },
+
     /// Load and expand container local cache
     Load {
         /// Input oci-archive
@@ -102,6 +125,32 @@ fn main() -> Result<()> {
             }
             b.append_dir_all(&input_directory)?;
             let _output = b.into_inner()?;
+        }
+
+        Opt::Compose {
+            inputs,
+            output,
+            tag,
+            annotations,
+        } => {
+            let mut output = output;
+            output.set_extension("tar");
+            if output.exists() {
+                panic!("Output already exists: {}", output.display());
+            }
+            let f = fs::File::create(output)?;
+            let mut b = ocipkg::image::Builder::new(f);
+            if let Some(name) = tag {
+                b.set_name(&ocipkg::ImageName::parse(&name)?);
+            }
+            if annotations.is_file() {
+                let f = fs::read(annotations)?;
+                let input = String::from_utf8(f).expect("Non-UTF8 string in TOML");
+                b.set_annotations(
+                    ocipkg::image::annotations::nested::Annotations::from_toml(&input)?.into(),
+                )
+            }
+            b.append_files(&inputs)?;
         }
 
         Opt::Load { input } => {
