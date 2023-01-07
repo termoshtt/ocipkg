@@ -137,7 +137,7 @@ fn main() -> Result<()> {
             let url = url::Url::parse(&registry)?;
             let octet = base64::encode(format!("{}:{}", username, password,));
             let mut new_auth = ocipkg::distribution::StoredAuth::default();
-            new_auth.insert(&url.domain().unwrap(), octet);
+            new_auth.insert(url.domain().unwrap(), octet);
             let _token = new_auth.get_token(&url)?;
             println!("Login succeed");
 

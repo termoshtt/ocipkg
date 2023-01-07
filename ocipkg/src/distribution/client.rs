@@ -51,7 +51,7 @@ impl Client {
         };
         let challenge = AuthChallenge::from_header(&www_auth)?;
         self.token = Some(self.auth.challenge(&challenge)?);
-        return self.call(req);
+        self.call(req)
     }
 
     fn get(&self, url: &Url) -> ureq::Request {

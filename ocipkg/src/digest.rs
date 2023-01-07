@@ -57,7 +57,7 @@ impl Digest {
 
     /// Calc digest using SHA-256 algorithm
     pub fn from_buf_sha256(buf: &[u8]) -> Self {
-        let hash = Sha256::digest(&buf);
+        let hash = Sha256::digest(buf);
         let digest = base16ct::lower::encode_string(&hash);
         Self {
             algorithm: "sha256".to_string(),
