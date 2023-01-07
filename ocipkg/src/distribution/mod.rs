@@ -19,7 +19,7 @@ pub fn push_image(path: &Path) -> Result<()> {
     if !path.is_file() {
         return Err(Error::NotAFile(path.to_owned()));
     }
-    let mut f = fs::File::open(&path)?;
+    let mut f = fs::File::open(path)?;
     let mut ar = crate::image::Archive::new(&mut f);
     for (image_name, manifest) in ar.get_manifests()? {
         let mut client = Client::new(image_name.registry_url()?, image_name.name)?;

@@ -1,4 +1,6 @@
 use clap::Parser;
+use flate2::read::GzDecoder;
+use oci_spec::image::MediaType;
 use ocipkg::error::*;
 use std::{fs, path::*};
 
@@ -58,6 +60,13 @@ enum Opt {
         username: String,
         #[clap(short = 'p', long = "--password")]
         password: String,
+    },
+
+    /// Inspect components in OCI archive
+    Inspect {
+        /// Input oci-archive
+        #[clap(parse(from_os_str))]
+        input: PathBuf,
     },
 }
 
@@ -128,13 +137,43 @@ fn main() -> Result<()> {
             let url = url::Url::parse(&registry)?;
             let octet = base64::encode(format!("{}:{}", username, password,));
             let mut new_auth = ocipkg::distribution::StoredAuth::default();
-            new_auth.insert(&url.domain().unwrap(), octet);
+            new_auth.insert(url.domain().unwrap(), octet);
             let _token = new_auth.get_token(&url)?;
             println!("Login succeed");
 
             let mut auth = ocipkg::distribution::StoredAuth::load()?;
             auth.append(new_auth)?;
             auth.save()?;
+        }
+
+        Opt::Inspect { input } => {
+            let mut f = fs::File::open(&input)?;
+            let mut ar = ocipkg::image::Archive::new(&mut f);
+            for (name, manifest) in ar.get_manifests()? {
+                println!("[{}]", name);
+                for layer in manifest.layers() {
+                    let digest = ocipkg::Digest::new(layer.digest())?;
+                    let entry = ar.get_blob(&digest)?;
+                    match layer.media_type() {
+                        MediaType::ImageLayerGzip => {
+                            let buf = GzDecoder::new(entry);
+                            let mut ar = tar::Archive::new(buf);
+                            let paths: Vec<_> = ar
+                                .entries()?
+                                .filter_map(|entry| Some(entry.ok()?.path().ok()?.to_path_buf()))
+                                .collect();
+                            for (i, path) in paths.iter().enumerate() {
+                                if i < paths.len() - 1 {
+                                    println!("  ├─ {}", path.display());
+                                } else {
+                                    println!("  └─ {}", path.display());
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
     }
     Ok(())

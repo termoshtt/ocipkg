@@ -49,7 +49,7 @@ impl StoredAuth {
         let path = auth_path().ok_or(Error::NoValidRuntimeDirectory)?;
         let parent = path.parent().unwrap();
         if !parent.exists() {
-            fs::create_dir_all(&parent)?;
+            fs::create_dir_all(parent)?;
         }
         let f = fs::File::create(&path)?;
         serde_json::to_writer_pretty(f, self)?;
@@ -75,7 +75,7 @@ impl StoredAuth {
         };
 
         let challenge = AuthChallenge::from_header(&www_auth)?;
-        self.challenge(&challenge).map(|token| Some(token))
+        self.challenge(&challenge).map(Some)
     }
 
     /// Get token based on WWW-Authentication header
