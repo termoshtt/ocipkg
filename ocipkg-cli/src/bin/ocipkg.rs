@@ -91,6 +91,17 @@ enum Opt {
         #[clap(parse(from_os_str))]
         input: PathBuf,
     },
+
+    /// Mount OCI archive using FUSE
+    Mount {
+        /// Input oci-archive
+        #[clap(parse(from_os_str))]
+        input: PathBuf,
+
+        /// Where the archive is mounted
+        #[clap(parse(from_os_str))]
+        mount_point: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -211,6 +222,32 @@ fn main() -> Result<()> {
                                 } else {
                                     println!("  └─ {}", path.display());
                                 }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        Opt::Mount { input, mount_point } => {
+            if !mount_point.is_dir() {
+                return Err(Error::NotADirectory(mount_point));
+            }
+            let mut f = fs::File::open(&input)?;
+            let mut ar = ocipkg::image::Archive::new(&mut f);
+            for (name, manifest) in ar.get_manifests()? {
+                dbg!(name);
+                for layer in manifest.layers() {
+                    let digest = ocipkg::Digest::new(layer.digest())?;
+                    let entry = ar.get_blob(&digest)?;
+                    match layer.media_type() {
+                        MediaType::ImageLayerGzip => {
+                            let buf = GzDecoder::new(entry);
+                            let mut ar = tar::Archive::new(buf);
+                            for entry in ar.entries()? {
+                                let entry = entry?;
+                                dbg!(entry.path()?);
                             }
                         }
                         _ => {}
