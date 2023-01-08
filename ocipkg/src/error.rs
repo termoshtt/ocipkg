@@ -23,6 +23,8 @@ pub enum Error {
     NotAFile(PathBuf),
     #[error("Not a directory, or not exist: {0}")]
     NotADirectory(PathBuf),
+    #[error("Unsupported archive type: {0}")]
+    UnsupportedArchive(PathBuf),
 
     //
     // Invalid container image

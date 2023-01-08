@@ -3,7 +3,14 @@
 use chrono::{DateTime, Utc};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
-use std::{collections::HashMap, convert::TryFrom, fs, io, path::Path};
+use std::{
+    collections::HashMap,
+    convert::TryFrom,
+    ffi::OsStr,
+    fs,
+    io::{self, Read},
+    path::Path,
+};
 
 use crate::{
     digest::{Digest, DigestBuf},
@@ -120,6 +127,20 @@ impl<W: io::Write> Builder<W> {
             .expect("This never fails since zip is creating on memory");
         let layer_desc = self.save_blob(MediaType::ImageLayerGzip, &buf)?;
         self.layers.push(layer_desc);
+        Ok(())
+    }
+
+    /// Append existing archive as a layer
+    pub fn append_archive(&mut self, path: &Path) -> Result<()> {
+        if !path.is_file() {
+            return Err(Error::NotAFile(path.to_owned()));
+        }
+        let media_type = path_to_media_type(path)?;
+        let mut f = fs::File::open(path)?;
+        let mut buf = Vec::new();
+        f.read_to_end(&mut buf)?;
+        let desc = self.save_blob(media_type, &buf)?;
+        self.layers.push(desc);
         Ok(())
     }
 
@@ -261,4 +282,28 @@ fn create_header(size: usize) -> tar::Header {
     header.set_mode(0b110100100); // rw-r--r--
     header.set_mtime(Utc::now().timestamp() as u64);
     header
+}
+
+fn split(path: &Path) -> Option<(&OsStr, &OsStr)> {
+    let stem = path.file_stem()?;
+    let ext = path.extension()?;
+    Some((stem, ext))
+}
+
+fn extentions(mut path: &Path) -> Vec<&str> {
+    let mut exts = Vec::new();
+    while let Some((stem, ext)) = split(path) {
+        exts.push(ext.to_str().unwrap());
+        path = Path::new(stem);
+    }
+    exts
+}
+
+fn path_to_media_type(path: &Path) -> Result<MediaType> {
+    let exts = extentions(path);
+    match exts[..] {
+        ["tar", "gz"] => Ok(MediaType::ImageLayerGzip),
+        ["tar", "zstd"] => Ok(MediaType::ImageLayerZstd),
+        _ => Err(Error::UnsupportedArchive(path.to_path_buf())),
+    }
 }
