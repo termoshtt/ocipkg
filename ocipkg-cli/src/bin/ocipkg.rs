@@ -2,7 +2,32 @@ use clap::Parser;
 use flate2::read::GzDecoder;
 use oci_spec::image::MediaType;
 use ocipkg::error::*;
-use std::{ffi::OsStr, fs, path::*};
+use std::{ffi::OsStr, fs, ops::Deref, path::*};
+
+#[derive(Debug, Parser)]
+#[clap(version)]
+struct Annotations {
+    /// Path of annotation file
+    #[clap(
+        long = "annotations",
+        parse(from_os_str),
+        default_value = "ocipkg.toml"
+    )]
+    annotations: PathBuf,
+}
+
+impl AsRef<Path> for Annotations {
+    fn as_ref(&self) -> &Path {
+        &self.annotations
+    }
+}
+
+impl Deref for Annotations {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.annotations
+    }
+}
 
 #[derive(Debug, Parser)]
 #[clap(version)]
@@ -21,9 +46,8 @@ enum Opt {
         #[clap(short = 't', long = "tag")]
         tag: Option<String>,
 
-        /// Path to annotations file.
-        #[clap(parse(from_os_str), default_value = "ocipkg.toml")]
-        annotations: PathBuf,
+        #[clap(flatten)]
+        annotations: Annotations,
     },
 
     /// Compose files into an oci-archive tar file
@@ -40,13 +64,8 @@ enum Opt {
         #[clap(short = 't', long = "tag")]
         tag: Option<String>,
 
-        /// Path to annotations file.
-        #[clap(
-            long = "annotations",
-            parse(from_os_str),
-            default_value = "ocipkg.toml"
-        )]
-        annotations: PathBuf,
+        #[clap(flatten)]
+        annotations: Annotations,
     },
 
     /// Convert tar.gz archive into oci-archive
@@ -63,9 +82,8 @@ enum Opt {
         #[clap(short = 't', long = "tag")]
         tag: Option<String>,
 
-        /// Path to annotations file.
-        #[clap(parse(from_os_str), default_value = "ocipkg.toml")]
-        annotations: PathBuf,
+        #[clap(flatten)]
+        annotations: Annotations,
     },
 
     /// Load and expand container local cache
