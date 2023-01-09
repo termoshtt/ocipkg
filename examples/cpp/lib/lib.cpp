@@ -1,7 +1,7 @@
 #include <iostream>
 
 extern "C" {
-  void hello_from_cpp() {
+  void ocipkg_hello_world() {
     std::cout << "Hello from C++!" << std::endl;
   }
 }

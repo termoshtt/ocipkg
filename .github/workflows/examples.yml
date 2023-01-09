@@ -26,7 +26,7 @@ jobs:
         cd examples/cpp/lib
         cmake -Bbuild
         cmake --build build/ --target ocipkg
-        ocipkg push build/ocipkg_example_cpp_lib.tar
+        ocipkg push build/ocipkg_static_cpp.tar
 
   rust-lib:
     runs-on: ubuntu-22.04
