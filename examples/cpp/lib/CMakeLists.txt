@@ -15,8 +15,11 @@ if(NOT IMAGE_TAG)
   set(IMAGE_TAG "latest")
 endif()
 
-set(REGISTRY "ghcr.io/termoshtt/ocipkg/static/cpp")
-set(IMAGE_NAME "${REGISTRY}/${CMAKE_PROJECT_NAME}:${IMAGE_TAG}")
+set(REGISTRY "ghcr.io/termoshtt/ocipkg/static/cpp"
+  CACHE STRING
+  "OCI registry where the container will be pushed"
+)
+set(IMAGE_NAME "${REGISTRY}:${IMAGE_TAG}")
 
 # Call ocipkg-compose to create OCI archive
 add_custom_target(ocipkg ALL
