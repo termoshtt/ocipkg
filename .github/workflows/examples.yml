@@ -7,6 +7,23 @@ on:
   pull_request: {}
 
 jobs:
+  cpp-lib:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: --path=ocipkg-cli/ -f
+    - name: Add path
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Build static library
+      run: |
+        cd examples/cpp/lib
+        cmake -Bbuild
+        cmake --build build/
+
   rust-lib:
     runs-on: ubuntu-22.04
     continue-on-error: true
