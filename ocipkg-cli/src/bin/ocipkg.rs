@@ -108,9 +108,6 @@ fn main() -> Result<()> {
         } => {
             let mut output = output;
             output.set_extension("tar");
-            if output.exists() {
-                panic!("Output already exists: {}", output.display());
-            }
             let f = fs::File::create(output)?;
             let mut b = ocipkg::image::Builder::new(f);
             if let Some(name) = tag {
@@ -135,9 +132,6 @@ fn main() -> Result<()> {
         } => {
             let mut output = output;
             output.set_extension("tar");
-            if output.exists() {
-                panic!("Output already exists: {}", output.display());
-            }
             let f = fs::File::create(output)?;
             let mut b = ocipkg::image::Builder::new(f);
             if let Some(name) = tag {
