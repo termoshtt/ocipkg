@@ -54,10 +54,14 @@ by the developer through OCI registry.
 Examples
 ---------
 
-| Library type | Create package in Rust | Use package from Rust |
-|:-------------|:-----------------------|:----------------------|
-| static       |[examples/static/rust/lib](./examples/static/rust/lib)   | [examples/static/rust/exe](./examples/static/rust/exe) |
-| dynamic      |[examples/dynamic/rust/lib](./examples/dynamic/rust/lib) | [examples/dynamic/rust/exe](./examples/dynamic/rust/exe) |
+Rust
+
+- Create package: [examples/rust/lib](./examples/rust/lib)
+- Use package: [examples/rust/exe](./examples/rust/exe)
+
+C++/cmake
+
+- Create package: [examples/cpp/lib](./examples/cpp/lib)
 
 CLI tools
 ----------
