@@ -18,11 +18,15 @@ jobs:
     - name: Add path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
+    - name: Login to GitHub Container Registry
+      run: ocipkg login -u ${{ github.repository_owner }} -p ${{ github.token }} https://ghcr.io
+
     - name: Build static library
       run: |
         cd examples/cpp/lib
         cmake -Bbuild
         cmake --build build/ --target ocipkg
+        ocipkg push build/ocipkg_example_cpp_lib.tar
 
   rust-lib:
     runs-on: ubuntu-22.04
