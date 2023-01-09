@@ -11,17 +11,19 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
-if(IMAGE_TAG)
-  message(STATUS "Git commit = ${IMAGE_TAG}")
-else()
+if(NOT IMAGE_TAG)
   set(IMAGE_TAG "latest")
 endif()
+
+set(REGISTRY "ghcr.io/termoshtt/ocipkg/static/cpp")
+set(IMAGE_NAME "${REGISTRY}/${CMAKE_PROJECT_NAME}:${IMAGE_TAG}")
 
 # Call ocipkg-compose to create OCI archive
 add_custom_target(ocipkg ALL
   COMMAND ocipkg compose
     -o ${CMAKE_PROJECT_NAME}.tar
-    -t ${CMAKE_PROJECT_NAME}:${IMAGE_TAG}
+    -t ${IMAGE_NAME}
     $<TARGET_FILE:ocipkg_static_cpp>
   DEPENDS ocipkg_static_cpp
+  COMMENT "Creating OCI archive: ${IMAGE_NAME}"
 )
