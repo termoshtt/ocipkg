@@ -22,6 +22,7 @@ pub fn push_image(path: &Path) -> Result<()> {
     let mut f = fs::File::open(path)?;
     let mut ar = crate::image::Archive::new(&mut f);
     for (image_name, manifest) in ar.get_manifests()? {
+        log::info!("Push image: {}", image_name);
         let mut client = Client::new(image_name.registry_url()?, image_name.name)?;
         for layer in manifest.layers() {
             let digest = Digest::new(layer.digest())?;
