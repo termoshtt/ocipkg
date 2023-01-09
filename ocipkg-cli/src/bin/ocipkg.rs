@@ -192,10 +192,6 @@ fn main() -> Result<()> {
         } => {
             let mut output = output.or(file_prefix(&input).map(PathBuf::from)).unwrap();
             output.set_extension("tar");
-            if output.exists() {
-                panic!("Output already exists: {}", output.display());
-            }
-
             let f = fs::File::create(output)?;
             let mut b = ocipkg::image::Builder::new(f);
             if let Some(name) = tag {
