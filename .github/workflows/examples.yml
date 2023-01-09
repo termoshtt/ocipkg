@@ -22,7 +22,7 @@ jobs:
       run: |
         cd examples/cpp/lib
         cmake -Bbuild
-        cmake --build build/
+        cmake --build build/ --target ocipkg
 
   rust-lib:
     runs-on: ubuntu-22.04
