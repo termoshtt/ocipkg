@@ -1,0 +1,15 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^https://opensource.org/licenses/MIT"
+    }
+  ],
+  "httpHeaders": [
+    {
+      "urls": ["https://crates.io/crates"],
+      "headers": {
+        "Accept": "text/html"
+      }
+    }
+  ]
+}

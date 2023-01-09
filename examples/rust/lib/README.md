@@ -7,7 +7,7 @@ Package is built by
 cargo ocipkg build --release
 ```
 
-and published to [ocipkg/static/rust on ghcr.io](https://github.com/termoshtt/ocipkg/pkgs/container/ocipkg%2Fstatic%2Frust) by
+and published to [ghcr.io](https://github.com/termoshtt?tab=packages&repo_name=ocipkg) by
 
 ```shell
 cargo ocipkg publish --release
