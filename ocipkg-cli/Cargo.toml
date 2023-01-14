@@ -24,6 +24,7 @@ url = "2.2.2"
 oci-spec = "0.5.8"
 flate2 = "1.0.25"
 tar = "0.4.38"
+fuse = "0.3.1"
 
 [dependencies.ocipkg]
 version = "0.2.0"

@@ -1,5 +1,6 @@
 use clap::Parser;
 use flate2::read::GzDecoder;
+use fuse::Filesystem;
 use oci_spec::image::MediaType;
 use ocipkg::error::*;
 use std::{fs, path::*};
@@ -231,30 +232,41 @@ fn main() -> Result<()> {
         }
 
         Opt::Mount { input, mount_point } => {
-            if !mount_point.is_dir() {
-                return Err(Error::NotADirectory(mount_point));
-            }
-            let mut f = fs::File::open(&input)?;
-            let mut ar = ocipkg::image::Archive::new(&mut f);
-            for (name, manifest) in ar.get_manifests()? {
-                dbg!(name);
-                for layer in manifest.layers() {
-                    let digest = ocipkg::Digest::new(layer.digest())?;
-                    let entry = ar.get_blob(&digest)?;
-                    match layer.media_type() {
-                        MediaType::ImageLayerGzip => {
-                            let buf = GzDecoder::new(entry);
-                            let mut ar = tar::Archive::new(buf);
-                            for entry in ar.entries()? {
-                                let entry = entry?;
-                                dbg!(entry.path()?);
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
+            ManifestFS::new(&input, &mount_point)?;
         }
     }
     Ok(())
 }
+
+struct ManifestFS {}
+
+impl ManifestFS {
+    fn new(input: &Path, mount_point: &Path) -> Result<Self> {
+        if !mount_point.is_dir() {
+            return Err(Error::NotADirectory(mount_point.to_owned()));
+        }
+        let mut f = fs::File::open(&input)?;
+        let mut ar = ocipkg::image::Archive::new(&mut f);
+        for (name, manifest) in ar.get_manifests()? {
+            dbg!(name);
+            for layer in manifest.layers() {
+                let digest = ocipkg::Digest::new(layer.digest())?;
+                let entry = ar.get_blob(&digest)?;
+                match layer.media_type() {
+                    MediaType::ImageLayerGzip => {
+                        let buf = GzDecoder::new(entry);
+                        let mut ar = tar::Archive::new(buf);
+                        for entry in ar.entries()? {
+                            let entry = entry?;
+                            dbg!(entry.path()?);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Ok(Self {})
+    }
+}
+
+impl Filesystem for ManifestFS {}
