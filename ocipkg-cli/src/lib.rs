@@ -138,12 +138,27 @@ impl OcipkgFS {
             flags: 0,
         }
     }
-
-    fn debug_setup(&mut self) {
-        const HELLO_TXT: &str = "Hello FUSE!\n";
-        let name = ImageName::default();
-        let hello_txt_entry = self.new_file_attr(HELLO_TXT.len() as u64);
-    }
 }
 
-impl Filesystem for OcipkgFS {}
+impl Filesystem for OcipkgFS {
+    fn getattr(&mut self, _req: &Request, ino: u64, reply: ReplyAttr) {
+        if ino > self.inode_count {
+            reply.error(ENOENT);
+            return;
+        }
+        let mut index = self.containers.len();
+        for (n, c) in self.containers.iter().enumerate() {
+            if ino > c.root.attr.ino {
+                index = n;
+            }
+        }
+        if index == self.containers.len() {
+            reply.error(ENOENT);
+            return;
+        }
+
+        let c = &self.containers[index];
+
+        todo!()
+    }
+}
