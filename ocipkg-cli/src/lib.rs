@@ -83,7 +83,16 @@ impl OcipkgFS {
 
     /// Load OCI archive
     pub fn append_archive(&mut self, _path: impl AsRef<Path>) {
-        todo!()
+        // TODO moc
+        const HELLO_TXT: &str = "Hello FUSE!\n";
+        let name = ImageName::default();
+        let file_attr = self.new_file_attr(HELLO_TXT.len() as u64);
+        let dir_attr = self.new_dir_attr(0);
+        let root = DirEntry {
+            attr: dir_attr,
+            contents: vec![Entry::File(FileEntry { attr: file_attr })],
+        };
+        self.containers.push(Container { name, root })
     }
 
     fn new_file_attr(&mut self, size: u64) -> FileAttr {
