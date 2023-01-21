@@ -40,6 +40,11 @@ struct FileEntry {
 struct DirEntry {
     attr: FileAttr,
     contents: Vec<Entry>,
+
+    /// Number of sub-directories under this directory.
+    ///
+    /// This must be `0` if this directory only has files.
+    num_subdirs: u64,
 }
 
 impl DirEntry {
@@ -105,14 +110,32 @@ impl Container {
 ///
 #[derive(Debug, Clone)]
 pub struct OcipkgFS {
+    attr: FileAttr,
     inode_count: u64,
     containers: Vec<Container>,
 }
 
 impl OcipkgFS {
     pub fn new() -> Self {
+        let attr = FileAttr {
+            ino: 1,
+            size: 0,
+            blocks: 0,
+            atime: UNIX_EPOCH,
+            mtime: UNIX_EPOCH,
+            ctime: UNIX_EPOCH,
+            crtime: UNIX_EPOCH,
+            kind: FileType::Directory,
+            perm: 0o755,
+            nlink: 2,
+            uid: 0,
+            gid: 0,
+            rdev: 0,
+            flags: 0,
+        };
         OcipkgFS {
-            inode_count: 0,
+            attr,
+            inode_count: 2,
             containers: Vec::new(),
         }
     }
@@ -127,8 +150,10 @@ impl OcipkgFS {
         let root = DirEntry {
             attr: dir_attr,
             contents: vec![Entry::File(FileEntry { attr: file_attr })],
+            num_subdirs: 0,
         };
-        self.containers.push(Container { name, root })
+        self.containers.push(Container { name, root });
+        self.attr.nlink += 1;
     }
 
     fn new_file_attr(&mut self, size: u64) -> FileAttr {
@@ -193,6 +218,9 @@ impl OcipkgFS {
 
     /// Internal impl for [Filesystem::getattr]
     fn get_attr(&self, ino: u64) -> Result<&FileAttr> {
+        if ino == 1 {
+            return Ok(&self.attr);
+        }
         if ino > self.inode_count {
             bail!("Unknown inode");
         }
@@ -202,10 +230,12 @@ impl OcipkgFS {
 
 impl Filesystem for OcipkgFS {
     fn getattr(&mut self, _req: &Request, ino: u64, reply: ReplyAttr) {
-        if let Ok(attr) = self.get_attr(ino) {
-            reply.attr(&TTL, &attr);
-        } else {
-            reply.error(ENOENT);
+        match self.get_attr(ino) {
+            Ok(attr) => reply.attr(&TTL, &attr),
+            Err(e) => {
+                log::error!("{}", e);
+                reply.error(ENOENT);
+            }
         }
     }
 }
