@@ -27,6 +27,7 @@ tar = "0.4.38"
 fuse = "0.3.1"
 libc = "0.2.139"
 time = "0.1.38"
+anyhow = "1.0.68"
 
 [dependencies.ocipkg]
 version = "0.2.0"

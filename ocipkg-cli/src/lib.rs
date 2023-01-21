@@ -1,16 +1,8 @@
-use flate2::read::GzDecoder;
-use fuse::{
-    FileAttr, FileType, Filesystem, ReplyAttr, ReplyData, ReplyDirectory, ReplyEntry, Request,
-};
+use anyhow::{bail, Result};
+use fuse::{FileAttr, FileType, Filesystem, ReplyAttr, Request};
 use libc::ENOENT;
-use oci_spec::image::MediaType;
-use ocipkg::{error::*, *};
-use std::{
-    ffi::OsStr,
-    fs,
-    path::*,
-    sync::atomic::{AtomicU64, Ordering},
-};
+use ocipkg::*;
+use std::path::*;
 use time::Timespec;
 
 /// Time to live (TTL) of filesystem cache
@@ -138,14 +130,10 @@ impl OcipkgFS {
             flags: 0,
         }
     }
-}
 
-impl Filesystem for OcipkgFS {
-    fn getattr(&mut self, _req: &Request, ino: u64, reply: ReplyAttr) {
-        if ino > self.inode_count {
-            reply.error(ENOENT);
-            return;
-        }
+    /// Get reference to the container which contains a file
+    /// corresponding to the given inode.
+    fn get_container_from_inode(&self, ino: u64) -> Result<&Container> {
         let mut index = self.containers.len();
         for (n, c) in self.containers.iter().enumerate() {
             if ino > c.root.attr.ino {
@@ -153,12 +141,28 @@ impl Filesystem for OcipkgFS {
             }
         }
         if index == self.containers.len() {
-            reply.error(ENOENT);
-            return;
+            bail!("No container found for given inode {}", ino);
+        } else {
+            Ok(&self.containers[index])
         }
+    }
 
-        let c = &self.containers[index];
-
+    /// Internal impl for [Filesystem::getattr]
+    fn get_attr(&self, ino: u64) -> Result<FileAttr> {
+        if ino > self.inode_count {
+            bail!("Unknown inode");
+        }
+        let _c = self.get_container_from_inode(ino)?;
         todo!()
+    }
+}
+
+impl Filesystem for OcipkgFS {
+    fn getattr(&mut self, _req: &Request, ino: u64, reply: ReplyAttr) {
+        if let Ok(attr) = self.get_attr(ino) {
+            reply.attr(&TTL, &attr);
+        } else {
+            reply.error(ENOENT);
+        }
     }
 }
