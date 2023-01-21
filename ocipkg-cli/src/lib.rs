@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, ensure, Result};
 use fuse::{FileAttr, FileType, Filesystem, ReplyAttr, Request};
 use libc::ENOENT;
 use ocipkg::*;
@@ -7,12 +7,28 @@ use time::Timespec;
 
 /// Time to live (TTL) of filesystem cache
 const TTL: Timespec = Timespec { sec: 1, nsec: 0 };
-const UNIX_EPOCH: Timespec = Timespec { sec: 0, nsec: 0 }; // 1970-01-01 00:00:00
+/// The UNIX epoch, `1970-01-01 00:00:00`
+const UNIX_EPOCH: Timespec = Timespec { sec: 0, nsec: 0 };
 
 #[derive(Debug, Clone)]
 enum Entry {
     Dir(DirEntry),
     File(FileEntry),
+}
+
+impl Entry {
+    fn get_attr(&self, ino: u64) -> Result<&FileAttr> {
+        match self {
+            Entry::Dir(dir) => dir.get_attr(ino),
+            Entry::File(f) => {
+                if ino == f.attr.ino {
+                    Ok(&f.attr)
+                } else {
+                    bail!("Not found")
+                }
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -26,11 +42,39 @@ struct DirEntry {
     contents: Vec<Entry>,
 }
 
-/// Cached metadata of a container or a manifest
+impl DirEntry {
+    fn get_attr(&self, ino: u64) -> Result<&FileAttr> {
+        if ino == self.attr.ino {
+            return Ok(&self.attr);
+        }
+        // FIXME this should not be linear search
+        for entry in &self.contents {
+            if let Ok(attr) = entry.get_attr(ino) {
+                return Ok(attr);
+            }
+        }
+        bail!("Not found")
+    }
+}
+
+/// Cached metadata of a container
 #[derive(Debug, Clone)]
 struct Container {
+    /// Image name
     name: ocipkg::ImageName,
+    /// Root of the filesystem tree
     root: DirEntry,
+}
+
+impl Container {
+    fn get_attr(&self, ino: u64) -> Result<&FileAttr> {
+        let mine = self.root.attr.ino;
+        ensure!(ino < mine);
+        if ino == mine {
+            return Ok(&self.root.attr);
+        }
+        self.root.get_attr(ino)
+    }
 }
 
 /// Directory structure and their inodes should be like following diagram:
@@ -148,12 +192,11 @@ impl OcipkgFS {
     }
 
     /// Internal impl for [Filesystem::getattr]
-    fn get_attr(&self, ino: u64) -> Result<FileAttr> {
+    fn get_attr(&self, ino: u64) -> Result<&FileAttr> {
         if ino > self.inode_count {
             bail!("Unknown inode");
         }
-        let _c = self.get_container_from_inode(ino)?;
-        todo!()
+        self.get_container_from_inode(ino)?.get_attr(ino)
     }
 }
 
