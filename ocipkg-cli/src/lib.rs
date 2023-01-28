@@ -1,5 +1,5 @@
 use anyhow::{bail, ensure, Result};
-use fuse::{FileAttr, FileType, Filesystem, ReplyAttr, Request};
+use fuse::{FileAttr, FileType, Filesystem, ReplyAttr, ReplyDirectory, Request};
 use libc::ENOENT;
 use ocipkg::*;
 use std::path::*;
@@ -226,12 +226,44 @@ impl OcipkgFS {
         }
         self.get_container_from_inode(ino)?.get_attr(ino)
     }
+
+    fn read_dir(&self, _ino: u64) -> Result<Vec<(u64, FileType, &str)>> {
+        // TODO empty root dir
+        let entries = vec![
+            (1, FileType::Directory, "."),
+            (1, FileType::Directory, ".."),
+        ];
+        Ok(entries)
+    }
 }
 
 impl Filesystem for OcipkgFS {
     fn getattr(&mut self, _req: &Request, ino: u64, reply: ReplyAttr) {
         match self.get_attr(ino) {
             Ok(attr) => reply.attr(&TTL, &attr),
+            Err(e) => {
+                log::error!("{}", e);
+                reply.error(ENOENT);
+            }
+        }
+    }
+
+    fn readdir(
+        &mut self,
+        _req: &Request,
+        ino: u64,
+        _fh: u64,
+        offset: i64,
+        mut reply: ReplyDirectory,
+    ) {
+        match self.read_dir(ino) {
+            Ok(entries) => {
+                for (i, (ino, ty, name)) in entries.into_iter().enumerate().skip(offset as usize) {
+                    let offset = (i + 1) as i64; // i + 1 means the index of the next entry
+                    reply.add(ino, offset, ty, name);
+                }
+                reply.ok();
+            }
             Err(e) => {
                 log::error!("{}", e);
                 reply.error(ENOENT);
