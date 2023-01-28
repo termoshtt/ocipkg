@@ -71,6 +71,8 @@ impl DirEntry {
 struct Container {
     /// Image name
     name: ocipkg::ImageName,
+    /// Escaped image name
+    escaped_name: String,
     /// Root of the filesystem tree
     root: DirEntry,
 }
@@ -156,7 +158,11 @@ impl OcipkgFS {
             contents: vec![Entry::File(FileEntry { attr: file_attr })],
             num_subdirs: 0,
         };
-        self.containers.push(Container { name, root });
+        self.containers.push(Container {
+            name,
+            escaped_name: "test_container".to_string(),
+            root,
+        });
         self.attr.nlink += 1;
     }
 
@@ -220,6 +226,19 @@ impl OcipkgFS {
         }
     }
 
+    fn look_up(&self, parent: u64, name: &OsStr) -> Result<&FileAttr> {
+        if parent == ROOT_INODE {
+            for c in &self.containers {
+                if let Some(name) = name.to_str() {
+                    if name == c.escaped_name {
+                        return Ok(&c.root.attr);
+                    }
+                }
+            }
+        }
+        bail!("Not implemented yet, parent={parent}, name={name:?}");
+    }
+
     /// Internal impl for [Filesystem::getattr]
     fn get_attr(&self, ino: u64) -> Result<&FileAttr> {
         if ino == ROOT_INODE {
@@ -260,12 +279,13 @@ impl OcipkgFS {
 /// and convert runtime errors into `Reply` style.
 impl Filesystem for OcipkgFS {
     fn lookup(&mut self, _req: &Request, parent: u64, name: &OsStr, reply: ReplyEntry) {
-        log::error!(
-            target: "ocipkgfs::lookup",
-            "parent = {parent}, name = {}",
-            name.to_str().unwrap()
-        );
-        reply.error(ENOENT);
+        match self.look_up(parent, name) {
+            Ok(attr) => reply.entry(&TTL, attr, 0 /* generation */),
+            Err(e) => {
+                log::error!(target: "ocipkgfs::lookup", "{e}");
+                reply.error(ENOENT);
+            }
+        }
     }
 
     /// See `OcipkgFS::get_attr`
