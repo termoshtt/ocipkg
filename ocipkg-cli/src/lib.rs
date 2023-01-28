@@ -215,7 +215,7 @@ impl OcipkgFS {
     fn get_container_from_inode(&self, ino: u64) -> Result<&Container> {
         let mut index = self.containers.len();
         for (n, c) in self.containers.iter().enumerate() {
-            if ino > c.root.attr.ino {
+            if ino >= c.root.attr.ino {
                 index = n;
             }
         }
