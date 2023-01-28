@@ -1,8 +1,10 @@
 use anyhow::{bail, ensure, Result};
-use fuse::{FileAttr, FileType, Filesystem, ReplyAttr, ReplyDirectory, Request};
+use fuse::{
+    FileAttr, FileType, Filesystem, ReplyAttr, ReplyData, ReplyDirectory, ReplyEntry, Request,
+};
 use libc::ENOENT;
 use ocipkg::*;
-use std::path::*;
+use std::{ffi::OsStr, path::*};
 use time::Timespec;
 
 /// Time to live (TTL) of filesystem cache
@@ -227,27 +229,68 @@ impl OcipkgFS {
         self.get_container_from_inode(ino)?.get_attr(ino)
     }
 
-    fn read_dir(&self, _ino: u64) -> Result<Vec<(u64, FileType, &str)>> {
-        // TODO empty root dir
-        let entries = vec![
-            (1, FileType::Directory, "."),
-            (1, FileType::Directory, ".."),
-        ];
-        Ok(entries)
+    fn read_dir(&self, ino: u64) -> Result<Vec<(u64, FileType, &str)>> {
+        if ino == ROOT_INODE {
+            let mut entries = vec![
+                (1, FileType::Directory, "."),
+                (1, FileType::Directory, ".."),
+            ];
+            for c in &self.containers {
+                entries.push((c.root.attr.ino, FileType::Directory, &c.escaped_name));
+            }
+            return Ok(entries);
+        }
+        let c = self.get_container_from_inode(ino)?;
+        if c.root.attr.ino == ino {
+            // TODO empty dir
+            let entries = vec![
+                (1, FileType::Directory, ".."),
+                (ino, FileType::Directory, "."),
+            ];
+            return Ok(entries);
+        }
+        bail!("Unknown inode: {ino}");
     }
 }
 
+/// This implementations will pass arguments from filesystem call
+/// to corresponding methods in `OcipkgFS`,
+/// and convert runtime errors into `Reply` style.
 impl Filesystem for OcipkgFS {
+    fn lookup(&mut self, _req: &Request, parent: u64, name: &OsStr, reply: ReplyEntry) {
+        log::error!(
+            target: "ocipkgfs::lookup",
+            "parent = {parent}, name = {}",
+            name.to_str().unwrap()
+        );
+        reply.error(ENOENT);
+    }
+
+    /// See `OcipkgFS::get_attr`
     fn getattr(&mut self, _req: &Request, ino: u64, reply: ReplyAttr) {
         match self.get_attr(ino) {
             Ok(attr) => reply.attr(&TTL, &attr),
             Err(e) => {
-                log::error!("{}", e);
+                log::error!(target: "ocipkgfs::getattr", "{}", e);
                 reply.error(ENOENT);
             }
         }
     }
 
+    fn read(
+        &mut self,
+        _req: &Request,
+        ino: u64,
+        _fh: u64,
+        offset: i64,
+        _size: u32,
+        reply: ReplyData,
+    ) {
+        log::error!(target: "ocipkgfs::read", "ino = {ino}, offset = {offset}");
+        reply.error(ENOENT);
+    }
+
+    /// See `OcipkgFS::read_dir`
     fn readdir(
         &mut self,
         _req: &Request,
@@ -265,7 +308,7 @@ impl Filesystem for OcipkgFS {
                 reply.ok();
             }
             Err(e) => {
-                log::error!("{}", e);
+                log::error!(target: "ocipkgfs::readdir", "{}", e);
                 reply.error(ENOENT);
             }
         }
