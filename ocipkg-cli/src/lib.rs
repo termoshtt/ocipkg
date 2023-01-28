@@ -11,6 +11,8 @@ use time::Timespec;
 const TTL: Timespec = Timespec { sec: 1, nsec: 0 };
 /// The UNIX epoch, `1970-01-01 00:00:00`
 const UNIX_EPOCH: Timespec = Timespec { sec: 0, nsec: 0 };
+/// Inode of filesystem root
+const ROOT_INODE: u64 = 1;
 
 #[derive(Debug, Clone)]
 enum Entry {
@@ -87,7 +89,7 @@ impl Container {
 /// Directory structure and their inodes should be like following diagram:
 ///
 /// ```text
-/// ocipkg root [inode=1]
+/// ocipkg root [inode=1(ROOT_INODE)]
 ///  │
 ///  ├─ some.registry_container_name__tag1/ [inode=2]
 ///  │  └─ dir1/       [inode=3]
@@ -120,7 +122,7 @@ pub struct OcipkgFS {
 impl OcipkgFS {
     pub fn new() -> Self {
         let attr = FileAttr {
-            ino: 1,
+            ino: ROOT_INODE,
             size: 0,
             blocks: 0,
             atime: UNIX_EPOCH,
@@ -137,7 +139,7 @@ impl OcipkgFS {
         };
         OcipkgFS {
             attr,
-            inode_count: 2,
+            inode_count: ROOT_INODE + 1,
             containers: Vec::new(),
         }
     }
@@ -220,7 +222,7 @@ impl OcipkgFS {
 
     /// Internal impl for [Filesystem::getattr]
     fn get_attr(&self, ino: u64) -> Result<&FileAttr> {
-        if ino == 1 {
+        if ino == ROOT_INODE {
             return Ok(&self.attr);
         }
         if ino > self.inode_count {
