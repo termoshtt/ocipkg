@@ -1,10 +1,14 @@
-use anyhow::{bail, ensure, Result};
+use anyhow::{bail, Result};
 use fuse::{
     FileAttr, FileType, Filesystem, ReplyAttr, ReplyData, ReplyDirectory, ReplyEntry, Request,
 };
 use libc::ENOENT;
 use ocipkg::*;
-use std::{ffi::OsStr, path::*};
+use std::{
+    collections::{BTreeMap, HashMap},
+    ffi::OsStr,
+    path::*,
+};
 use time::Timespec;
 
 /// Time to live (TTL) of filesystem cache
@@ -14,111 +18,77 @@ const UNIX_EPOCH: Timespec = Timespec { sec: 0, nsec: 0 };
 /// Inode of filesystem root
 const ROOT_INODE: u64 = 1;
 
-#[derive(Debug, Clone)]
-enum Entry {
-    Dir(DirEntry),
-    File(FileEntry),
-}
-
-impl Entry {
-    fn get_attr(&self, ino: u64) -> Result<&FileAttr> {
-        match self {
-            Entry::Dir(dir) => dir.get_attr(ino),
-            Entry::File(f) => {
-                if ino == f.attr.ino {
-                    Ok(&f.attr)
-                } else {
-                    bail!("Not found")
-                }
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct FileEntry {
-    attr: FileAttr,
-}
-
-#[derive(Debug, Clone)]
-struct DirEntry {
-    attr: FileAttr,
-    contents: Vec<Entry>,
-
-    /// Number of sub-directories under this directory.
-    ///
-    /// This must be `0` if this directory only has files.
-    num_subdirs: u64,
-}
-
-impl DirEntry {
-    fn get_attr(&self, ino: u64) -> Result<&FileAttr> {
-        if ino == self.attr.ino {
-            return Ok(&self.attr);
-        }
-        // FIXME this should not be linear search
-        for entry in &self.contents {
-            if let Ok(attr) = entry.get_attr(ino) {
-                return Ok(attr);
-            }
-        }
-        bail!("Not found")
-    }
-}
-
-/// Cached metadata of a container
+/// Read-only filesystem corresponding to a container
+///
+/// ```text
+/// ...
+/// └─ __tag1/
+///      └─ dir1/
+///         └─ file1
+/// ```
+///
 #[derive(Debug, Clone)]
 struct Container {
+    /// Inode of head directory, i.e. the inode of `__tag` directory.
+    base_ino: u64,
+    /// Cache of file paths in the container.
+    paths: Vec<PathBuf>,
+    /// Relative path from container root to attribute
+    attrs: HashMap<PathBuf, FileAttr>,
     /// Image name
     name: ocipkg::ImageName,
-    /// Escaped image name
-    escaped_name: String,
-    /// Root of the filesystem tree
-    root: DirEntry,
 }
 
 impl Container {
-    fn get_attr(&self, ino: u64) -> Result<&FileAttr> {
-        let mine = self.root.attr.ino;
-        ensure!(ino < mine);
-        if ino == mine {
-            return Ok(&self.root.attr);
+    fn get_attr(&self, ino: u64) -> Option<&FileAttr> {
+        if ino < self.base_ino {
+            return None;
         }
-        self.root.get_attr(ino)
+        let index = (ino - self.base_ino) as usize;
+        let path = self.paths.get(index)?;
+        Some(&self.attrs[path])
     }
 }
 
-/// Directory structure and their inodes should be like following diagram:
+/// Directory structure in FUSE should be like following diagram:
 ///
 /// ```text
-/// ocipkg root [inode=1(ROOT_INODE)]
+/// Root (/)
 ///  │
-///  ├─ some.registry_container_name__tag1/ [inode=2]
-///  │  └─ dir1/       [inode=3]
-///  │     └─ file1    [inode=4]
+///  ├─ some.registry/
+///  │  └─ project_name/
+///  │     └─ container_name/
+///  │         └─ __tag1/
+///  │            └─ dir1/
+///  │               └─ file1
 ///  │
-///  └─ another.registry_container_name__tag2/ [inode=5]
-///     └─ dir2/       [inode=6]
-///        └─ file2    [inode=7]
+///  └─ another.registry__8080/
+///     └─ project_name/
+///        └─ __tag1/
+///           └─ dir1/
+///              └─ file1
 /// ```
 ///
 /// - The contents in a container will be placed under the directory
-///   corresponding to the container.
+///   corresponding to the container, and managed by [Container].
 ///
-/// - Names of directories corresponding to container must be escaped.
-///   e.g. `some.registry/container/name:tag1` will be escaped to
-///   `some.registry_container_name__tag1`. See [ocipkg::ImageName::escaped] for detail.
+/// - Inodes corresponding to files and directories in a container
+///   must be continuous. For example, if the inode of `__tag1`
+///   in above diagram is `3`, those of `dir1/` and `file1` must be
+///   in `[3 + 1, 3 + {number of files}]` i.e. `4` and `5`.
 ///
-/// - The inodes of contents are larger than that of the directory,
-///   and smaller than the directory corresponding to the next container.
-///   e.g. the inode of `dir1` (3) and `file1` (4) in above example are smaller
-///   than the inode of `another.registry/container/name:tag2` (5).
+/// - The inodes of directories corresponding to registries
+///   or container namespace should not be continuous.
 ///
 #[derive(Debug, Clone)]
 pub struct OcipkgFS {
     attr: FileAttr,
     inode_count: u64,
     containers: Vec<Container>,
+    /// Inode to path
+    paths: BTreeMap<u64, PathBuf>,
+    /// Path to attribute
+    attrs: HashMap<PathBuf, FileAttr>,
 }
 
 impl OcipkgFS {
@@ -143,25 +113,20 @@ impl OcipkgFS {
             attr,
             inode_count: ROOT_INODE + 1,
             containers: Vec::new(),
+            paths: BTreeMap::new(),
+            attrs: HashMap::new(),
         }
     }
 
     /// Load OCI archive
     pub fn append_archive(&mut self, _path: impl AsRef<Path>) {
         // TODO moc
-        const HELLO_TXT: &str = "Hello FUSE!\n";
         let name = ImageName::default();
-        let file_attr = self.new_file_attr(HELLO_TXT.len() as u64);
-        let dir_attr = self.new_dir_attr(0);
-        let root = DirEntry {
-            attr: dir_attr,
-            contents: vec![Entry::File(FileEntry { attr: file_attr })],
-            num_subdirs: 0,
-        };
         self.containers.push(Container {
+            base_ino: 0,
             name,
-            escaped_name: "test_container".to_string(),
-            root,
+            attrs: HashMap::new(),
+            paths: Vec::new(),
         });
         self.attr.nlink += 1;
     }
@@ -210,32 +175,7 @@ impl OcipkgFS {
         }
     }
 
-    /// Get reference to the container which contains a file
-    /// corresponding to the given inode.
-    fn get_container_from_inode(&self, ino: u64) -> Result<&Container> {
-        let mut index = self.containers.len();
-        for (n, c) in self.containers.iter().enumerate() {
-            if ino >= c.root.attr.ino {
-                index = n;
-            }
-        }
-        if index == self.containers.len() {
-            bail!("No container found for given inode {}", ino);
-        } else {
-            Ok(&self.containers[index])
-        }
-    }
-
     fn look_up(&self, parent: u64, name: &OsStr) -> Result<&FileAttr> {
-        if parent == ROOT_INODE {
-            for c in &self.containers {
-                if let Some(name) = name.to_str() {
-                    if name == c.escaped_name {
-                        return Ok(&c.root.attr);
-                    }
-                }
-            }
-        }
         bail!("Not implemented yet, parent={parent}, name={name:?}");
     }
 
@@ -244,32 +184,15 @@ impl OcipkgFS {
         if ino == ROOT_INODE {
             return Ok(&self.attr);
         }
-        if ino > self.inode_count {
-            bail!("Unknown inode");
+        for c in &self.containers {
+            if let Some(attr) = c.get_attr(ino) {
+                return Ok(attr);
+            }
         }
-        self.get_container_from_inode(ino)?.get_attr(ino)
+        bail!("Unknown inode");
     }
 
     fn read_dir(&self, ino: u64) -> Result<Vec<(u64, FileType, &str)>> {
-        if ino == ROOT_INODE {
-            let mut entries = vec![
-                (1, FileType::Directory, "."),
-                (1, FileType::Directory, ".."),
-            ];
-            for c in &self.containers {
-                entries.push((c.root.attr.ino, FileType::Directory, &c.escaped_name));
-            }
-            return Ok(entries);
-        }
-        let c = self.get_container_from_inode(ino)?;
-        if c.root.attr.ino == ino {
-            // TODO empty dir
-            let entries = vec![
-                (1, FileType::Directory, ".."),
-                (ino, FileType::Directory, "."),
-            ];
-            return Ok(entries);
-        }
         bail!("Unknown inode: {ino}");
     }
 }
