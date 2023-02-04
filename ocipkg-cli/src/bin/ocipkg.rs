@@ -2,7 +2,7 @@ use clap::Parser;
 use flate2::read::GzDecoder;
 use oci_spec::image::MediaType;
 use ocipkg::error::*;
-use std::{fs, path::*};
+use std::{ffi::OsStr, fs, path::*};
 
 #[derive(Debug, Parser)]
 #[clap(version)]
@@ -90,6 +90,17 @@ enum Opt {
         /// Input oci-archive
         #[clap(parse(from_os_str))]
         input: PathBuf,
+    },
+
+    /// Mount OCI archive using FUSE
+    Mount {
+        /// Input oci-archive
+        #[clap(parse(from_os_str))]
+        input: PathBuf,
+
+        /// Where the archive is mounted
+        #[clap(parse(from_os_str))]
+        mount_point: PathBuf,
     },
 }
 
@@ -217,6 +228,16 @@ fn main() -> Result<()> {
                     }
                 }
             }
+        }
+
+        Opt::Mount { input, mount_point } => {
+            let mut fs = ocipkg_cli::OcipkgFS::new();
+            fs.append_archive(&input);
+            let options = ["-o", "ro", "-o", "fsname=ocipkg"]
+                .iter()
+                .map(|o| o.as_ref())
+                .collect::<Vec<&OsStr>>();
+            fuse::mount(fs, &mount_point, &options).unwrap();
         }
     }
     Ok(())
