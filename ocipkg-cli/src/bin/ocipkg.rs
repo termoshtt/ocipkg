@@ -2,7 +2,32 @@ use clap::Parser;
 use flate2::read::GzDecoder;
 use oci_spec::image::MediaType;
 use ocipkg::error::*;
-use std::{fs, path::*};
+use std::{ffi::OsStr, fs, ops::Deref, path::*};
+
+#[derive(Debug, Parser)]
+#[clap(version)]
+struct Annotations {
+    /// Path of annotation file
+    #[clap(
+        long = "annotations",
+        parse(from_os_str),
+        default_value = "ocipkg.toml"
+    )]
+    annotations: PathBuf,
+}
+
+impl AsRef<Path> for Annotations {
+    fn as_ref(&self) -> &Path {
+        &self.annotations
+    }
+}
+
+impl Deref for Annotations {
+    type Target = Path;
+    fn deref(&self) -> &Path {
+        &self.annotations
+    }
+}
 
 #[derive(Debug, Parser)]
 #[clap(version)]
@@ -21,9 +46,8 @@ enum Opt {
         #[clap(short = 't', long = "tag")]
         tag: Option<String>,
 
-        /// Path to annotations file.
-        #[clap(parse(from_os_str), default_value = "ocipkg.toml")]
-        annotations: PathBuf,
+        #[clap(flatten)]
+        annotations: Annotations,
     },
 
     /// Compose files into an oci-archive tar file
@@ -40,13 +64,26 @@ enum Opt {
         #[clap(short = 't', long = "tag")]
         tag: Option<String>,
 
-        /// Path to annotations file.
-        #[clap(
-            long = "annotations",
-            parse(from_os_str),
-            default_value = "ocipkg.toml"
-        )]
-        annotations: PathBuf,
+        #[clap(flatten)]
+        annotations: Annotations,
+    },
+
+    /// Convert tar.gz archive into oci-archive
+    Convert {
+        /// Path of input directory to be packed
+        #[clap(parse(from_os_str))]
+        input: PathBuf,
+
+        /// Path of output tar archive in oci-archive format
+        #[clap(short = 'o', long = "output", parse(from_os_str))]
+        output: Option<PathBuf>,
+
+        /// Name of container, use UUID v4 hyphenated if not set.
+        #[clap(short = 't', long = "tag")]
+        tag: Option<String>,
+
+        #[clap(flatten)]
+        annotations: Annotations,
     },
 
     /// Load and expand container local cache
@@ -147,6 +184,29 @@ fn main() -> Result<()> {
             b.append_files(&inputs)?;
         }
 
+        Opt::Convert {
+            input,
+            output,
+            tag,
+            annotations,
+        } => {
+            let mut output = output.or(file_prefix(&input).map(PathBuf::from)).unwrap();
+            output.set_extension("tar");
+            let f = fs::File::create(output)?;
+            let mut b = ocipkg::image::Builder::new(f);
+            if let Some(name) = tag {
+                b.set_name(&ocipkg::ImageName::parse(&name)?);
+            }
+            if annotations.is_file() {
+                let f = fs::read(annotations)?;
+                let input = String::from_utf8(f).expect("Non-UTF8 string in TOML");
+                b.set_annotations(
+                    ocipkg::image::annotations::nested::Annotations::from_toml(&input)?.into(),
+                )
+            }
+            b.append_archive(&input)?;
+        }
+
         Opt::Load { input } => {
             ocipkg::image::load(&input)?;
         }
@@ -220,4 +280,10 @@ fn main() -> Result<()> {
         }
     }
     Ok(())
+}
+
+// FIXME replace with `Path::file_prefix` which is unstable API currently
+fn file_prefix(path: &Path) -> Option<&OsStr> {
+    let path = Path::new(path.file_name()?);
+    file_prefix(&path)
 }
