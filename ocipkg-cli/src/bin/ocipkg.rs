@@ -59,10 +59,14 @@ enum Opt {
     /// Get and save in local storage
     Get {
         image_name: String,
+
+        #[clap(short = 'o', long = "output", parse(from_os_str))]
+        output: Option<PathBuf>,
     },
+
     Unpack {
         image_name: String,
-        /// Path of output tar archive in oci-archive format
+
         #[clap(parse(from_os_str))]
         output: PathBuf,
     },
@@ -157,9 +161,13 @@ fn main() -> Result<()> {
             ocipkg::image::load(&input)?;
         }
 
-        Opt::Get { image_name } => {
+        Opt::Get { image_name, output } => {
             let image_name = ocipkg::ImageName::parse(&image_name)?;
-            ocipkg::distribution::get_image(&image_name)?;
+            if let Some(outdir) = output {
+                ocipkg::distribution::unpack_image(&image_name, &outdir)?;
+            } else {
+                ocipkg::distribution::get_image(&image_name)?;
+            }
         }
 
         Opt::Unpack { image_name, output } => {
