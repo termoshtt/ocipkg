@@ -68,3 +68,31 @@ pub fn get_image(image_name: &ImageName) -> Result<()> {
     }
     Err(Error::MissingLayer)
 }
+
+/// Get image from registry and save it into outdir
+pub fn get_image_with_outdir(image_name: &ImageName, outdir: &Path) -> Result<()> {
+    let ImageName {
+        name, reference, ..
+    } = image_name;
+    let mut client = Client::new(image_name.registry_url()?, name.clone())?;
+    let manifest = client.get_manifest(reference)?;
+    let dest = outdir;
+    log::info!("Get {} into {}", image_name, dest.display());
+    for layer in manifest.layers() {
+        let blob = client.get_blob(&Digest::new(layer.digest())?)?;
+        match layer.media_type() {
+            MediaType::ImageLayerGzip => {}
+            MediaType::Other(ty) => {
+                // application/vnd.docker.image.rootfs.diff.tar.gzip case
+                if !ty.ends_with("tar.gzip") {
+                    continue;
+                }
+            }
+            _ => continue,
+        }
+        let buf = flate2::read::GzDecoder::new(blob.as_slice());
+        tar::Archive::new(buf).unpack(dest)?;
+        return Ok(());
+    }
+    Err(Error::MissingLayer)
+}

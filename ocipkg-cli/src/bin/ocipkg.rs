@@ -59,6 +59,9 @@ enum Opt {
     /// Get and save in local storage
     Get {
         image_name: String,
+
+        #[clap(parse(from_os_str))]
+        output: Option<PathBuf>,
     },
 
     /// Push oci-archive to registry
@@ -151,9 +154,13 @@ fn main() -> Result<()> {
             ocipkg::image::load(&input)?;
         }
 
-        Opt::Get { image_name } => {
+        Opt::Get { image_name, output } => {
             let image_name = ocipkg::ImageName::parse(&image_name)?;
-            ocipkg::distribution::get_image(&image_name)?;
+            if let Some(outdir) = output {
+                ocipkg::distribution::get_image_with_outdir(&image_name, &outdir)?;
+            } else {
+                ocipkg::distribution::get_image(&image_name)?;
+            }
         }
 
         Opt::Push { input } => {
