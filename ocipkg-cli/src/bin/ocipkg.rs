@@ -60,6 +60,12 @@ enum Opt {
     Get {
         image_name: String,
     },
+    Unpack {
+        image_name: String,
+        /// Path of output tar archive in oci-archive format
+        #[clap(parse(from_os_str))]
+        output: PathBuf,
+    },
 
     /// Push oci-archive to registry
     Push {
@@ -154,6 +160,11 @@ fn main() -> Result<()> {
         Opt::Get { image_name } => {
             let image_name = ocipkg::ImageName::parse(&image_name)?;
             ocipkg::distribution::get_image(&image_name)?;
+        }
+
+        Opt::Unpack { image_name, output } => {
+            let image_name = ocipkg::ImageName::parse(&image_name)?;
+            ocipkg::distribution::unpack_image(&image_name, &output)?;
         }
 
         Opt::Push { input } => {

@@ -11,8 +11,9 @@ pub use name::Name;
 pub use reference::Reference;
 
 use crate::{error::*, Digest, ImageName};
+
 use oci_spec::image::*;
-use std::{fs, io::Read, path::Path};
+use std::{fs, io::Read, path::Path, path::PathBuf};
 
 /// Push image to registry
 pub fn push_image(path: &Path) -> Result<()> {
@@ -42,13 +43,13 @@ pub fn push_image(path: &Path) -> Result<()> {
 }
 
 /// Get image from registry and save it into local storage
-pub fn get_image(image_name: &ImageName) -> Result<()> {
+pub fn unpack_image(image_name: &ImageName, dest: &PathBuf) -> Result<()> {
     let ImageName {
         name, reference, ..
     } = image_name;
     let mut client = Client::new(image_name.registry_url()?, name.clone())?;
     let manifest = client.get_manifest(reference)?;
-    let dest = crate::local::image_dir(image_name)?;
+
     log::info!("Get {} into {}", image_name, dest.display());
     for layer in manifest.layers() {
         let blob = client.get_blob(&Digest::new(layer.digest())?)?;
@@ -67,4 +68,10 @@ pub fn get_image(image_name: &ImageName) -> Result<()> {
         return Ok(());
     }
     Err(Error::MissingLayer)
+}
+
+/// Get image from registry and save it into local storage
+pub fn get_image(image_name: &ImageName) -> Result<()> {
+    let dest = crate::local::image_dir(image_name)?;
+    return unpack_image(image_name, &dest);
 }
