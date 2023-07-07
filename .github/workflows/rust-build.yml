@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: [ "develop" ]
+    branches: [ "develop", "github" ]
   pull_request:
-    branches: [ "develop" ]
+    branches: [ "develop", "github" ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -13,9 +13,13 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    container:
+      image: redhat/ubi8:latest
 
     steps:
     - uses: actions/checkout@v3
+    - name: Prepare cargo
+      run: dnf install -y rust-toolset openssl-devel
     - name: Build
       run: cargo build --release --verbose
     - name: Run tests
