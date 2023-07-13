@@ -11,19 +11,38 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    container:
-      image: redhat/ubi8:latest
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - aarch64-unknown-linux-gnu
+          - x86_64-unknown-linux-gnu
+#          - x86_64-unknown-linux-musl
+
+    #container:
+    #  image: redhat/ubi8:latest
+
     steps:
     - uses: actions/checkout@v3
-    - name: Prepare cargo
-      run: dnf install -y rust-toolset openssl-devel
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt
+        profile: minimal
+        override: true
+        target: ${{ matrix.target }}
     - name: Build
-      run: cargo build --release --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      uses: actions-rs/cargo@v1
+      with:
+        use-cross: true
+        command: build
+        args: --release --target ${{ matrix.target }}
+    - name: List aritfacts
+      run: ls target/*/*
     - name: Upload aritfacts
       uses: actions/upload-artifact@v3
       with:
         path: |
-          target/release/ocipkg
+          target/*/release/ocipkg
