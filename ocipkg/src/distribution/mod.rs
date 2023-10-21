@@ -48,23 +48,26 @@ pub fn get_image(image_name: &ImageName) -> Result<()> {
     } = image_name;
     let mut client = Client::new(image_name.registry_url()?, name.clone())?;
     let manifest = client.get_manifest(reference)?;
-    let dest = crate::local::image_dir(image_name)?;
-    log::info!("Get {} into {}", image_name, dest.display());
-    for layer in manifest.layers() {
-        let blob = client.get_blob(&Digest::new(layer.digest())?)?;
-        match layer.media_type() {
-            MediaType::ImageLayerGzip => {}
-            MediaType::Other(ty) => {
-                // application/vnd.docker.image.rootfs.diff.tar.gzip case
-                if !ty.ends_with("tar.gzip") {
-                    continue;
-                }
-            }
-            _ => continue,
+    let maybe_layer = manifest.layers().iter().find(|&d| {
+        match d.media_type() {
+            MediaType::ImageLayerGzip => true,
+            // application/vnd.docker.image.rootfs.diff.tar.gzip case
+            MediaType::Other(ty) if ty.ends_with("tar.gzip") => true,
+            _ => false,
         }
-        let buf = flate2::read::GzDecoder::new(blob.as_slice());
-        tar::Archive::new(buf).unpack(dest)?;
-        return Ok(());
+    });
+
+    match maybe_layer {
+        Some(layer) => {
+            let blob = client.get_blob(&Digest::new(layer.digest())?)?;
+            let buf = flate2::read::GzDecoder::new(blob.as_slice());
+            let dest = crate::local::image_dir(image_name)?;
+
+            log::info!("Get {} into {}", image_name, dest.display());
+            tar::Archive::new(buf).unpack(dest)?;
+
+            Ok(())
+        },
+        None => Err(Error::MissingLayer),
     }
-    Err(Error::MissingLayer)
 }
