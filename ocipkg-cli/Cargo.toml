@@ -21,7 +21,7 @@ git2 = "=0.14.2"
 log = "0.4.17"
 serde_json = "1.0.82"
 url = "2.2.2"
-oci-spec = "0.5.8"
+oci-spec = "0.6.4"
 flate2 = "1.0.25"
 tar = "0.4.38"
 
