@@ -8,10 +8,10 @@ mod reference;
 pub use auth::*;
 pub use client::Client;
 pub use name::Name;
+pub use oci_spec::image::MediaType;
 pub use reference::Reference;
 
 use crate::{error::*, Digest, ImageName};
-use oci_spec::image::*;
 use std::{fs, io::Read, path::Path};
 
 /// Push image to registry
