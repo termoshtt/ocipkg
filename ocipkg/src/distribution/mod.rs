@@ -65,8 +65,8 @@ pub fn get_layer_bytes(image_name: &ImageName, f: impl Fn(&MediaType) -> bool) -
     let registry_url = image_name.registry_url()?;
     let mut client = Client::new(registry_url, image_name.name.clone())?;
     let manifest = client.get_manifest(&image_name.reference)?;
-    let layer =
-        manifest.layers()
+    let layer = manifest
+        .layers()
         .iter()
         .find(|&d| f(d.media_type()))
         .ok_or(Error::MissingLayer)?;
