@@ -12,24 +12,24 @@ readme = "../README.md"
 
 [dependencies]
 base16ct = { version = "0.1.1", features = ["alloc"] }
-base64 = "0.13.0"
-chrono = "0.4.19"
-directories = "4.0.1"
-flate2 = "1.0.24"
+base64 = "0.22.0"
+chrono = "0.4.31"
+directories = "5.0.1"
+flate2 = "1.0.28"
 lazy_static = "1.4.0"
-log = "0.4.17"
-oci-spec = "0.5.7"
-regex = "1.5.6"
-serde = "1.0.137"
-serde_json = "1.0.82"
-sha2 = "0.10.2"
-tar = "0.4.38"
-thiserror = "1.0.31"
-toml = "0.5.9"
-ureq = { version = "2.5.0", features = ["json"] }
-url = "2.2.2"
-uuid = { version = "1.1.2", features = ["v4"] }
-walkdir = "2.3.2"
+log = "0.4.18"
+oci-spec = "0.6.5"
+regex = "1.7.3"
+serde = "1.0.197"
+serde_json = "1.0.115"
+sha2 = "0.10.8"
+tar = "0.4.40"
+thiserror = "1.0.58"
+toml = "0.5.11"
+ureq = { version = "2.9.3", features = ["json"] }
+url = "2.5.0"
+uuid = { version = "1.5.0", features = ["v4"] }
+walkdir = "2.5.0"
 
 [dev-dependencies]
 maplit = "1.0.2"
