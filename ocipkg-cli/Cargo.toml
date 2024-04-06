@@ -2,31 +2,29 @@
 name = "ocipkg-cli"
 authors = ["Toshiki Teramura <toshiki.teramura@gmail.com>"]
 license = "MIT OR Apache-2.0"
-version = "0.2.8"
+version = "0.3.0"
 edition = "2021"
-rust-version = "1.57.0"
 description = "CLI for ocipkg"
 documentation = "https://docs.rs/ocipkg-cli"
 repository = "https://github.com/termoshtt/ocipkg"
 readme = "../README.md"
 
 [dependencies]
-base64 = "0.13.0"
-cargo_metadata = "0.15.0"
-clap = { version = "3.2.8", features = ["derive"] }
-colored = "2.0.0"
-env_logger = "0.9.0"
-# Pinned because newer versions require Rust 1.60 while this crate has a MSRV of 1.57
-git2 = "=0.14.2"
-log = "0.4.17"
-serde_json = "1.0.82"
-url = "2.2.2"
-oci-spec = "0.5.8"
-flate2 = "1.0.25"
-tar = "0.4.38"
+base64 = "0.22.0"
+cargo_metadata = "0.18.1"
+clap = { version = "4.5.4", features = ["derive"] }
+colored = "2.1.0"
+env_logger = "0.11.3"
+git2 = "0.18.3"
+log = "0.4.21"
+serde_json = "1.0.115"
+url = "2.5.0"
+oci-spec = "0.6.5"
+flate2 = "1.0.28"
+tar = "0.4.40"
 
 [dependencies.ocipkg]
-version = "0.2.0"
+version = "0.3.0"
 path = "../ocipkg"
 
 [[bin]]

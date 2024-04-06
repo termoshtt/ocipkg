@@ -9,17 +9,11 @@ on:
 jobs:
   test:
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        version:
-          - 1.57.0
-          - stable
     steps:
     - uses: actions/checkout@v1
     - uses: actions-rs/toolchain@v1
       with:
-        toolchain: ${{ matrix.version }}
+        toolchain: stable
         profile: minimal
         default: true
         override: true
