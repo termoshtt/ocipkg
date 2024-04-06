@@ -3,6 +3,7 @@ use flate2::read::GzDecoder;
 use oci_spec::image::MediaType;
 use ocipkg::error::*;
 use std::{fs, path::*};
+use base64::{Engine, engine::general_purpose::STANDARD};
 
 #[derive(Debug, Parser)]
 #[command(version)]
@@ -168,7 +169,7 @@ fn main() -> Result<()> {
             password,
         } => {
             let url = url::Url::parse(&registry)?;
-            let octet = base64::encode(format!("{}:{}", username, password,));
+            let octet = STANDARD.encode(format!("{}:{}", username, password,));
             let mut new_auth = ocipkg::distribution::StoredAuth::default();
             new_auth.insert(url.domain().unwrap(), octet);
             let _token = new_auth.get_token(&url)?;
