@@ -42,7 +42,7 @@ jobs:
           args: --no-deps
 
       - name: Setup Pages
-        uses: actions/configure-pages@v2
+        uses: actions/configure-pages@v5
 
       # Upload target/doc directory
       - name: Upload artifact
