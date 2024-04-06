@@ -143,7 +143,7 @@ fn main() -> Result<()> {
         .parse_default_env()
         .init();
 
-    match Opt::from_args() {
+    match Opt::parse() {
         Opt::Ocipkg(Ocipkg::Build {
             package_name,
             release,

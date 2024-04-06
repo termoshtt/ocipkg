@@ -7,3 +7,4 @@ exclude = [
   "examples/rust/lib",
   "examples/rust/exe",
 ]
+resolver = "2"

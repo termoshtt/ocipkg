@@ -62,7 +62,7 @@ pub struct OpenContainers {
 ///     a.to_toml().trim(),
 ///     r#"
 /// [org.opencontainers.image]
-/// url = 'https://github.com/termoshtt/ocipkg'
+/// url = "https://github.com/termoshtt/ocipkg"
 ///     "#.trim()
 /// );
 /// ```
