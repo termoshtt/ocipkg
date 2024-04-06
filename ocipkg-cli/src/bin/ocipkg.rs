@@ -1,9 +1,9 @@
+use base64::{engine::general_purpose::STANDARD, Engine};
 use clap::Parser;
 use flate2::read::GzDecoder;
 use oci_spec::image::MediaType;
 use ocipkg::error::*;
 use std::{fs, path::*};
-use base64::{Engine, engine::general_purpose::STANDARD};
 
 #[derive(Debug, Parser)]
 #[command(version)]
