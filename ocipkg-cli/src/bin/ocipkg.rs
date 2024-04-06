@@ -38,10 +38,7 @@ enum Opt {
         tag: Option<String>,
 
         /// Path to annotations file.
-        #[arg(
-            long = "annotations",
-            default_value = "ocipkg.toml"
-        )]
+        #[arg(long = "annotations", default_value = "ocipkg.toml")]
         annotations: PathBuf,
     },
 
