@@ -10,7 +10,7 @@ jobs:
   pack:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - uses: actions-rs/cargo@v1
       with:
         command: install
@@ -29,7 +29,7 @@ jobs:
   load:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - uses: actions-rs/cargo@v1
       with:
         command: install
@@ -50,7 +50,7 @@ jobs:
   get:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - uses: actions-rs/cargo@v1
       with:
         command: install
@@ -66,7 +66,7 @@ jobs:
   get-anonymous:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - uses: actions-rs/cargo@v1
       with:
         command: install
@@ -81,7 +81,7 @@ jobs:
   list:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - uses: actions-rs/cargo@v1
       with:
         command: install
@@ -108,7 +108,7 @@ jobs:
   push:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v4
     - uses: actions-rs/cargo@v1
       with:
         command: install
