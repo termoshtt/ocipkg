@@ -5,45 +5,41 @@ use ocipkg::error::*;
 use std::{fs, path::*};
 
 #[derive(Debug, Parser)]
-#[clap(version)]
+#[command(version)]
 enum Opt {
     /// Pack a directory into an oci-archive tar file
     Pack {
         /// Path of input directory to be packed
-        #[clap(parse(from_os_str))]
         input_directory: PathBuf,
 
         /// Path of output tar archive in oci-archive format
-        #[clap(parse(from_os_str))]
         output: PathBuf,
 
         /// Name of container, use UUID v4 hyphenated if not set.
-        #[clap(short = 't', long = "tag")]
+        #[arg(short = 't', long = "tag")]
         tag: Option<String>,
 
         /// Path to annotations file.
-        #[clap(parse(from_os_str), default_value = "ocipkg.toml")]
+        #[arg(default_value = "ocipkg.toml")]
         annotations: PathBuf,
     },
 
     /// Compose files into an oci-archive tar file
     Compose {
         /// Path of input file to be packed
-        #[clap(parse(from_os_str))]
         inputs: Vec<PathBuf>,
 
         /// Path of output tar archive in oci-archive format
-        #[clap(short = 'o', long = "output", parse(from_os_str))]
+        #[arg(short = 'o', long = "output")]
         output: PathBuf,
 
         /// Name of container, use UUID v4 hyphenated if not set.
-        #[clap(short = 't', long = "tag")]
+        #[arg(short = 't', long = "tag")]
         tag: Option<String>,
 
         /// Path to annotations file.
-        #[clap(
+        #[arg(
             long = "annotations",
-            parse(from_os_str),
             default_value = "ocipkg.toml"
         )]
         annotations: PathBuf,
@@ -52,7 +48,6 @@ enum Opt {
     /// Load and expand container local cache
     Load {
         /// Input oci-archive
-        #[clap(parse(from_os_str))]
         input: PathBuf,
     },
 
@@ -64,7 +59,6 @@ enum Opt {
     /// Push oci-archive to registry
     Push {
         /// Input oci-archive
-        #[clap(parse(from_os_str))]
         input: PathBuf,
     },
 
@@ -88,7 +82,6 @@ enum Opt {
     /// Inspect components in OCI archive
     Inspect {
         /// Input oci-archive
-        #[clap(parse(from_os_str))]
         input: PathBuf,
     },
 }
@@ -99,7 +92,7 @@ fn main() -> Result<()> {
         .parse_default_env()
         .init();
 
-    match Opt::from_args() {
+    match Opt::parse() {
         Opt::Pack {
             input_directory,
             output,
