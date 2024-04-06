@@ -24,7 +24,7 @@ serde_json = "1.0.115"
 sha2 = "0.10.8"
 tar = "0.4.40"
 thiserror = "1.0.58"
-toml = "0.7.6"
+toml = "0.8.12"
 ureq = { version = "2.9.6", features = ["json"] }
 url = "2.5.0"
 uuid = { version = "1.8.0", features = ["v4"] }
