@@ -25,7 +25,8 @@ jobs:
         override: true
     - uses: actions-rs/cargo@v1
       with:
-        command: test -p ocipkg
+        command: test
+        args: -p ocipkg
 
   with-registry:
     runs-on: ubuntu-22.04
