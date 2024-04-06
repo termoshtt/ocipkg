@@ -2,9 +2,9 @@
 name = "ocipkg-cli"
 authors = ["Toshiki Teramura <toshiki.teramura@gmail.com>"]
 license = "MIT OR Apache-2.0"
-version = "0.2.8"
+version = "0.3.0"
 edition = "2021"
-rust-version = "1.57.0"
+rust-version = "1.70.0"
 description = "CLI for ocipkg"
 documentation = "https://docs.rs/ocipkg-cli"
 repository = "https://github.com/termoshtt/ocipkg"
@@ -26,7 +26,7 @@ flate2 = "1.0.28"
 tar = "0.4.40"
 
 [dependencies.ocipkg]
-version = "0.2.0"
+version = "0.3.0"
 path = "../ocipkg"
 
 [[bin]]
