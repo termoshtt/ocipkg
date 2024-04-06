@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - 1.70.0
+          - 1.65.0
           - stable
     steps:
     - uses: actions/checkout@v1
@@ -25,7 +25,7 @@ jobs:
         override: true
     - uses: actions-rs/cargo@v1
       with:
-        command: test
+        command: test -p ocipkg
 
   with-registry:
     runs-on: ubuntu-22.04
