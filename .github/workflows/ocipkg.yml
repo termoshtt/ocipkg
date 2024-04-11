@@ -4,100 +4,101 @@ on:
   push:
     branches:
       - main
+      - dev-*
   pull_request: {}
 
 jobs:
   pack:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions-rs/cargo@v1
-      with:
-        command: install
-        args: --path=ocipkg-cli/ -f
-    - name: Add path
-      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - uses: actions/checkout@v4
+      - uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --path=ocipkg-cli/ -f
+      - name: Add path
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-    - name: pack src/
-      run: |
-        ocipkg pack ocipkg/src/ out.tar -t test_repo/testing:tag1
-    - name: Testing podman can load the generated container
-      run: |
-        podman load < out.tar
-        podman images | grep test_repo/testing | grep tag1
+      - name: pack src/
+        run: |
+          ocipkg pack ocipkg/src/ out.tar -t test_repo/testing:tag1
+      - name: Testing podman can load the generated container
+        run: |
+          podman load < out.tar
+          podman images | grep test_repo/testing | grep tag1
 
   load:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions-rs/cargo@v1
-      with:
-        command: install
-        args: --path=ocipkg-cli/ -f
-    - name: Add path
-      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - uses: actions/checkout@v4
+      - uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --path=ocipkg-cli/ -f
+      - name: Add path
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-    - name: Create test oci-archive using podman
-      run: |
-        podman pull alpine
-        podman save -o oci-alpine.tar --format oci-archive alpine
-    - name: load oci-archive
-      run: |
-        ocipkg load oci-alpine.tar
-    - name: Show alpine version
-      run: cat $HOME/.local/share/ocipkg/docker.io/library/alpine/__latest/etc/alpine-release
+      - name: Create test oci-archive using podman
+        run: |
+          podman pull alpine
+          podman save -o oci-alpine.tar --format oci-archive alpine
+      - name: load oci-archive
+        run: |
+          ocipkg load oci-alpine.tar
+      - name: Show alpine version
+        run: cat $HOME/.local/share/ocipkg/docker.io/library/alpine/__latest/etc/alpine-release
 
   get:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions-rs/cargo@v1
-      with:
-        command: install
-        args: --path=ocipkg-cli/ -f
-    - name: Add path
-      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - uses: actions/checkout@v4
+      - uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --path=ocipkg-cli/ -f
+      - name: Add path
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-    - name: get image from ghcr.io
-      run: |
-        ocipkg login -u ${{ github.repository_owner }} -p ${{ github.token }} https://ghcr.io
-        ocipkg get ghcr.io/termoshtt/ocipkg/dynamic/rust:1d23f83
+      - name: get image from ghcr.io
+        run: |
+          ocipkg login -u ${{ github.repository_owner }} -p ${{ github.token }} https://ghcr.io
+          ocipkg get ghcr.io/termoshtt/ocipkg/dynamic/rust:1d23f83
 
   get-anonymous:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions-rs/cargo@v1
-      with:
-        command: install
-        args: --path=ocipkg-cli/ -f
-    - name: Add path
-      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - uses: actions/checkout@v4
+      - uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --path=ocipkg-cli/ -f
+      - name: Add path
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-    - name: get image from ghcr.io
-      run: |
-        ocipkg get ghcr.io/termoshtt/ocipkg/dynamic/rust:1d23f83
+      - name: get image from ghcr.io
+        run: |
+          ocipkg get ghcr.io/termoshtt/ocipkg/dynamic/rust:1d23f83
 
   list:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions-rs/cargo@v1
-      with:
-        command: install
-        args: --path=ocipkg-cli/ -f
-    - name: Add path
-      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - uses: actions/checkout@v4
+      - uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --path=ocipkg-cli/ -f
+      - name: Add path
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-    - name: Setup registry
-      run: |
-        ./test/fixture.sh
-    - name: get image
-      run: |
-        ocipkg get localhost:5000/test_repo:tag1
-        ocipkg get localhost:5000/test_repo:tag2
-    - name: list
-      run: test $(ocipkg list | wc -l) -eq 2
+      - name: Setup registry
+        run: |
+          ./test/fixture.sh
+      - name: get image
+        run: |
+          ocipkg get localhost:5000/test_repo:tag1
+          ocipkg get localhost:5000/test_repo:tag2
+      - name: list
+        run: test $(ocipkg list | wc -l) -eq 2
 
     services:
       registry:
@@ -108,20 +109,20 @@ jobs:
   push:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions-rs/cargo@v1
-      with:
-        command: install
-        args: --path=ocipkg-cli/ -f
-    - name: Add path
-      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - uses: actions/checkout@v4
+      - uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --path=ocipkg-cli/ -f
+      - name: Add path
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-    - name: pack src/ and push
-      run: |
-        ocipkg pack ocipkg/src out.tar -t localhost:5000/test_repo:new_tag
-        ocipkg push out.tar
-    - name: Test image has been pushed
-      run: curl -sf localhost:5000/v2/test_repo/tags/list | jq -e '.tags[] | select(test("new_tag"))'
+      - name: pack src/ and push
+        run: |
+          ocipkg pack ocipkg/src out.tar -t localhost:5000/test_repo:new_tag
+          ocipkg push out.tar
+      - name: Test image has been pushed
+        run: curl -sf localhost:5000/v2/test_repo/tags/list | jq -e '.tags[] | select(test("new_tag"))'
 
     services:
       registry:
