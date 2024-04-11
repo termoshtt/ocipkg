@@ -6,13 +6,25 @@ use crate::{
     ImageName,
 };
 use directories::ProjectDirs;
-use std::path::*;
+use std::{path::*, sync::OnceLock};
 
-pub const PROJECT_NAME: &str = "ocipkg";
+pub const DEFAULT_PROJECT_NAME: &str = "ocipkg";
+
+static PROJECT_DIRS: OnceLock<ProjectDirs> = OnceLock::new();
+
+pub fn set_project_dirs(dirs: ProjectDirs) -> Result<()> {
+    PROJECT_DIRS
+        .set(dirs)
+        .map_err(|_| Error::ProjectDirectoryAlreadySet)
+}
 
 /// Project root data directory
 pub fn data_dir() -> Result<PathBuf> {
-    let p = ProjectDirs::from("", PROJECT_NAME, PROJECT_NAME).ok_or(Error::NoValidHomeDirecotry)?;
+    // FIXME: use `get_or_try_init` after it is stabilized
+    let p = PROJECT_DIRS.get_or_init(|| {
+        ProjectDirs::from("", DEFAULT_PROJECT_NAME, DEFAULT_PROJECT_NAME)
+            .expect("No valid home directory")
+    });
     let dir = p.data_dir();
     Ok(dir.to_owned())
 }

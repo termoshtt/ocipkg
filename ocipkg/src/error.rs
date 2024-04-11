@@ -55,8 +55,8 @@ pub enum Error {
     //
     // System error
     //
-    #[error("No valid home directory path could be retrieved from the operating system.")]
-    NoValidHomeDirecotry,
+    #[error("Project directory is tried to set twice")]
+    ProjectDirectoryAlreadySet,
     #[error("No valid runtime directory where authentication info will be stored.")]
     NoValidRuntimeDirectory,
     #[error(transparent)]
