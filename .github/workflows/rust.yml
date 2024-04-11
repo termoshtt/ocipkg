@@ -10,28 +10,28 @@ jobs:
   test:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        profile: minimal
-        default: true
-        override: true
-    - uses: actions-rs/cargo@v1
-      with:
-        command: test
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          default: true
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
 
   with-registry:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
-    - name: Setup registry
-      run: |
-        ./test/fixture.sh
-    - uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: -- --include-ignored
+      - uses: actions/checkout@v4
+      - name: Setup registry
+        run: |
+          ./test/fixture.sh
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -- --include-ignored
     services:
       registry:
         image: registry:2
@@ -41,16 +41,16 @@ jobs:
   check-format:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions-rs/cargo@v1
-      with:
-        command: fmt
-        args: -- --check
+      - uses: actions/checkout@v4
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: -- --check
 
   clippy:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions-rs/cargo@v1
-      with:
-        command: clippy
+      - uses: actions/checkout@v4
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
