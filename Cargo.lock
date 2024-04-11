@@ -768,7 +768,7 @@ dependencies = [
 
 [[package]]
 name = "ocipkg"
-version = "0.3.0"
+version = "0.2.9"
 dependencies = [
  "base16ct",
  "base64 0.22.0",
@@ -794,7 +794,7 @@ dependencies = [
 
 [[package]]
 name = "ocipkg-cli"
-version = "0.3.0"
+version = "0.2.9"
 dependencies = [
  "base64 0.22.0",
  "cargo_metadata",
