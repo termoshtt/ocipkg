@@ -1,7 +1,7 @@
 use oci_spec::{distribution::*, image::*};
 use url::Url;
 
-use crate::{distribution::*, error::*, Digest};
+use crate::{distribution::*, error::*};
 
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client {

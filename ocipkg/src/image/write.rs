@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
-use std::{collections::HashMap, convert::TryFrom, fs, io, path::Path};
+use std::{collections::HashMap, fs, io, path::Path};
 
 use crate::{
     digest::{Digest, DigestBuf},
