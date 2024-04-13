@@ -42,7 +42,7 @@ pub fn link_package(image_name: &str) -> Result<()> {
     println!("cargo:rustc-link-search={}", dir.display());
     for path in fs::read_dir(&dir)?.filter_map(|entry| {
         let path = entry.ok()?.path();
-        path.is_file().then(|| path)
+        path.is_file().then_some(path)
     }) {
         let name = path
             .file_stem()

@@ -181,7 +181,7 @@ fn main() -> Result<()> {
         }
 
         Opt::Inspect { input } => {
-            let mut f = fs::File::open(&input)?;
+            let mut f = fs::File::open(input)?;
             let mut ar = ocipkg::image::Archive::new(&mut f);
             for (name, manifest) in ar.get_manifests()? {
                 println!("[{}]", name);

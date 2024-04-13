@@ -166,7 +166,7 @@ impl<W: io::Write> Builder<W> {
                 a.created = self.created.as_ref().map(|date| date.to_string());
             }
             if self.author.is_some() && a.authors.is_none() {
-                a.authors = self.author.clone();
+                a.authors.clone_from(&self.author);
             }
             a.to_map()
         } else {
