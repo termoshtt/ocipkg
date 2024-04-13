@@ -44,7 +44,7 @@ pub enum Error {
     // Error from OCI registry
     //
     #[error(transparent)]
-    NetworkError(#[from] ureq::Transport),
+    NetworkError(Box<ureq::Transport>),
     #[error(transparent)]
     RegistryError(#[from] ErrorResponse),
     #[error("Authorization failed: {0}")]
@@ -89,7 +89,7 @@ impl From<ureq::Error> for Error {
                 Ok(err) => Error::RegistryError(err),
                 Err(e) => Error::UnknownIo(e),
             },
-            ureq::Error::Transport(e) => Error::NetworkError(e),
+            ureq::Error::Transport(e) => Error::NetworkError(e.into()),
         }
     }
 }

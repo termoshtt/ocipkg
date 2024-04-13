@@ -47,7 +47,7 @@ impl Client {
                     return Err(Error::RegistryError(err));
                 }
             }
-            Err(ureq::Error::Transport(e)) => return Err(Error::NetworkError(e)),
+            Err(ureq::Error::Transport(e)) => return Err(Error::NetworkError(e.into())),
         };
         let challenge = AuthChallenge::from_header(&www_auth)?;
         self.token = Some(self.auth.challenge(&challenge)?);

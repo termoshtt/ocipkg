@@ -71,7 +71,7 @@ impl StoredAuth {
                     return Err(Error::RegistryError(err));
                 }
             }
-            Err(ureq::Error::Transport(e)) => return Err(Error::NetworkError(e)),
+            Err(ureq::Error::Transport(e)) => return Err(Error::NetworkError(e.into())),
         };
 
         let challenge = AuthChallenge::from_header(&www_auth)?;
@@ -98,7 +98,7 @@ impl StoredAuth {
                 Ok(token.token)
             }
             Err(ureq::Error::Status(..)) => Err(Error::AuthorizationFailed(token_url.clone())),
-            Err(ureq::Error::Transport(e)) => Err(Error::NetworkError(e)),
+            Err(ureq::Error::Transport(e)) => Err(Error::NetworkError(e.into())),
         }
     }
 
