@@ -37,7 +37,7 @@ pub fn link_package(image_name: &str) -> Result<()> {
     let image_name = ImageName::parse(image_name)?;
     let dir = local::image_dir(&image_name)?;
     if !dir.exists() {
-        distribution::get_image(&image_name)?;
+        distribution::get_image(&image_name, false)?;
     }
     println!("cargo:rustc-link-search={}", dir.display());
     for path in fs::read_dir(&dir)?.filter_map(|entry| {

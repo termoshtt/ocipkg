@@ -52,6 +52,8 @@ enum Opt {
     /// Get and save in local storage
     Get {
         image_name: String,
+        #[clap(short = 'f', long = "overwrite")]
+        overwrite: bool,
     },
 
     /// Push oci-archive to registry
@@ -142,9 +144,12 @@ fn main() -> Result<()> {
             ocipkg::image::load(&input)?;
         }
 
-        Opt::Get { image_name } => {
+        Opt::Get {
+            image_name,
+            overwrite,
+        } => {
             let image_name = ocipkg::ImageName::parse(&image_name)?;
-            ocipkg::distribution::get_image(&image_name)?;
+            ocipkg::distribution::get_image(&image_name, overwrite)?;
         }
 
         Opt::Push { input } => {
