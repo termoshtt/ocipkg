@@ -1,7 +1,7 @@
 use oci_spec::{distribution::*, image::*};
 use url::Url;
 
-use crate::{distribution::*, error::*, Digest};
+use crate::{distribution::*, error::*};
 
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client {
@@ -47,7 +47,7 @@ impl Client {
                     return Err(Error::RegistryError(err));
                 }
             }
-            Err(ureq::Error::Transport(e)) => return Err(Error::NetworkError(e)),
+            Err(ureq::Error::Transport(e)) => return Err(Error::NetworkError(e.into())),
         };
         let challenge = AuthChallenge::from_header(&www_auth)?;
         self.token = Some(self.auth.challenge(&challenge)?);

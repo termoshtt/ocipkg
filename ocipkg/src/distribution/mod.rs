@@ -43,7 +43,7 @@ pub fn push_image(path: &Path) -> Result<()> {
 
 /// Get image from registry and save it into local storage
 pub fn get_image(image_name: &ImageName) -> Result<()> {
-    let blob = get_layer_bytes(&image_name, |media_type| {
+    let blob = get_layer_bytes(image_name, |media_type| {
         match media_type {
             MediaType::ImageLayerGzip => true,
             // application/vnd.docker.image.rootfs.diff.tar.gzip case

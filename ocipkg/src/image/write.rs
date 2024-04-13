@@ -3,7 +3,7 @@
 use chrono::{DateTime, Utc};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
-use std::{collections::HashMap, convert::TryFrom, fs, io, path::Path};
+use std::{collections::HashMap, fs, io, path::Path};
 
 use crate::{
     digest::{Digest, DigestBuf},
@@ -166,7 +166,7 @@ impl<W: io::Write> Builder<W> {
                 a.created = self.created.as_ref().map(|date| date.to_string());
             }
             if self.author.is_some() && a.authors.is_none() {
-                a.authors = self.author.clone();
+                a.authors.clone_from(&self.author);
             }
             a.to_map()
         } else {
