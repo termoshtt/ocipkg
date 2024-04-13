@@ -188,23 +188,20 @@ fn main() -> Result<()> {
                 for layer in manifest.layers() {
                     let digest = ocipkg::Digest::new(layer.digest())?;
                     let entry = ar.get_blob(&digest)?;
-                    match layer.media_type() {
-                        MediaType::ImageLayerGzip => {
-                            let buf = GzDecoder::new(entry);
-                            let mut ar = tar::Archive::new(buf);
-                            let paths: Vec<_> = ar
-                                .entries()?
-                                .filter_map(|entry| Some(entry.ok()?.path().ok()?.to_path_buf()))
-                                .collect();
-                            for (i, path) in paths.iter().enumerate() {
-                                if i < paths.len() - 1 {
-                                    println!("  ├─ {}", path.display());
-                                } else {
-                                    println!("  └─ {}", path.display());
-                                }
+                    if let MediaType::ImageLayerGzip = layer.media_type() {
+                        let buf = GzDecoder::new(entry);
+                        let mut ar = tar::Archive::new(buf);
+                        let paths: Vec<_> = ar
+                            .entries()?
+                            .filter_map(|entry| Some(entry.ok()?.path().ok()?.to_path_buf()))
+                            .collect();
+                        for (i, path) in paths.iter().enumerate() {
+                            if i < paths.len() - 1 {
+                                println!("  ├─ {}", path.display());
+                            } else {
+                                println!("  └─ {}", path.display());
                             }
                         }
-                        _ => {}
                     }
                 }
             }
