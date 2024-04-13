@@ -67,25 +67,22 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
         let digest = Digest::new(desc.digest())?;
         let dest_algorithm = blob_root.join(&digest.algorithm);
         fs::create_dir_all(&dest_algorithm)?;
-        let dest = dest_algorithm.join(&digest.encoded);
+        let blob_path = dest_algorithm.join(&digest.encoded);
         log::info!("Get blob: {}", digest);
         let blob = client.get_blob(&digest)?;
-        fs::write(&dest, &blob)?;
+        fs::write(&blob_path, &blob)?;
 
         match desc.media_type() {
             MediaType::ImageLayerGzip => {
                 let buf = flate2::read::GzDecoder::new(blob.as_slice());
-                tar::Archive::new(buf).unpack(&dest_algorithm)?;
+                tar::Archive::new(buf).unpack(&dest)?;
             }
             MediaType::ImageLayer => {
                 let buf = blob.as_slice();
-                tar::Archive::new(buf).unpack(&dest_algorithm)?;
+                tar::Archive::new(buf).unpack(&dest)?;
             }
             _ => {}
         }
-
-        let buf = flate2::read::GzDecoder::new(blob.as_slice());
-        tar::Archive::new(buf).unpack(dest)?;
     }
 
     Ok(())
