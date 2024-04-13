@@ -28,6 +28,10 @@ impl Client {
         })
     }
 
+    pub fn from_image_name(image: &ImageName) -> Result<Self> {
+        Self::new(image.registry_url()?, image.name.clone())
+    }
+
     fn call(&mut self, req: ureq::Request) -> Result<ureq::Response> {
         if let Some(token) = &self.token {
             return Ok(req
