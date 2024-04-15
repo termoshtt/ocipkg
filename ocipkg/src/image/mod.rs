@@ -2,10 +2,12 @@
 
 pub mod annotations;
 
+mod artifact;
 mod platform;
 mod read;
 mod write;
 
+pub use artifact::*;
 pub use platform::*;
 pub use read::*;
 pub use write::*;

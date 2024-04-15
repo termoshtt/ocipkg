@@ -1,8 +1,9 @@
 use crate::{
     distribution::{Name, Reference},
     error::*,
+    local::image_dir,
 };
-use std::fmt;
+use std::{fmt, path::PathBuf};
 use url::Url;
 
 /// Image name
@@ -170,5 +171,9 @@ impl ImageName {
             format!("https://{}", hostname)
         };
         Ok(Url::parse(&url)?)
+    }
+
+    pub fn local_path(&self) -> Result<PathBuf> {
+        image_dir(self)
     }
 }
