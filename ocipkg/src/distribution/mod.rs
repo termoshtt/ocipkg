@@ -63,6 +63,13 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
         serde_json::to_string_pretty(&manifest)?,
     )?;
 
+    if *manifest.config().media_type() != MediaType::EmptyJSON {
+        let digest = Digest::new(manifest.config().digest())?;
+        log::info!("Get config: {}", digest);
+        let blob = client.get_blob(&digest)?;
+        fs::write(blob_root.join("config"), &blob)?;
+    }
+
     for desc in manifest.layers() {
         let digest = Digest::new(desc.digest())?;
         let dest_algorithm = blob_root.join(&digest.algorithm);
