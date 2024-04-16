@@ -8,6 +8,7 @@ pub mod distribution;
 pub mod error;
 pub mod image;
 pub mod local;
+pub mod oci_dir;
 
 mod digest;
 mod image_name;
