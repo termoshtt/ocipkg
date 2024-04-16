@@ -5,106 +5,83 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Writer trait based on [Guidelines for Artifact Usage](https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md#guidelines-for-artifact-usage) of OCI image specification 1.1.0
-pub trait ArtifactWriter {
+/// Create a new OCI artifact based on [Guidelines for Artifact Usage] of OCI image specification 1.1.0
+///
+/// The artifact is created on the local storage where [crate::local] manages as a [OCI Image layout].
+///
+/// [Guidelines for Artifact Usage]: https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md#guidelines-for-artifact-usage
+/// [OCI Image layout]: https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md
+pub struct LocalArtifactBuilder {
+    image_name: ImageName,
+    manifest: ImageManifest,
+    root: PathBuf,
+}
+
+impl LocalArtifactBuilder {
+    pub fn new(image_name: ImageName) -> Result<Self> {
+        let path = image_dir(&image_name)?;
+        if path.exists() {
+            return Err(Error::ImageAlreadyExists(path));
+        }
+        let root = image_name.local_path()?;
+        fs::create_dir_all(&root)?;
+        Ok(Self {
+            image_name,
+            manifest: ImageManifestBuilder::default().build()?,
+            root,
+        })
+    }
+
+    fn oci_dir_root(&self) -> PathBuf {
+        self.root.join(".oci-dir")
+    }
+
     /// Add a file to the artifact.
     ///
     /// - The file is compressed by gzip, and added in OCI artifact as a layer.
     /// - Its media type is set as `application/vnd.ocipkg.file+gzip`
     /// - On local storage, the file is stored at the top of image directory.
-    fn add_file(&mut self, file: &Path) -> Result<()>;
+    pub fn add_file(&mut self, file: &Path) -> Result<()> {
+        let bytes: Vec<u8> = todo!();
+        let descriptor: Descriptor = todo!();
+        self.add_blob(descriptor, &bytes)
+    }
 
     /// Add a directory to the artifact.
     ///
     /// - The directory is archived by tar and compressed by gzip, and then added in OCI artifact as a layer.
     /// - Its media type is set as `application/vnd.ocipkg.directory.tar+gzip`
     /// - On local storage, the directory is stored at the top of image directory.
-    fn add_directory(&mut self, directory: &Path) -> Result<()>;
+    pub fn add_directory(&mut self, directory: &Path) -> Result<()> {
+        let bytes: Vec<u8> = todo!();
+        let descriptor: Descriptor = todo!();
+        self.add_blob(descriptor, &bytes)
+    }
 
     /// Add a blob with arbitrary descriptor to the image.
-    fn add_blob(&mut self, descriptor: Descriptor, blob: &[u8]) -> Result<()>;
-
-    /// Add a config to the image manifest
-    ///
-    /// The guideline of OCI artifact has three cases,
-    fn add_config(&mut self, descriptor: Descriptor, config: &[u8]) -> Result<()>;
-
-    /// Add an annotation to the image manifest
-    fn add_annotation(&mut self, key: &str, value: &str) -> Result<()>;
-
-    /// Set `artifactType` field in the manifest
-    fn set_artifact_type(&mut self, artifact_type: MediaType) -> Result<()>;
-
-    /// Finish writing the image
-    fn finish(self) -> Result<()>;
-}
-
-pub struct LocalArtifact {
-    image_name: ImageName,
-    manifest: ImageManifest,
-    oci_dir_root: PathBuf,
-}
-
-impl Drop for LocalArtifact {
-    fn drop(&mut self) {
-        if let Err(e) = self.cleanup() {
-            log::error!("Failed to cleanup: {}", e);
-        }
-    }
-}
-
-impl LocalArtifact {
-    pub fn new(image_name: ImageName) -> Result<Self> {
-        let path = image_dir(&image_name)?;
-        if path.exists() {
-            return Err(Error::ImageAlreadyExists(path));
-        }
-        let oci_dir_root = image_name.local_path()?.join(".oci-dir");
-        fs::create_dir_all(&oci_dir_root)?;
-        Ok(Self {
-            image_name,
-            manifest: ImageManifestBuilder::default().build()?,
-            oci_dir_root,
-        })
-    }
-
-    fn cleanup(&self) -> Result<()> {
-        Ok(fs::remove_dir_all(self.image_name.local_path()?)?)
-    }
-}
-
-impl ArtifactWriter for LocalArtifact {
-    fn add_file(&mut self, file: &Path) -> Result<()> {
-        let bytes: Vec<u8> = todo!();
-        let descriptor: Descriptor = todo!();
-        self.add_blob(descriptor, &bytes)
-    }
-
-    fn add_directory(&mut self, directory: &Path) -> Result<()> {
-        let bytes: Vec<u8> = todo!();
-        let descriptor: Descriptor = todo!();
-        self.add_blob(descriptor, &bytes)
-    }
-
-    fn add_blob(&mut self, descriptor: Descriptor, blob: &[u8]) -> Result<()> {
+    pub fn add_blob(&mut self, descriptor: Descriptor, blob: &[u8]) -> Result<()> {
         let digest = Digest::new(&descriptor.digest())?;
         // FIXME: check digest of blob
-        let path = self.oci_dir_root.join(digest.as_path());
+        let path = self.oci_dir_root().join(digest.as_path());
         fs::write(path, blob)?;
         self.manifest.layers_mut().push(descriptor);
         Ok(())
     }
 
-    fn add_config(&mut self, descriptor: Descriptor, config: &[u8]) -> Result<()> {
+    /// Add a config to the image manifest
+    ///
+    /// The guideline of OCI artifact has three cases,
+    pub fn add_config(&mut self, descriptor: Descriptor, config: &[u8]) -> Result<()> {
         let digest = Digest::new(&descriptor.digest())?;
         // FIXME: check digest of config
-        let path = self.oci_dir_root.join(digest.as_path());
+        let path = self.oci_dir_root().join(digest.as_path());
         fs::write(path, config)?;
         self.manifest.set_config(descriptor);
         Ok(())
     }
 
-    fn add_annotation(&mut self, key: &str, value: &str) -> Result<()> {
+    /// Add an annotation to the image manifest
+    pub fn add_annotation(&mut self, key: &str, value: &str) -> Result<()> {
         self.manifest
             .annotations_mut()
             .get_or_insert(Default::default())
@@ -112,14 +89,14 @@ impl ArtifactWriter for LocalArtifact {
         Ok(())
     }
 
-    fn set_artifact_type(&mut self, artifact_type: MediaType) -> Result<()> {
+    /// Set `artifactType` field in the manifest
+    pub fn set_artifact_type(&mut self, artifact_type: MediaType) -> Result<()> {
         self.manifest.set_artifact_type(Some(artifact_type));
         Ok(())
     }
 
-    fn finish(self) -> Result<()> {
+    /// Finish writing the image
+    pub fn finish(self) -> Result<()> {
         todo!()
     }
 }
-
-pub struct ArchiveArtifact {}
