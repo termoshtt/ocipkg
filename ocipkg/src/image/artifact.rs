@@ -1,7 +1,10 @@
 use crate::{error::*, local::image_dir, oci_dir::LocalOciDirBuilder, ImageName};
+use flate2::{bufread, write, Compression};
 use oci_spec::image::{Descriptor, ImageManifest, ImageManifestBuilder, MediaType};
 use std::{
     fs,
+    io::prelude::*,
+    io::BufReader,
     path::{Path, PathBuf},
 };
 
@@ -46,9 +49,11 @@ impl LocalArtifactBuilder {
                 .join(file.file_name().expect("Already checked")),
         )?;
 
-        // TODO: compress file
-        dbg!(file);
-        let bytes: Vec<u8> = Vec::new();
+        let f = fs::File::open(file)?;
+        let b = BufReader::new(f);
+        let mut gz = bufread::GzEncoder::new(b, Compression::fast());
+        let mut bytes = Vec::new();
+        gz.read_to_end(&mut bytes)?;
 
         let digest = self.oci_dir.save_blob(&bytes)?;
         let descriptor = Descriptor::new(
@@ -66,10 +71,21 @@ impl LocalArtifactBuilder {
     /// - Its media type is set as `application/vnd.ocipkg.directory.tar+gzip`
     /// - On local storage, the directory is stored at the top of image directory.
     pub fn add_directory(&mut self, directory: &Path) -> Result<()> {
-        // TODO: pack dir
-        dbg!(directory);
-        let bytes: Vec<u8> = Vec::new();
-        // TODO: Copy dir to image dir
+        if !directory.is_dir() {
+            return Err(Error::NotADirectory(directory.to_owned()));
+        }
+        fs_extra::dir::copy(
+            directory,
+            &self.image_root,
+            &fs_extra::dir::CopyOptions {
+                overwrite: true,
+                ..Default::default()
+            },
+        )?;
+
+        let mut ar = tar::Builder::new(write::GzEncoder::new(Vec::new(), Compression::default()));
+        ar.append_dir_all("", directory)?;
+        let bytes = ar.into_inner()?.finish()?;
 
         let digest = self.oci_dir.save_blob(&bytes)?;
         let descriptor = Descriptor::new(

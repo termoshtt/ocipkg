@@ -62,6 +62,8 @@ pub enum Error {
     #[error("No valid runtime directory where authentication info will be stored.")]
     NoValidRuntimeDirectory,
     #[error(transparent)]
+    FsExtra(#[from] fs_extra::error::Error),
+    #[error(transparent)]
     UnknownIo(#[from] std::io::Error),
 }
 
