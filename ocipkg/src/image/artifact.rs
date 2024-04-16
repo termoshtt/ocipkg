@@ -1,4 +1,4 @@
-use crate::{error::*, local::image_dir, Digest, ImageName};
+use crate::{error::*, local::image_dir, oci_dir::LocalOciDirBuilder, ImageName};
 use oci_spec::image::{Descriptor, ImageManifest, ImageManifestBuilder, MediaType};
 use std::{
     fs,
@@ -12,28 +12,23 @@ use std::{
 /// [Guidelines for Artifact Usage]: https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md#guidelines-for-artifact-usage
 /// [OCI Image layout]: https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md
 pub struct LocalArtifactBuilder {
-    image_name: ImageName,
     manifest: ImageManifest,
-    root: PathBuf,
+    image_root: PathBuf,
+    oci_dir: LocalOciDirBuilder,
 }
 
 impl LocalArtifactBuilder {
     pub fn new(image_name: ImageName) -> Result<Self> {
-        let path = image_dir(&image_name)?;
-        if path.exists() {
-            return Err(Error::ImageAlreadyExists(path));
+        let image_root = image_dir(&image_name)?;
+        if image_root.exists() {
+            return Err(Error::ImageAlreadyExists(image_root));
         }
-        let root = image_name.local_path()?;
-        fs::create_dir_all(&root)?;
+        let oci_dir = LocalOciDirBuilder::new(image_root.to_owned())?;
         Ok(Self {
-            image_name,
+            image_root,
             manifest: ImageManifestBuilder::default().build()?,
-            root,
+            oci_dir,
         })
-    }
-
-    fn oci_dir_root(&self) -> PathBuf {
-        self.root.join(".oci-dir")
     }
 
     /// Add a file to the artifact.
@@ -42,9 +37,27 @@ impl LocalArtifactBuilder {
     /// - Its media type is set as `application/vnd.ocipkg.file+gzip`
     /// - On local storage, the file is stored at the top of image directory.
     pub fn add_file(&mut self, file: &Path) -> Result<()> {
-        let bytes: Vec<u8> = todo!();
-        let descriptor: Descriptor = todo!();
-        self.add_blob(descriptor, &bytes)
+        if !file.is_file() {
+            return Err(Error::NotAFile(file.to_owned()));
+        }
+        fs::copy(
+            file,
+            self.image_root
+                .join(file.file_name().expect("Already checked")),
+        )?;
+
+        // TODO: compress file
+        dbg!(file);
+        let bytes: Vec<u8> = Vec::new();
+
+        let digest = self.oci_dir.save_blob(&bytes)?;
+        let descriptor = Descriptor::new(
+            MediaType::Other("application/vnd.ocipkg.file+gzip".to_string()),
+            bytes.len() as i64,
+            digest.to_string(),
+        );
+        self.manifest.layers_mut().push(descriptor);
+        Ok(())
     }
 
     /// Add a directory to the artifact.
@@ -53,29 +66,43 @@ impl LocalArtifactBuilder {
     /// - Its media type is set as `application/vnd.ocipkg.directory.tar+gzip`
     /// - On local storage, the directory is stored at the top of image directory.
     pub fn add_directory(&mut self, directory: &Path) -> Result<()> {
-        let bytes: Vec<u8> = todo!();
-        let descriptor: Descriptor = todo!();
-        self.add_blob(descriptor, &bytes)
+        // TODO: pack dir
+        dbg!(directory);
+        let bytes: Vec<u8> = Vec::new();
+        // TODO: Copy dir to image dir
+
+        let digest = self.oci_dir.save_blob(&bytes)?;
+        let descriptor = Descriptor::new(
+            MediaType::Other("application/vnd.ocipkg.directory.tar+gzip".to_string()),
+            bytes.len() as i64,
+            digest.to_string(),
+        );
+        self.manifest.layers_mut().push(descriptor);
+        Ok(())
     }
 
     /// Add a blob with arbitrary descriptor to the image.
-    pub fn add_blob(&mut self, descriptor: Descriptor, blob: &[u8]) -> Result<()> {
-        let digest = Digest::new(&descriptor.digest())?;
-        // FIXME: check digest of blob
-        let path = self.oci_dir_root().join(digest.as_path());
-        fs::write(path, blob)?;
+    ///
+    /// The `size` and `digest` in `descriptor` is overwritten by the actual blob.
+    ///
+    pub fn add_blob(&mut self, mut descriptor: Descriptor, blob: &[u8]) -> Result<()> {
+        let digest = self.oci_dir.save_blob(blob)?;
+        descriptor.set_size(blob.len() as i64);
+        descriptor.set_digest(digest.to_string());
         self.manifest.layers_mut().push(descriptor);
         Ok(())
     }
 
     /// Add a config to the image manifest
     ///
-    /// The guideline of OCI artifact has three cases,
-    pub fn add_config(&mut self, descriptor: Descriptor, config: &[u8]) -> Result<()> {
-        let digest = Digest::new(&descriptor.digest())?;
-        // FIXME: check digest of config
-        let path = self.oci_dir_root().join(digest.as_path());
-        fs::write(path, config)?;
+    /// Note that OCI artifact can store any type of configuration different from `application/vnd.oci.image.config.v1+json`.
+    /// See the third case of [Guidelines for Artifact Usage].
+    ///
+    /// [Guidelines for Artifact Usage]: https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md#guidelines-for-artifact-usage
+    pub fn add_config(&mut self, mut descriptor: Descriptor, config: &[u8]) -> Result<()> {
+        let digest = self.oci_dir.save_blob(config)?;
+        descriptor.set_size(config.len() as i64);
+        descriptor.set_digest(digest.to_string());
         self.manifest.set_config(descriptor);
         Ok(())
     }
@@ -97,6 +124,7 @@ impl LocalArtifactBuilder {
 
     /// Finish writing the image
     pub fn finish(self) -> Result<()> {
-        todo!()
+        self.oci_dir.finish(self.manifest)?;
+        Ok(())
     }
 }
