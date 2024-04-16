@@ -67,7 +67,7 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
         let digest = Digest::new(manifest.config().digest())?;
         log::info!("Get config: {}", digest);
         let blob = client.get_blob(&digest)?;
-        fs::write(blob_root.join("config"), &blob)?;
+        fs::write(blob_root.join("config"), blob)?;
     }
 
     for desc in manifest.layers() {
