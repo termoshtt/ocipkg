@@ -24,7 +24,9 @@ impl LocalOciDirBuilder {
 
     pub fn save_blob(&self, data: &[u8]) -> Result<Digest> {
         let digest = Digest::from_buf_sha256(data);
-        fs::write(self.oci_dir_root.join(digest.as_path()), data)?;
+        let out = self.oci_dir_root.join(digest.as_path());
+        fs::create_dir_all(out.parent().unwrap())?;
+        fs::write(out, data)?;
         Ok(digest)
     }
 

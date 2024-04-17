@@ -41,6 +41,8 @@ pub enum Error {
     InvalidJson(#[from] serde_json::error::Error),
     #[error(transparent)]
     InvalidToml(#[from] toml::de::Error),
+    #[error("vnd.ocipkg.file+gzip artifact requires its file name in annotation")]
+    MissingAnnotation,
 
     //
     // Error from OCI registry

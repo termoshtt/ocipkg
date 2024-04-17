@@ -43,11 +43,8 @@ impl LocalArtifactBuilder {
         if !file.is_file() {
             return Err(Error::NotAFile(file.to_owned()));
         }
-        fs::copy(
-            file,
-            self.image_root
-                .join(file.file_name().expect("Already checked")),
-        )?;
+        let filename = file.file_name().expect("Already checked");
+        fs::copy(file, self.image_root.join(filename))?;
 
         let f = fs::File::open(file)?;
         let b = BufReader::new(f);
@@ -56,11 +53,20 @@ impl LocalArtifactBuilder {
         gz.read_to_end(&mut bytes)?;
 
         let digest = self.oci_dir.save_blob(&bytes)?;
-        let descriptor = Descriptor::new(
+        let mut descriptor = Descriptor::new(
             MediaType::Other("application/vnd.ocipkg.file+gzip".to_string()),
             bytes.len() as i64,
             digest.to_string(),
         );
+        let mut annotations = descriptor.annotations().clone().unwrap_or_default();
+        annotations.insert(
+            "vnd.ocipkg.file.name".to_string(),
+            filename
+                .to_str()
+                .expect("OS dependent file name is not allowed")
+                .to_string(),
+        );
+        descriptor.set_annotations(Some(annotations));
         self.manifest.layers_mut().push(descriptor);
         Ok(())
     }

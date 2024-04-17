@@ -79,6 +79,7 @@ impl Client {
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#content-discovery) for detail.
     pub fn get_tags(&mut self) -> Result<Vec<String>> {
         let url = self.url.join(&format!("/v2/{}/tags/list", self.name))?;
+        log::info!("Get tag list: {}", url);
         let res = self.call(self.get(&url))?;
         let tag_list = res.into_json::<TagList>()?;
         Ok(tag_list.tags().to_vec())
@@ -95,6 +96,7 @@ impl Client {
         let url = self
             .url
             .join(&format!("/v2/{}/manifests/{}", self.name, reference))?;
+        log::info!("Get manifest: {}", url);
         let res = self.call(self.get(&url).set(
             "Accept",
             &format!(

@@ -11,7 +11,7 @@ pub use name::Name;
 pub use oci_spec::image::MediaType;
 pub use reference::Reference;
 
-use crate::{error::*, Digest, ImageName};
+use crate::{error::*, oci_dir::LocalOciDirBuilder, Digest, ImageName};
 use std::{fs, io::Read, path::Path};
 
 /// Push image to registry
@@ -51,42 +51,53 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
             return Err(Error::ImageAlreadyExists(dest));
         }
     }
-    let blob_root = dest.join(".blob");
-    fs::create_dir_all(&blob_root)?;
+    let oci_dir = LocalOciDirBuilder::new(dest.clone())?;
 
     let mut client = Client::from_image_name(image_name)?;
 
-    log::info!("Get manifest: {}", image_name);
     let manifest = client.get_manifest(&image_name.reference)?;
-    fs::write(
-        dest.join(".manifest.json"),
-        serde_json::to_string_pretty(&manifest)?,
-    )?;
 
     if *manifest.config().media_type() != MediaType::EmptyJSON {
         let digest = Digest::new(manifest.config().digest())?;
-        log::info!("Get config: {}", digest);
         let blob = client.get_blob(&digest)?;
-        fs::write(blob_root.join("config"), blob)?;
+        oci_dir.save_blob(&blob)?;
     }
 
     for desc in manifest.layers() {
         let digest = Digest::new(desc.digest())?;
-        let dest_algorithm = blob_root.join(&digest.algorithm);
-        fs::create_dir_all(&dest_algorithm)?;
-        let blob_path = dest_algorithm.join(&digest.encoded);
-        log::info!("Get blob: {}", digest);
         let blob = client.get_blob(&digest)?;
-        fs::write(&blob_path, &blob)?;
+        oci_dir.save_blob(&blob)?;
 
         match desc.media_type() {
+            // For compatiblity to 0.2.x
             MediaType::ImageLayerGzip => {
+                log::info!(
+                    "{} is deprecated. Use OCI Artifact based container.",
+                    desc.media_type()
+                );
                 let buf = flate2::read::GzDecoder::new(blob.as_slice());
                 tar::Archive::new(buf).unpack(&dest)?;
             }
             MediaType::ImageLayer => {
+                log::info!(
+                    "{} is deprecated. Use OCI Artifact based container.",
+                    desc.media_type()
+                );
                 let buf = blob.as_slice();
                 tar::Archive::new(buf).unpack(&dest)?;
+            }
+
+            // OCI Artifact based (0.3.0+)
+            MediaType::Other(t) if t == "application/vnd.ocipkg.file+gzip" => {
+                let name = desc
+                    .annotations()
+                    .as_ref()
+                    .and_then(|annotations| annotations.get("vnd.ocipkg.file.name"))
+                    .ok_or(Error::MissingAnnotation)?;
+                let mut decoder = flate2::read::GzDecoder::new(blob.as_slice());
+                let mut buf = Vec::new();
+                decoder.read_to_end(&mut buf)?;
+                fs::write(dest.join(name), buf)?;
             }
             _ => {}
         }
