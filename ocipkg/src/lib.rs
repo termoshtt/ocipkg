@@ -4,6 +4,9 @@
 //! This reference describes the crate part.
 //!
 
+/// Re-export since this crate exposes types in `oci_spec` crate.
+pub extern crate oci_spec;
+
 pub mod distribution;
 pub mod error;
 pub mod image;
