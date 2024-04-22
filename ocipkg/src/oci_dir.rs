@@ -66,6 +66,7 @@ impl OciDirBuilder {
             .digest(digest.to_string())
             .build()?;
         let index = ImageIndexBuilder::default()
+            .schema_version(2_u32)
             .manifests(vec![descriptor])
             .build()?;
         fs::write(

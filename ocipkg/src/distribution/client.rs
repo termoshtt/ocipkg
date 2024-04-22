@@ -59,14 +59,17 @@ impl Client {
     }
 
     fn get(&self, url: &Url) -> ureq::Request {
+        log::info!("GET {}", url);
         self.agent.get(url.as_str())
     }
 
     fn put(&self, url: &Url) -> ureq::Request {
+        log::info!("PUT {}", url);
         self.agent.put(url.as_str())
     }
 
     fn post(&self, url: &Url) -> ureq::Request {
+        log::info!("POST {}", url);
         self.agent.post(url.as_str())
     }
 
@@ -79,7 +82,6 @@ impl Client {
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#content-discovery) for detail.
     pub fn get_tags(&mut self) -> Result<Vec<String>> {
         let url = self.url.join(&format!("/v2/{}/tags/list", self.name))?;
-        log::info!("Get tag list: {}", url);
         let res = self.call(self.get(&url))?;
         let tag_list = res.into_json::<TagList>()?;
         Ok(tag_list.tags().to_vec())
@@ -96,7 +98,6 @@ impl Client {
         let url = self
             .url
             .join(&format!("/v2/{}/manifests/{}", self.name, reference))?;
-        log::info!("Get manifest: {}", url);
         let res = self.call(self.get(&url).set(
             "Accept",
             &format!(

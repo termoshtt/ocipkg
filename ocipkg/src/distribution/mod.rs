@@ -46,6 +46,7 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
     let dest = crate::local::image_dir(image_name)?;
     if dest.exists() {
         if overwrite {
+            log::info!("Remove existing image: {}", dest.display());
             fs::remove_dir_all(&dest)?;
         } else {
             return Err(Error::ImageAlreadyExists(dest));
@@ -71,7 +72,7 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
         match desc.media_type() {
             // For compatiblity to 0.2.x
             MediaType::ImageLayerGzip => {
-                log::info!(
+                log::warn!(
                     "{} is deprecated. Use OCI Artifact based container.",
                     desc.media_type()
                 );
@@ -79,7 +80,7 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
                 tar::Archive::new(buf).unpack(&dest)?;
             }
             MediaType::ImageLayer => {
-                log::info!(
+                log::warn!(
                     "{} is deprecated. Use OCI Artifact based container.",
                     desc.media_type()
                 );
@@ -102,6 +103,7 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
             _ => {}
         }
     }
+    oci_dir.finish(manifest)?;
 
     Ok(())
 }
