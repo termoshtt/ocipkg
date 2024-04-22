@@ -1,4 +1,4 @@
-use crate::{error::*, local::image_dir, oci_dir::OciDirBuilder, ImageName};
+use crate::{error::*, image::OciDirBuilder, local::image_dir, ImageName};
 use flate2::{bufread, write, Compression};
 use oci_spec::image::{Descriptor, ImageManifest, ImageManifestBuilder, MediaType};
 use std::{
