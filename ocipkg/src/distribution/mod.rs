@@ -11,7 +11,7 @@ pub use name::Name;
 pub use oci_spec::image::MediaType;
 pub use reference::Reference;
 
-use crate::{error::*, oci_dir::LocalOciDirBuilder, Digest, ImageName};
+use crate::{error::*, oci_dir::OciDirBuilder, Digest, ImageName};
 use std::{fs, io::Read, path::Path};
 
 /// Push image to registry
@@ -51,7 +51,7 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
             return Err(Error::ImageAlreadyExists(dest));
         }
     }
-    let oci_dir = LocalOciDirBuilder::new(dest.clone())?;
+    let oci_dir = OciDirBuilder::new(dest.join(".oci-dir"))?;
 
     let mut client = Client::from_image_name(image_name)?;
 

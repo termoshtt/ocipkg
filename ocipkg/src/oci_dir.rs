@@ -1,4 +1,8 @@
-//! oci-dir handler
+//! oci-dir, i.e. a directory of local filesystem in the form of [OCI Image Layout specification](https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md)
+//!
+//! The name "oci-dir" comes from [`podman save`](https://docs.podman.io/en/latest/markdown/podman-save.1.html).
+//! It is not defined in OCI Image specification.
+//!
 
 use crate::{error::*, Digest};
 use oci_spec::image::{DescriptorBuilder, ImageIndexBuilder, ImageManifest, MediaType};
@@ -8,16 +12,15 @@ use std::{fs, path::PathBuf};
 ///
 /// This is responsible for saving any data and manifest files as blobs, and create `index.json` file.
 ///
-pub struct LocalOciDirBuilder {
+pub struct OciDirBuilder {
     oci_dir_root: PathBuf,
 }
 
-impl LocalOciDirBuilder {
-    pub fn new(root: PathBuf) -> Result<Self> {
-        if root.exists() {
-            return Err(Error::ImageAlreadyExists(root));
+impl OciDirBuilder {
+    pub fn new(oci_dir_root: PathBuf) -> Result<Self> {
+        if oci_dir_root.exists() {
+            return Err(Error::ImageAlreadyExists(oci_dir_root));
         }
-        let oci_dir_root = root.join(".oci-dir");
         fs::create_dir_all(&oci_dir_root)?;
         Ok(Self { oci_dir_root })
     }

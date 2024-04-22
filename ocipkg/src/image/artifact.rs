@@ -1,4 +1,4 @@
-use crate::{error::*, local::image_dir, oci_dir::LocalOciDirBuilder, ImageName};
+use crate::{error::*, local::image_dir, oci_dir::OciDirBuilder, ImageName};
 use flate2::{bufread, write, Compression};
 use oci_spec::image::{Descriptor, ImageManifest, ImageManifestBuilder, MediaType};
 use std::{
@@ -17,7 +17,7 @@ use std::{
 pub struct LocalArtifactBuilder {
     manifest: ImageManifest,
     image_root: PathBuf,
-    oci_dir: LocalOciDirBuilder,
+    oci_dir: OciDirBuilder,
 }
 
 impl LocalArtifactBuilder {
@@ -26,7 +26,7 @@ impl LocalArtifactBuilder {
         if image_root.exists() {
             return Err(Error::ImageAlreadyExists(image_root));
         }
-        let oci_dir = LocalOciDirBuilder::new(image_root.to_owned())?;
+        let oci_dir = OciDirBuilder::new(image_root.join(".oci-dir"))?;
         Ok(Self {
             image_root,
             manifest: ImageManifestBuilder::default().build()?,
