@@ -1,12 +1,10 @@
-use crate::{error::*, Digest};
-use oci_spec::image::{DescriptorBuilder, ImageIndexBuilder, ImageManifest, MediaType};
+use crate::{error::*, image::ImageLayout, Digest};
+use oci_spec::image::{
+    DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType, OciLayout,
+};
 use std::{fs, path::PathBuf};
 
-/// oci-dir, i.e. a directory of local filesystem in the form of [OCI Image Layout specification](https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md)
-///
-/// The name "oci-dir" comes from [`podman save`](https://docs.podman.io/en/latest/markdown/podman-save.1.html).
-/// It is not defined in OCI Image specification.
-///
+/// Build an [OciDir]
 pub struct OciDirBuilder {
     oci_dir_root: PathBuf,
     is_finished: bool,
@@ -63,10 +61,52 @@ impl OciDirBuilder {
             .manifests(vec![descriptor])
             .build()?;
         fs::write(
+            self.oci_dir_root.join("oci-layout"),
+            r#"{"imageLayoutVersion":"1.0.0"}"#,
+        )?;
+        fs::write(
             self.oci_dir_root.join("index.json"),
             serde_json::to_string(&index)?,
         )?;
         self.is_finished = true;
         Ok(())
+    }
+}
+
+/// oci-dir, a directory of local filesystem in the form of [OCI Image Layout].
+///
+/// The name "oci-dir" comes from [`podman save`](https://docs.podman.io/en/latest/markdown/podman-save.1.html).
+/// It is not defined in OCI Image specification.
+///
+/// [OCI Image Layout]: https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md
+///
+pub struct OciDir {
+    oci_dir_root: PathBuf,
+}
+
+impl OciDir {
+    pub fn new(oci_dir_root: PathBuf) -> Result<Self> {
+        if !oci_dir_root.is_dir() {
+            return Err(Error::NotADirectory(oci_dir_root));
+        }
+        let oci_layout: OciLayout = fs::read(oci_dir_root.join("oci-layout"))
+            .and_then(|bytes| Ok(serde_json::from_slice(&bytes)?))
+            .map_err(|_| Error::InvalidOciImageLayout(oci_dir_root.clone()))?;
+        if oci_layout.image_layout_version() != "1.0.0" {
+            return Err(Error::InvalidOciImageLayout(oci_dir_root));
+        }
+        Ok(Self { oci_dir_root })
+    }
+}
+
+impl ImageLayout for OciDir {
+    fn get_index(&self) -> Result<ImageIndex> {
+        let index_path = self.oci_dir_root.join("index.json");
+        let index_json = fs::read_to_string(index_path)?;
+        Ok(serde_json::from_str(&index_json)?)
+    }
+
+    fn get_blob(&self, digest: &Digest) -> Result<Vec<u8>> {
+        Ok(fs::read(self.oci_dir_root.join(digest.as_path()))?)
     }
 }

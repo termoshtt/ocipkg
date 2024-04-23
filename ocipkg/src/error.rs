@@ -27,6 +27,8 @@ pub enum Error {
     FileAlreadyExists(PathBuf),
     #[error("Try to get already existing image: {0}")]
     ImageAlreadyExists(PathBuf),
+    #[error("Invalid OCI image layout: {0}")]
+    InvalidOciImageLayout(PathBuf),
 
     //
     // Invalid container image
@@ -39,6 +41,8 @@ pub enum Error {
     MissingManifestName,
     #[error("No layer found in manifest")]
     MissingLayer,
+    #[error("Image layout contains no manifests")]
+    MissingManifest,
     #[error(transparent)]
     InvalidJson(#[from] serde_json::error::Error),
     #[error(transparent)]

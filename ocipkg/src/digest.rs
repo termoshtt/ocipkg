@@ -1,4 +1,5 @@
 use crate::error::*;
+use oci_spec::image::Descriptor;
 use regex::Regex;
 use sha2::{Digest as _, Sha256};
 use std::{fmt, io, path::PathBuf};
@@ -48,6 +49,10 @@ impl Digest {
             }
             _ => Err(Error::InvalidDigest(input.to_string())),
         }
+    }
+
+    pub fn from_descriptor(descriptor: &Descriptor) -> Result<Self> {
+        Self::new(descriptor.digest())
     }
 
     /// As a path used in oci-archive
