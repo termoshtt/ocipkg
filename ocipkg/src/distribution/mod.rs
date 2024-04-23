@@ -11,7 +11,7 @@ pub use name::Name;
 pub use oci_spec::image::MediaType;
 pub use reference::Reference;
 
-use crate::{error::*, oci_dir::OciDirBuilder, Digest, ImageName};
+use crate::{error::*, image::OciDirBuilder, Digest, ImageName};
 use std::{fs, io::Read, path::Path};
 
 /// Push image to registry

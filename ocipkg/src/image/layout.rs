@@ -1,17 +1,11 @@
-//! oci-dir, i.e. a directory of local filesystem in the form of [OCI Image Layout specification](https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md)
-//!
-//! The name "oci-dir" comes from [`podman save`](https://docs.podman.io/en/latest/markdown/podman-save.1.html).
-//! It is not defined in OCI Image specification.
-//!
-
 use crate::{error::*, Digest};
 use oci_spec::image::{DescriptorBuilder, ImageIndexBuilder, ImageManifest, MediaType};
 use std::{fs, path::PathBuf};
 
-/// Builder for `.oci-dir` directory
+/// oci-dir, i.e. a directory of local filesystem in the form of [OCI Image Layout specification](https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md)
 ///
-/// This is responsible for saving any data and manifest files as blobs, and creating `index.json` file.
-/// Creating manifest is out of scope of this struct.
+/// The name "oci-dir" comes from [`podman save`](https://docs.podman.io/en/latest/markdown/podman-save.1.html).
+/// It is not defined in OCI Image specification.
 ///
 pub struct OciDirBuilder {
     oci_dir_root: PathBuf,
