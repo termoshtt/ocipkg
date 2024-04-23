@@ -23,6 +23,8 @@ pub enum Error {
     NotAFile(PathBuf),
     #[error("Not a directory, or not exist: {0}")]
     NotADirectory(PathBuf),
+    #[error("File already exists: {0}")]
+    FileAlreadyExists(PathBuf),
     #[error("Try to get already existing image: {0}")]
     ImageAlreadyExists(PathBuf),
 
