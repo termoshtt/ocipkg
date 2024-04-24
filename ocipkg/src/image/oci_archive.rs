@@ -3,7 +3,7 @@ use chrono::Utc;
 use oci_spec::image::{DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType};
 use std::{
     fs,
-    io::Read,
+    io::{Read, Seek},
     path::{Path, PathBuf},
 };
 
@@ -63,12 +63,36 @@ fn create_file_header(size: usize) -> tar::Header {
 }
 
 pub struct OciArchive {
-    ar: tar::Archive<fs::File>,
+    // Since `tar::Archive` does not have API to get mutable reference of inner part, we need to take it out and put it back.
+    ar: Option<tar::Archive<fs::File>>,
 }
 
 impl OciArchive {
+    pub fn new(path: &Path) -> Result<Self> {
+        if !path.is_file() {
+            return Err(Error::NotAFile(path.to_owned()));
+        }
+        let f = fs::File::open(path)?;
+        let ar = tar::Archive::new(f);
+        Ok(Self { ar: Some(ar) })
+    }
+
+    fn rewind(&mut self) -> Result<()> {
+        let ar = self.ar.take().unwrap();
+        let mut f = ar.into_inner();
+        f.rewind()?;
+        self.ar = Some(tar::Archive::new(f));
+        Ok(())
+    }
+
     fn get_entries(&mut self) -> Result<impl Iterator<Item = tar::Entry<fs::File>>> {
-        Ok(self.ar.entries_with_seek()?.filter_map(|e| e.ok()))
+        self.rewind()?;
+        Ok(self
+            .ar
+            .as_mut()
+            .unwrap()
+            .entries_with_seek()?
+            .filter_map(|e| e.ok()))
     }
 }
 
