@@ -68,10 +68,7 @@ pub struct OciArchive {
 
 impl OciArchive {
     fn get_entries(&mut self) -> Result<impl Iterator<Item = tar::Entry<fs::File>>> {
-        Ok(self
-            .ar
-            .entries_with_seek()?
-            .filter_map(|e| e.ok()))
+        Ok(self.ar.entries_with_seek()?.filter_map(|e| e.ok()))
     }
 }
 
