@@ -71,7 +71,6 @@ impl OciArchive {
         Ok(self
             .ar
             .entries_with_seek()?
-            .into_iter()
             .filter_map(|e| e.ok()))
     }
 }
