@@ -11,7 +11,11 @@ pub use name::Name;
 pub use oci_spec::image::MediaType;
 pub use reference::Reference;
 
-use crate::{error::*, image::OciDirBuilder, Digest, ImageName};
+use crate::{
+    error::*,
+    image::{ImageLayoutBuilder, OciDirBuilder},
+    Digest, ImageName,
+};
 use std::{fs, io::Read, path::Path};
 
 /// Push image to registry
@@ -52,7 +56,7 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
             return Err(Error::ImageAlreadyExists(dest));
         }
     }
-    let oci_dir = OciDirBuilder::new(dest.join(".oci-dir"))?;
+    let mut oci_dir = OciDirBuilder::new(dest.join(".oci-dir"))?;
 
     let mut client = Client::from_image_name(image_name)?;
 
@@ -61,13 +65,13 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
     if *manifest.config().media_type() != MediaType::EmptyJSON {
         let digest = Digest::new(manifest.config().digest())?;
         let blob = client.get_blob(&digest)?;
-        oci_dir.save_blob(&blob)?;
+        oci_dir.add_blob(&blob)?;
     }
 
     for desc in manifest.layers() {
         let digest = Digest::new(desc.digest())?;
         let blob = client.get_blob(&digest)?;
-        oci_dir.save_blob(&blob)?;
+        oci_dir.add_blob(&blob)?;
 
         match desc.media_type() {
             // For compatiblity to 0.2.x

@@ -1,4 +1,9 @@
-use crate::{error::*, image::OciDirBuilder, local::image_dir, ImageName};
+use crate::{
+    error::*,
+    image::{ImageLayoutBuilder, OciDirBuilder},
+    local::image_dir,
+    ImageName,
+};
 use flate2::{bufread, write, Compression};
 use oci_spec::image::{Descriptor, ImageManifest, ImageManifestBuilder, MediaType};
 use std::{
@@ -52,7 +57,7 @@ impl LocalArtifactBuilder {
         let mut bytes = Vec::new();
         gz.read_to_end(&mut bytes)?;
 
-        let digest = self.oci_dir.save_blob(&bytes)?;
+        let digest = self.oci_dir.add_blob(&bytes)?;
         let mut descriptor = Descriptor::new(
             MediaType::Other("application/vnd.ocipkg.file+gzip".to_string()),
             bytes.len() as i64,
@@ -93,7 +98,7 @@ impl LocalArtifactBuilder {
         ar.append_dir_all("", directory)?;
         let bytes = ar.into_inner()?.finish()?;
 
-        let digest = self.oci_dir.save_blob(&bytes)?;
+        let digest = self.oci_dir.add_blob(&bytes)?;
         let descriptor = Descriptor::new(
             MediaType::Other("application/vnd.ocipkg.directory.tar+gzip".to_string()),
             bytes.len() as i64,
@@ -108,7 +113,7 @@ impl LocalArtifactBuilder {
     /// The `size` and `digest` in `descriptor` is overwritten by the actual blob.
     ///
     pub fn add_blob(&mut self, mut descriptor: Descriptor, blob: &[u8]) -> Result<()> {
-        let digest = self.oci_dir.save_blob(blob)?;
+        let digest = self.oci_dir.add_blob(blob)?;
         descriptor.set_size(blob.len() as i64);
         descriptor.set_digest(digest.to_string());
         self.manifest.layers_mut().push(descriptor);
@@ -122,7 +127,7 @@ impl LocalArtifactBuilder {
     ///
     /// [Guidelines for Artifact Usage]: https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md#guidelines-for-artifact-usage
     pub fn add_config(&mut self, mut descriptor: Descriptor, config: &[u8]) -> Result<()> {
-        let digest = self.oci_dir.save_blob(config)?;
+        let digest = self.oci_dir.add_blob(config)?;
         descriptor.set_size(config.len() as i64);
         descriptor.set_digest(digest.to_string());
         self.manifest.set_config(descriptor);

@@ -35,5 +35,5 @@ pub trait ImageLayoutBuilder {
     /// Handler of generated image.
     type ImageLayout: ImageLayout;
     fn add_blob(&mut self, data: &[u8]) -> Result<Digest>;
-    fn finish(self) -> Result<Self::ImageLayout>;
+    fn finish(self, manifest: ImageManifest) -> Result<Self::ImageLayout>;
 }

@@ -1,4 +1,8 @@
-use crate::{error::*, image::ImageLayout, Digest};
+use crate::{
+    error::*,
+    image::{ImageLayout, ImageLayoutBuilder},
+    Digest,
+};
 use oci_spec::image::{
     DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType, OciLayout,
 };
@@ -36,8 +40,12 @@ impl OciDirBuilder {
             is_finished: false,
         })
     }
+}
 
-    pub fn save_blob(&self, data: &[u8]) -> Result<Digest> {
+impl ImageLayoutBuilder for OciDirBuilder {
+    type ImageLayout = OciDir;
+
+    fn add_blob(&mut self, data: &[u8]) -> Result<Digest> {
         let digest = Digest::from_buf_sha256(data);
         let out = self.oci_dir_root.join(digest.as_path());
         fs::create_dir_all(out.parent().unwrap())?;
@@ -45,12 +53,9 @@ impl OciDirBuilder {
         Ok(digest)
     }
 
-    /// Create `index.json` file with image manifest.
-    ///
-    /// Although `index.json` can store multiple manifests, this API does not support it.
-    pub fn finish(mut self, manifest: ImageManifest) -> Result<()> {
+    fn finish(mut self, manifest: ImageManifest) -> Result<OciDir> {
         let manifest_json = serde_json::to_string(&manifest)?;
-        let digest = self.save_blob(manifest_json.as_bytes())?;
+        let digest = self.add_blob(manifest_json.as_bytes())?;
         let descriptor = DescriptorBuilder::default()
             .media_type(MediaType::ImageManifest)
             .size(manifest_json.len() as i64)
@@ -69,7 +74,9 @@ impl OciDirBuilder {
             serde_json::to_string(&index)?,
         )?;
         self.is_finished = true;
-        Ok(())
+        Ok(OciDir {
+            oci_dir_root: self.oci_dir_root.clone(),
+        })
     }
 }
 
