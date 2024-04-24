@@ -13,14 +13,14 @@ use crate::{
 ///
 pub trait ImageLayout {
     /// Get `index.json`
-    fn get_index(&self) -> Result<ImageIndex>;
+    fn get_index(&mut self) -> Result<ImageIndex>;
     /// Get blob content.
-    fn get_blob(&self, digest: &Digest) -> Result<Vec<u8>>;
+    fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>>;
 
     /// Get manifest stored in the image layout.
     ///
     /// Note that this trait assumes a single manifest in a single layout.
-    fn get_manifest(&self) -> Result<ImageManifest> {
+    fn get_manifest(&mut self) -> Result<ImageManifest> {
         let index = self.get_index()?;
         let digest =
             Digest::from_descriptor(index.manifests().first().ok_or(Error::MissingManifest)?)?;

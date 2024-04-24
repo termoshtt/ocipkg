@@ -1,7 +1,13 @@
 use crate::{error::*, Digest};
 use chrono::Utc;
-use oci_spec::image::{DescriptorBuilder, ImageIndexBuilder, ImageManifest, MediaType};
-use std::{fs, path::PathBuf};
+use oci_spec::image::{DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType};
+use std::{
+    fs,
+    io::Read,
+    path::{Path, PathBuf},
+};
+
+use super::ImageLayout;
 
 /// oci-archive, i.e. a tarball of a directory in the form of [OCI Image Layout specification](https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md)
 pub struct OciArchiveBuilder {
@@ -54,4 +60,42 @@ fn create_file_header(size: usize) -> tar::Header {
     header.set_mode(0b110100100); // rw-r--r--
     header.set_mtime(Utc::now().timestamp() as u64);
     header
+}
+
+pub struct OciArchive {
+    ar: tar::Archive<fs::File>,
+}
+
+impl OciArchive {
+    fn get_entries(&mut self) -> Result<impl Iterator<Item = tar::Entry<fs::File>>> {
+        Ok(self
+            .ar
+            .entries_with_seek()?
+            .into_iter()
+            .filter_map(|e| e.ok()))
+    }
+}
+
+impl ImageLayout for OciArchive {
+    fn get_index(&mut self) -> Result<ImageIndex> {
+        for entry in self.get_entries()? {
+            let path = entry.path()?;
+            if path == Path::new("index.json") {
+                return Ok(ImageIndex::from_reader(entry)?);
+            }
+        }
+        Err(Error::MissingIndex)
+    }
+
+    fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>> {
+        for mut entry in self.get_entries()? {
+            let path = entry.path()?;
+            if path == digest.as_path() {
+                let mut buf = Vec::new();
+                entry.read_to_end(&mut buf)?;
+                return Ok(buf);
+            }
+        }
+        Err(Error::MissingBlob(digest.clone()))
+    }
 }

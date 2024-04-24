@@ -43,6 +43,8 @@ pub enum Error {
     MissingLayer,
     #[error("Image layout contains no manifests")]
     MissingManifest,
+    #[error("Image layout contains the blob {0}")]
+    MissingBlob(Digest),
     #[error(transparent)]
     InvalidJson(#[from] serde_json::error::Error),
     #[error(transparent)]

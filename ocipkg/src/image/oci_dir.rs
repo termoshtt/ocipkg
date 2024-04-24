@@ -100,13 +100,13 @@ impl OciDir {
 }
 
 impl ImageLayout for OciDir {
-    fn get_index(&self) -> Result<ImageIndex> {
+    fn get_index(&mut self) -> Result<ImageIndex> {
         let index_path = self.oci_dir_root.join("index.json");
         let index_json = fs::read_to_string(index_path)?;
         Ok(serde_json::from_str(&index_json)?)
     }
 
-    fn get_blob(&self, digest: &Digest) -> Result<Vec<u8>> {
+    fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>> {
         Ok(fs::read(self.oci_dir_root.join(digest.as_path()))?)
     }
 }
