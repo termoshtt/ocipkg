@@ -128,35 +128,6 @@ impl<W: io::Write> Builder<W> {
         Ok(self.builder.take().unwrap().into_inner()?)
     }
 
-    fn create_config(&self) -> ImageConfiguration {
-        let mut builder = ImageConfigurationBuilder::default();
-        let created = self.created.unwrap_or_else(Utc::now);
-        builder = builder.created(created.to_rfc3339());
-        if let Some(ref author) = self.author {
-            builder = builder.author(author);
-        }
-        if let Some(ref platform) = self.platform {
-            builder = builder.os(platform.os().clone());
-            builder = builder.architecture(platform.architecture().clone());
-        }
-        let rootfs = RootFsBuilder::default()
-            .typ("layers".to_string())
-            .diff_ids(
-                self.diff_ids
-                    .iter()
-                    .map(|digest| digest.to_string())
-                    .collect::<Vec<_>>(),
-            )
-            .build()
-            .unwrap();
-        builder = builder.rootfs(rootfs);
-
-        let config = ConfigBuilder::default().build().unwrap();
-        builder = builder.config(config);
-
-        builder.build().unwrap()
-    }
-
     fn create_annotations_as_map(&self) -> HashMap<String, String> {
         if let Some(mut a) = self.annotations.clone() {
             if self.created.is_some() && a.created.is_none() {
@@ -172,15 +143,11 @@ impl<W: io::Write> Builder<W> {
     }
 
     fn finish(&mut self) -> Result<()> {
-        let cfg = self.create_config();
-        let mut buf = Vec::new();
-        cfg.to_writer(&mut buf)?;
-        let cfg_desc = self.save_blob(MediaType::ImageConfig, &buf)?;
-
         let mut builder = ImageManifestBuilder::default()
             .schema_version(SCHEMA_VERSION)
-            .config(cfg_desc)
-            .layers(std::mem::take(&mut self.layers));
+            .config(empty_descriptor())
+            .layers(std::mem::take(&mut self.layers))
+            .artifact_type("application/vnd.ocipkg.v1.artifact");
         if self.annotations.is_some() {
             builder = builder.annotations(self.create_annotations_as_map());
         }
@@ -243,6 +210,22 @@ impl<W: io::Write> Builder<W> {
             .append_data(&mut header, dest, input.as_bytes())?;
         Ok(())
     }
+}
+
+// {
+//   "mediaType": "application/vnd.oci.empty.v1+json",
+//   "digest": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+//   "size": 2,
+//   "data": "e30="
+// }
+fn empty_descriptor() -> Descriptor {
+    DescriptorBuilder::default()
+        .media_type(MediaType::EmptyJSON)
+        .size(2)
+        .digest("sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a")
+        .data("e30=")
+        .build()
+        .unwrap()
 }
 
 impl<W: io::Write> Drop for Builder<W> {
