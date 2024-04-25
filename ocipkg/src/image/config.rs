@@ -16,7 +16,15 @@ impl Config {
         Ok(serde_json::to_string(self)?)
     }
 
+    pub fn from_slice(slice: &[u8]) -> Result<Self> {
+        Ok(serde_json::from_slice(slice)?)
+    }
+
     pub fn add_layer(&mut self, digest: Digest, paths: Vec<PathBuf>) {
         self.layers.insert(digest, paths);
+    }
+
+    pub fn layers(&self) -> &HashMap<Digest, Vec<PathBuf>> {
+        &self.layers
     }
 }
