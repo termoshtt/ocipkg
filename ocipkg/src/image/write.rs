@@ -6,10 +6,7 @@ use oci_spec::image::*;
 use std::{collections::HashMap, fs, io, path::Path};
 
 use crate::{
-    digest::{Digest, DigestBuf},
-    error::*,
-    image::annotations::flat::Annotations,
-    ImageName,
+    digest::Digest, error::*, image::annotations::flat::Annotations, media_types, ImageName,
 };
 
 /// Build a container in oci-archive format based
@@ -21,8 +18,6 @@ pub struct Builder<W: io::Write> {
     created: Option<DateTime<Utc>>,
     author: Option<String>,
     annotations: Option<Annotations>,
-    platform: Option<Platform>,
-    diff_ids: Vec<Digest>,
     layers: Vec<Descriptor>,
 }
 
@@ -33,9 +28,7 @@ impl<W: io::Write> Builder<W> {
             name: None,
             created: None,
             author: None,
-            platform: None,
             annotations: None,
-            diff_ids: Vec::new(),
             layers: Vec::new(),
         }
     }
@@ -63,17 +56,9 @@ impl<W: io::Write> Builder<W> {
         self.author = Some(author.to_string());
     }
 
-    /// Set platform consists of architecture and OS info
-    pub fn set_platform(&mut self, platform: &Platform) {
-        self.platform = Some(platform.clone());
-    }
-
     /// Append a files as a layer
     pub fn append_files(&mut self, ps: &[impl AsRef<Path>]) -> Result<()> {
-        let mut ar = tar::Builder::new(DigestBuf::new(GzEncoder::new(
-            Vec::new(),
-            Compression::default(),
-        )));
+        let mut ar = tar::Builder::new(GzEncoder::new(Vec::new(), Compression::default()));
         for path in ps {
             let path = path.as_ref();
             if !path.is_file() {
@@ -87,15 +72,8 @@ impl<W: io::Write> Builder<W> {
             let mut f = fs::File::open(path)?;
             ar.append_file(name, &mut f)?;
         }
-        let (gz, digest) = ar
-            .into_inner()
-            .expect("This never fails since tar arhive is creating on memory")
-            .finish();
-        self.diff_ids.push(digest);
-        let buf = gz
-            .finish()
-            .expect("This never fails since zip is creating on memory");
-        let layer_desc = self.save_blob(MediaType::ImageLayerGzip, &buf)?;
+        let buf = ar.into_inner()?.finish()?;
+        let layer_desc = self.save_blob(media_types::directory_tar_gzip(), &buf)?;
         self.layers.push(layer_desc);
         Ok(())
     }
@@ -105,20 +83,10 @@ impl<W: io::Write> Builder<W> {
         if !path.is_dir() {
             return Err(Error::NotADirectory(path.to_owned()));
         }
-        let mut ar = tar::Builder::new(DigestBuf::new(GzEncoder::new(
-            Vec::new(),
-            Compression::default(),
-        )));
+        let mut ar = tar::Builder::new(GzEncoder::new(Vec::new(), Compression::default()));
         ar.append_dir_all("", path)?;
-        let (gz, digest) = ar
-            .into_inner()
-            .expect("This never fails since tar arhive is creating on memory")
-            .finish();
-        self.diff_ids.push(digest);
-        let buf = gz
-            .finish()
-            .expect("This never fails since zip is creating on memory");
-        let layer_desc = self.save_blob(MediaType::ImageLayerGzip, &buf)?;
+        let buf = ar.into_inner()?.finish()?;
+        let layer_desc = self.save_blob(media_types::directory_tar_gzip(), &buf)?;
         self.layers.push(layer_desc);
         Ok(())
     }
@@ -147,7 +115,7 @@ impl<W: io::Write> Builder<W> {
             .schema_version(SCHEMA_VERSION)
             .config(empty_descriptor())
             .layers(std::mem::take(&mut self.layers))
-            .artifact_type("application/vnd.ocipkg.v1.artifact");
+            .artifact_type(media_types::artifact());
         if self.annotations.is_some() {
             builder = builder.annotations(self.create_annotations_as_map());
         }
