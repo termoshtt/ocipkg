@@ -2,9 +2,9 @@
 
 use crate::{
     distribution::{Name, Reference},
-    error::*,
     ImageName,
 };
+use anyhow::Result;
 use directories::ProjectDirs;
 use std::{path::*, sync::OnceLock};
 

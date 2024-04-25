@@ -1,6 +1,6 @@
 //! Annotations with flat serialization/deserialization
 
-use crate::error::*;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, iter::*};
 
