@@ -96,10 +96,16 @@ impl<W: io::Write> Builder<W> {
         if !path.is_dir() {
             return Err(Error::NotADirectory(path.to_owned()));
         }
+        let paths = fs::read_dir(path)?
+            .filter_map(|entry| entry.ok().map(|e| e.path()))
+            .collect();
+
         let mut ar = tar::Builder::new(GzEncoder::new(Vec::new(), Compression::default()));
         ar.append_dir_all("", path)?;
         let buf = ar.into_inner()?.finish()?;
         let layer_desc = self.save_blob(media_types::layer_tar_gzip(), &buf)?;
+        self.config
+            .add_layer(Digest::new(layer_desc.digest())?, paths);
         self.layers.push(layer_desc);
         Ok(())
     }
