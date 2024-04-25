@@ -1,5 +1,6 @@
 use crate::error::*;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use std::{fmt, path::PathBuf};
 
@@ -28,6 +29,25 @@ lazy_static::lazy_static! {
 impl fmt::Display for Digest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}", self.algorithm, self.encoded)
+    }
+}
+
+impl Serialize for Digest {
+    fn serialize<S>(&self, serializer: S) -> std::prelude::v1::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for Digest {
+    fn deserialize<D>(deserializer: D) -> std::prelude::v1::Result<Digest, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Digest::new(&s).map_err(serde::de::Error::custom)
     }
 }
 

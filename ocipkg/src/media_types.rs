@@ -4,6 +4,10 @@ pub fn artifact() -> MediaType {
     MediaType::Other("application/vnd.ocipkg.v1.artifact".to_string())
 }
 
+pub fn config_json() -> MediaType {
+    MediaType::Other("application/vnd.ocipkg.v1.config+json".to_string())
+}
+
 pub fn directory_tar_gzip() -> MediaType {
     MediaType::Other("application/vnd.ocipkg.v1.directory.tar+gzip".to_string())
 }

@@ -3,10 +3,17 @@
 use chrono::{DateTime, Utc};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
-use std::{collections::HashMap, fs, io, path::Path};
+use std::{
+    collections::HashMap,
+    fs, io,
+    path::{Path, PathBuf},
+};
 
 use crate::{
-    digest::Digest, error::*, image::annotations::flat::Annotations, media_types, ImageName,
+    digest::Digest,
+    error::*,
+    image::{annotations::flat::Annotations, Config},
+    media_types, ImageName,
 };
 
 /// Build a container in oci-archive format based
@@ -19,6 +26,7 @@ pub struct Builder<W: io::Write> {
     author: Option<String>,
     annotations: Option<Annotations>,
     layers: Vec<Descriptor>,
+    config: Config,
 }
 
 impl<W: io::Write> Builder<W> {
@@ -30,6 +38,7 @@ impl<W: io::Write> Builder<W> {
             author: None,
             annotations: None,
             layers: Vec::new(),
+            config: Config::default(),
         }
     }
 
@@ -59,6 +68,7 @@ impl<W: io::Write> Builder<W> {
     /// Append a files as a layer
     pub fn append_files(&mut self, ps: &[impl AsRef<Path>]) -> Result<()> {
         let mut ar = tar::Builder::new(GzEncoder::new(Vec::new(), Compression::default()));
+        let mut files = Vec::new();
         for path in ps {
             let path = path.as_ref();
             if !path.is_file() {
@@ -70,10 +80,13 @@ impl<W: io::Write> Builder<W> {
                 .to_str()
                 .expect("Non-UTF8 file name");
             let mut f = fs::File::open(path)?;
+            files.push(PathBuf::from(name));
             ar.append_file(name, &mut f)?;
         }
         let buf = ar.into_inner()?.finish()?;
         let layer_desc = self.save_blob(media_types::directory_tar_gzip(), &buf)?;
+        self.config
+            .add_layer(Digest::new(layer_desc.digest())?, files);
         self.layers.push(layer_desc);
         Ok(())
     }
