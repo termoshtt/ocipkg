@@ -151,10 +151,7 @@ impl<W: io::Write> Builder<W> {
             .unwrap();
         builder = builder.rootfs(rootfs);
 
-        let config = ConfigBuilder::default()
-            .labels(self.create_annotations_as_map())
-            .build()
-            .unwrap();
+        let config = ConfigBuilder::default().build().unwrap();
         builder = builder.config(config);
 
         builder.build().unwrap()
@@ -180,12 +177,14 @@ impl<W: io::Write> Builder<W> {
         cfg.to_writer(&mut buf)?;
         let cfg_desc = self.save_blob(MediaType::ImageConfig, &buf)?;
 
-        let image_manifest = ImageManifestBuilder::default()
+        let mut builder = ImageManifestBuilder::default()
             .schema_version(SCHEMA_VERSION)
             .config(cfg_desc)
-            .layers(std::mem::take(&mut self.layers))
-            .build()
-            .unwrap();
+            .layers(std::mem::take(&mut self.layers));
+        if self.annotations.is_some() {
+            builder = builder.annotations(self.create_annotations_as_map());
+        }
+        let image_manifest = builder.build()?;
         let mut buf = Vec::new();
         image_manifest.to_writer(&mut buf)?;
         let mut image_manifest_desc = self.save_blob(MediaType::ImageManifest, &buf)?;
