@@ -13,7 +13,8 @@ use crate::{
     digest::Digest,
     error::*,
     image::{annotations::flat::Annotations, Config},
-    media_types, ImageName,
+    media_types::{self, config_json},
+    ImageName,
 };
 
 /// Build a container in oci-archive format based
@@ -130,10 +131,10 @@ impl<W: io::Write> Builder<W> {
     }
 
     fn finish(&mut self) -> Result<()> {
-        let empty = self.save_blob(MediaType::EmptyJSON, "{}".as_bytes())?;
+        let config = self.save_blob(config_json(), self.config.to_json()?.as_bytes())?;
         let mut builder = ImageManifestBuilder::default()
             .schema_version(SCHEMA_VERSION)
-            .config(empty)
+            .config(config)
             .layers(std::mem::take(&mut self.layers))
             .artifact_type(media_types::artifact());
         if self.annotations.is_some() {
