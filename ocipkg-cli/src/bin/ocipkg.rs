@@ -2,8 +2,13 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use clap::Parser;
 use flate2::read::GzDecoder;
 use oci_spec::image::MediaType;
-use ocipkg::error::*;
-use std::{fs, path::*};
+use ocipkg::{
+    error::*,
+    image::Config,
+    media_types::{artifact, config_json},
+    Digest,
+};
+use std::{fs, io::Read, path::*};
 
 #[derive(Debug, Parser)]
 #[command(version)]
@@ -189,24 +194,49 @@ fn main() -> Result<()> {
             let mut f = fs::File::open(input)?;
             let mut ar = ocipkg::image::Archive::new(&mut f);
             for (name, manifest) in ar.get_manifests()? {
-                println!("[{}]", name);
-                for layer in manifest.layers() {
-                    let digest = ocipkg::Digest::new(layer.digest())?;
-                    let entry = ar.get_blob(&digest)?;
-                    if let MediaType::ImageLayerGzip = layer.media_type() {
-                        let buf = GzDecoder::new(entry);
-                        let mut ar = tar::Archive::new(buf);
-                        let paths: Vec<_> = ar
-                            .entries()?
-                            .filter_map(|entry| Some(entry.ok()?.path().ok()?.to_path_buf()))
-                            .collect();
-                        for (i, path) in paths.iter().enumerate() {
-                            if i < paths.len() - 1 {
-                                println!("  ├─ {}", path.display());
-                            } else {
-                                println!("  └─ {}", path.display());
-                            }
+                let config = if manifest.artifact_type() == &Some(artifact()) {
+                    let config = manifest.config();
+                    if config.media_type() != &config_json() {
+                        return Err(Error::InvalidConfigMediaType(config.media_type().clone()));
+                    }
+                    let mut buf = Vec::new();
+                    ar.get_blob(&Digest::new(config.digest())?)?
+                        .read_to_end(&mut buf)?;
+                    Config::from_slice(&buf)?
+                } else {
+                    log::warn!("ocipkg 0.2.x style artifact is deprecated.");
+                    let mut config = Config::default();
+                    for layer in manifest.layers() {
+                        let digest = ocipkg::Digest::new(layer.digest())?;
+                        let entry = ar.get_blob(&digest)?;
+                        if let MediaType::ImageLayerGzip = layer.media_type() {
+                            let buf = GzDecoder::new(entry);
+                            let mut ar = tar::Archive::new(buf);
+                            config.add_layer(
+                                Digest::new(layer.digest())?,
+                                ar.entries()?
+                                    .filter_map(|entry| {
+                                        Some(entry.ok()?.path().ok()?.to_path_buf())
+                                    })
+                                    .collect(),
+                            )
                         }
+                    }
+                    config
+                };
+
+                println!("[{}]", name);
+                let paths: Vec<&PathBuf> = config
+                    .layers()
+                    .iter()
+                    .flat_map(|(_digest, paths)| paths)
+                    .collect();
+
+                for (i, path) in paths.iter().enumerate() {
+                    if i < paths.len() - 1 {
+                        println!("  ├─ {}", path.display());
+                    } else {
+                        println!("  └─ {}", path.display());
                     }
                 }
             }

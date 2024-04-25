@@ -3,12 +3,17 @@
 use chrono::{DateTime, Utc};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
-use std::{collections::HashMap, fs, io, path::Path};
+use std::{
+    collections::HashMap,
+    fs, io,
+    path::{Path, PathBuf},
+};
 
 use crate::{
-    digest::{Digest, DigestBuf},
+    digest::Digest,
     error::*,
-    image::annotations::flat::Annotations,
+    image::{annotations::flat::Annotations, Config},
+    media_types::{self, config_json},
     ImageName,
 };
 
@@ -21,9 +26,8 @@ pub struct Builder<W: io::Write> {
     created: Option<DateTime<Utc>>,
     author: Option<String>,
     annotations: Option<Annotations>,
-    platform: Option<Platform>,
-    diff_ids: Vec<Digest>,
     layers: Vec<Descriptor>,
+    config: Config,
 }
 
 impl<W: io::Write> Builder<W> {
@@ -33,10 +37,9 @@ impl<W: io::Write> Builder<W> {
             name: None,
             created: None,
             author: None,
-            platform: None,
             annotations: None,
-            diff_ids: Vec::new(),
             layers: Vec::new(),
+            config: Config::default(),
         }
     }
 
@@ -63,17 +66,10 @@ impl<W: io::Write> Builder<W> {
         self.author = Some(author.to_string());
     }
 
-    /// Set platform consists of architecture and OS info
-    pub fn set_platform(&mut self, platform: &Platform) {
-        self.platform = Some(platform.clone());
-    }
-
     /// Append a files as a layer
     pub fn append_files(&mut self, ps: &[impl AsRef<Path>]) -> Result<()> {
-        let mut ar = tar::Builder::new(DigestBuf::new(GzEncoder::new(
-            Vec::new(),
-            Compression::default(),
-        )));
+        let mut ar = tar::Builder::new(GzEncoder::new(Vec::new(), Compression::default()));
+        let mut files = Vec::new();
         for path in ps {
             let path = path.as_ref();
             if !path.is_file() {
@@ -85,17 +81,13 @@ impl<W: io::Write> Builder<W> {
                 .to_str()
                 .expect("Non-UTF8 file name");
             let mut f = fs::File::open(path)?;
+            files.push(PathBuf::from(name));
             ar.append_file(name, &mut f)?;
         }
-        let (gz, digest) = ar
-            .into_inner()
-            .expect("This never fails since tar arhive is creating on memory")
-            .finish();
-        self.diff_ids.push(digest);
-        let buf = gz
-            .finish()
-            .expect("This never fails since zip is creating on memory");
-        let layer_desc = self.save_blob(MediaType::ImageLayerGzip, &buf)?;
+        let buf = ar.into_inner()?.finish()?;
+        let layer_desc = self.save_blob(media_types::layer_tar_gzip(), &buf)?;
+        self.config
+            .add_layer(Digest::new(layer_desc.digest())?, files);
         self.layers.push(layer_desc);
         Ok(())
     }
@@ -105,20 +97,16 @@ impl<W: io::Write> Builder<W> {
         if !path.is_dir() {
             return Err(Error::NotADirectory(path.to_owned()));
         }
-        let mut ar = tar::Builder::new(DigestBuf::new(GzEncoder::new(
-            Vec::new(),
-            Compression::default(),
-        )));
+        let paths = fs::read_dir(path)?
+            .filter_map(|entry| entry.ok().map(|e| e.path()))
+            .collect();
+
+        let mut ar = tar::Builder::new(GzEncoder::new(Vec::new(), Compression::default()));
         ar.append_dir_all("", path)?;
-        let (gz, digest) = ar
-            .into_inner()
-            .expect("This never fails since tar arhive is creating on memory")
-            .finish();
-        self.diff_ids.push(digest);
-        let buf = gz
-            .finish()
-            .expect("This never fails since zip is creating on memory");
-        let layer_desc = self.save_blob(MediaType::ImageLayerGzip, &buf)?;
+        let buf = ar.into_inner()?.finish()?;
+        let layer_desc = self.save_blob(media_types::layer_tar_gzip(), &buf)?;
+        self.config
+            .add_layer(Digest::new(layer_desc.digest())?, paths);
         self.layers.push(layer_desc);
         Ok(())
     }
@@ -126,38 +114,6 @@ impl<W: io::Write> Builder<W> {
     pub fn into_inner(mut self) -> Result<W> {
         self.finish()?;
         Ok(self.builder.take().unwrap().into_inner()?)
-    }
-
-    fn create_config(&self) -> ImageConfiguration {
-        let mut builder = ImageConfigurationBuilder::default();
-        let created = self.created.unwrap_or_else(Utc::now);
-        builder = builder.created(created.to_rfc3339());
-        if let Some(ref author) = self.author {
-            builder = builder.author(author);
-        }
-        if let Some(ref platform) = self.platform {
-            builder = builder.os(platform.os().clone());
-            builder = builder.architecture(platform.architecture().clone());
-        }
-        let rootfs = RootFsBuilder::default()
-            .typ("layers".to_string())
-            .diff_ids(
-                self.diff_ids
-                    .iter()
-                    .map(|digest| digest.to_string())
-                    .collect::<Vec<_>>(),
-            )
-            .build()
-            .unwrap();
-        builder = builder.rootfs(rootfs);
-
-        let config = ConfigBuilder::default()
-            .labels(self.create_annotations_as_map())
-            .build()
-            .unwrap();
-        builder = builder.config(config);
-
-        builder.build().unwrap()
     }
 
     fn create_annotations_as_map(&self) -> HashMap<String, String> {
@@ -175,17 +131,16 @@ impl<W: io::Write> Builder<W> {
     }
 
     fn finish(&mut self) -> Result<()> {
-        let cfg = self.create_config();
-        let mut buf = Vec::new();
-        cfg.to_writer(&mut buf)?;
-        let cfg_desc = self.save_blob(MediaType::ImageConfig, &buf)?;
-
-        let image_manifest = ImageManifestBuilder::default()
+        let config = self.save_blob(config_json(), self.config.to_json()?.as_bytes())?;
+        let mut builder = ImageManifestBuilder::default()
             .schema_version(SCHEMA_VERSION)
-            .config(cfg_desc)
+            .config(config)
             .layers(std::mem::take(&mut self.layers))
-            .build()
-            .unwrap();
+            .artifact_type(media_types::artifact());
+        if self.annotations.is_some() {
+            builder = builder.annotations(self.create_annotations_as_map());
+        }
+        let image_manifest = builder.build()?;
         let mut buf = Vec::new();
         image_manifest.to_writer(&mut buf)?;
         let mut image_manifest_desc = self.save_blob(MediaType::ImageManifest, &buf)?;

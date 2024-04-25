@@ -3,17 +3,17 @@
 pub mod annotations;
 
 mod artifact;
+mod config;
 mod layout;
 mod oci_archive;
 mod oci_dir;
-mod platform;
 mod read;
 mod write;
 
 pub use artifact::*;
+pub use config::*;
 pub use layout::*;
 pub use oci_archive::*;
 pub use oci_dir::*;
-pub use platform::*;
 pub use read::*;
 pub use write::*;

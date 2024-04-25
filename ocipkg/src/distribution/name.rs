@@ -27,7 +27,7 @@ impl fmt::Display for Name {
 }
 
 lazy_static::lazy_static! {
-    static ref NAME_RE: Regex = Regex::new(r"^[a-z0-9]+([._-][a-z0-9]+)*(/[a-z0-9]+([._-][a-z0-9]+)*)*$").unwrap();
+    static ref NAME_RE: Regex = Regex::new(r"^[A-Za-z0-9]+([._-][A-Za-z0-9]+)*(/[A-Za-z0-9]+([._-][A-Za-z0-9]+)*)*$").unwrap();
 }
 
 impl Name {

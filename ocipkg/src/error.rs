@@ -1,5 +1,5 @@
 use crate::Digest;
-use oci_spec::{distribution::ErrorResponse, OciSpecError};
+use oci_spec::{distribution::ErrorResponse, image::MediaType, OciSpecError};
 use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
@@ -51,6 +51,8 @@ pub enum Error {
     InvalidToml(#[from] toml::de::Error),
     #[error("vnd.ocipkg.file+gzip artifact requires its file name in annotation")]
     MissingAnnotation,
+    #[error("Invalid media type for config of ocipkg artifact: {0}")]
+    InvalidConfigMediaType(MediaType),
 
     //
     // Error from OCI registry
