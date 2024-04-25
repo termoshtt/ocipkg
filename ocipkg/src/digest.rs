@@ -1,4 +1,4 @@
-use crate::error::*;
+use anyhow::{bail, Result};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
@@ -63,10 +63,10 @@ impl Digest {
                         encoded: encoded.to_string(),
                     })
                 } else {
-                    Err(Error::InvalidDigest(input.to_string()))
+                    bail!("Invalid digest: {}", input);
                 }
             }
-            _ => Err(Error::InvalidDigest(input.to_string())),
+            _ => bail!("Invalid digest: {}", input),
         }
     }
 

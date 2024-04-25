@@ -1,7 +1,5 @@
-use crate::{
-    distribution::{Name, Reference},
-    error::*,
-};
+use crate::distribution::{Name, Reference};
+use anyhow::Result;
 use std::fmt;
 use url::Url;
 

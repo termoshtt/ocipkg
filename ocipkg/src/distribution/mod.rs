@@ -11,13 +11,14 @@ pub use name::Name;
 pub use oci_spec::image::MediaType;
 pub use reference::Reference;
 
-use crate::{error::*, Digest, ImageName};
+use crate::{Digest, ImageName};
+use anyhow::{bail, Result};
 use std::{fs, io::Read, path::Path};
 
 /// Push image to registry
 pub fn push_image(path: &Path) -> Result<()> {
     if !path.is_file() {
-        return Err(Error::NotAFile(path.to_owned()));
+        bail!("{} is not a file", path.display());
     }
     let mut f = fs::File::open(path)?;
     let mut ar = crate::image::Archive::new(&mut f);
