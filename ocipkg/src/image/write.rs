@@ -5,7 +5,7 @@ use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
 use std::{
     collections::HashMap,
-    fs, io,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -19,9 +19,9 @@ use crate::{
 
 /// Build a container in oci-archive format based
 /// on the [OCI image spec](https://github.com/opencontainers/image-spec)
-pub struct Builder<W: io::Write> {
+pub struct Builder {
     /// Include a flag to check if finished
-    builder: Option<tar::Builder<W>>,
+    builder: Option<tar::Builder<fs::File>>,
     name: Option<ImageName>,
     created: Option<DateTime<Utc>>,
     author: Option<String>,
@@ -30,8 +30,8 @@ pub struct Builder<W: io::Write> {
     config: Config,
 }
 
-impl<W: io::Write> Builder<W> {
-    pub fn new(writer: W) -> Self {
+impl Builder {
+    pub fn new(writer: fs::File) -> Self {
         Builder {
             builder: Some(tar::Builder::new(writer)),
             name: None,
@@ -111,7 +111,7 @@ impl<W: io::Write> Builder<W> {
         Ok(())
     }
 
-    pub fn into_inner(mut self) -> Result<W> {
+    pub fn into_inner(mut self) -> Result<fs::File> {
         self.finish()?;
         Ok(self.builder.take().unwrap().into_inner()?)
     }
@@ -201,7 +201,7 @@ impl<W: io::Write> Builder<W> {
     }
 }
 
-impl<W: io::Write> Drop for Builder<W> {
+impl Drop for Builder {
     fn drop(&mut self) {
         if self.builder.is_some() {
             let _ = self.finish();
