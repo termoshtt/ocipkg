@@ -111,9 +111,10 @@ impl<W: io::Write> Builder<W> {
     }
 
     fn finish(&mut self) -> Result<()> {
+        let empty = self.save_blob(MediaType::EmptyJSON, "{}".as_bytes())?;
         let mut builder = ImageManifestBuilder::default()
             .schema_version(SCHEMA_VERSION)
-            .config(empty_descriptor())
+            .config(empty)
             .layers(std::mem::take(&mut self.layers))
             .artifact_type(media_types::artifact());
         if self.annotations.is_some() {
@@ -178,22 +179,6 @@ impl<W: io::Write> Builder<W> {
             .append_data(&mut header, dest, input.as_bytes())?;
         Ok(())
     }
-}
-
-// {
-//   "mediaType": "application/vnd.oci.empty.v1+json",
-//   "digest": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-//   "size": 2,
-//   "data": "e30="
-// }
-fn empty_descriptor() -> Descriptor {
-    DescriptorBuilder::default()
-        .media_type(MediaType::EmptyJSON)
-        .size(2)
-        .digest("sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a")
-        .data("e30=")
-        .build()
-        .unwrap()
 }
 
 impl<W: io::Write> Drop for Builder<W> {
