@@ -84,7 +84,7 @@ impl<W: io::Write> Builder<W> {
             ar.append_file(name, &mut f)?;
         }
         let buf = ar.into_inner()?.finish()?;
-        let layer_desc = self.save_blob(media_types::directory_tar_gzip(), &buf)?;
+        let layer_desc = self.save_blob(media_types::layer_tar_gzip(), &buf)?;
         self.config
             .add_layer(Digest::new(layer_desc.digest())?, files);
         self.layers.push(layer_desc);
@@ -99,7 +99,7 @@ impl<W: io::Write> Builder<W> {
         let mut ar = tar::Builder::new(GzEncoder::new(Vec::new(), Compression::default()));
         ar.append_dir_all("", path)?;
         let buf = ar.into_inner()?.finish()?;
-        let layer_desc = self.save_blob(media_types::directory_tar_gzip(), &buf)?;
+        let layer_desc = self.save_blob(media_types::layer_tar_gzip(), &buf)?;
         self.layers.push(layer_desc);
         Ok(())
     }
