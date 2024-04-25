@@ -2,10 +2,10 @@
 
 pub mod annotations;
 
-mod platform;
+mod config;
 mod read;
 mod write;
 
-pub use platform::*;
+pub use config::*;
 pub use read::*;
 pub use write::*;

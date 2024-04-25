@@ -1,5 +1,5 @@
 use crate::Digest;
-use oci_spec::{distribution::ErrorResponse, OciSpecError};
+use oci_spec::{distribution::ErrorResponse, image::MediaType, OciSpecError};
 use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
@@ -41,6 +41,8 @@ pub enum Error {
     InvalidJson(#[from] serde_json::error::Error),
     #[error(transparent)]
     InvalidToml(#[from] toml::de::Error),
+    #[error("Invalid media type for config of ocipkg artifact: {0}")]
+    InvalidConfigMediaType(MediaType),
 
     //
     // Error from OCI registry
