@@ -1,4 +1,5 @@
-use crate::{error::*, Digest};
+use crate::Digest;
+use anyhow::{bail, Result};
 use chrono::Utc;
 use oci_spec::image::{DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType};
 use std::{
@@ -17,7 +18,7 @@ pub struct OciArchiveBuilder {
 impl OciArchiveBuilder {
     pub fn new(out: PathBuf) -> Result<Self> {
         if out.exists() {
-            return Err(Error::FileAlreadyExists(out));
+            bail!("File already exists: {}", out.display());
         }
         let f = fs::File::create(&out)?;
         let ar = tar::Builder::new(f);
@@ -70,7 +71,7 @@ pub struct OciArchive {
 impl OciArchive {
     pub fn new(path: &Path) -> Result<Self> {
         if !path.is_file() {
-            return Err(Error::NotAFile(path.to_owned()));
+            bail!("Not a file: {}", path.display());
         }
         let f = fs::File::open(path)?;
         let ar = tar::Archive::new(f);
@@ -104,7 +105,7 @@ impl ImageLayout for OciArchive {
                 return Ok(ImageIndex::from_reader(entry)?);
             }
         }
-        Err(Error::MissingIndex)
+        bail!("Missing index.json")
     }
 
     fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>> {
@@ -116,6 +117,6 @@ impl ImageLayout for OciArchive {
                 return Ok(buf);
             }
         }
-        Err(Error::MissingBlob(digest.clone()))
+        bail!("Missing blob: {}", digest)
     }
 }

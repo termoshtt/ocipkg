@@ -1,8 +1,6 @@
-use crate::{
-    error::*,
-    oci_spec::image::{ImageIndex, ImageManifest},
-    Digest,
-};
+use crate::Digest;
+use anyhow::{Context, Result};
+use oci_spec::image::{ImageIndex, ImageManifest};
 
 /// Handler of [OCI Image Layout] containing single manifest.
 ///
@@ -23,7 +21,7 @@ pub trait ImageLayout {
     fn get_manifest(&mut self) -> Result<ImageManifest> {
         let index = self.get_index()?;
         let digest =
-            Digest::from_descriptor(index.manifests().first().ok_or(Error::MissingManifest)?)?;
+            Digest::from_descriptor(index.manifests().first().context("Missing manifest")?)?;
         Ok(serde_json::from_slice(self.get_blob(&digest)?.as_slice())?)
     }
 }

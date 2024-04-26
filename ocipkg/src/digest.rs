@@ -70,6 +70,10 @@ impl Digest {
         }
     }
 
+    pub fn from_descriptor(descriptor: &oci_spec::image::Descriptor) -> Result<Self> {
+        Self::new(descriptor.digest())
+    }
+
     /// As a path used in oci-archive
     pub fn as_path(&self) -> PathBuf {
         PathBuf::from(format!("blobs/{}/{}", self.algorithm, self.encoded))
