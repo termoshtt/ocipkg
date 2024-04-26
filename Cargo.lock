@@ -802,6 +802,7 @@ dependencies = [
 name = "ocipkg-cli"
 version = "0.3.0"
 dependencies = [
+ "anyhow",
  "base64 0.22.0",
  "cargo_metadata",
  "clap",

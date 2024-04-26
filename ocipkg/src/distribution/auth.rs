@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use oci_spec::distribution::ErrorResponse;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, io, path::*};
@@ -67,7 +67,6 @@ impl StoredAuth {
                 if status == 401 {
                     res.header("www-authenticate").unwrap().to_string()
                 } else {
-                    log::error!("Error: {}", res.into_string()?);
                     let err = res.into_json::<ErrorResponse>()?;
                     return Err(err.into());
                 }
