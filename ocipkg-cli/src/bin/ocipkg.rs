@@ -1,9 +1,9 @@
+use anyhow::{bail, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use clap::Parser;
 use flate2::read::GzDecoder;
 use oci_spec::image::MediaType;
 use ocipkg::{
-    error::*,
     image::Config,
     media_types::{artifact, config_json},
     Digest,
@@ -197,7 +197,7 @@ fn main() -> Result<()> {
                 let config = if manifest.artifact_type() == &Some(artifact()) {
                     let config = manifest.config();
                     if config.media_type() != &config_json() {
-                        return Err(Error::InvalidConfigMediaType(config.media_type().clone()));
+                        bail!("Invalid config media type: {:?}", config.media_type());
                     }
                     let mut buf = Vec::new();
                     ar.get_blob(&Digest::new(config.digest())?)?

@@ -1,4 +1,4 @@
-use crate::error::*;
+use anyhow::{bail, Result};
 use regex::Regex;
 use std::fmt;
 
@@ -39,7 +39,7 @@ impl Name {
         if NAME_RE.is_match(name) {
             Ok(Name(name.to_string()))
         } else {
-            Err(Error::InvalidName(name.to_string()))
+            bail!("Invalid name: {name}");
         }
     }
 }

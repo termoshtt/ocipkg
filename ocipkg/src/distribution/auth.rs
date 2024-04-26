@@ -1,4 +1,4 @@
-use crate::error::*;
+use anyhow::{anyhow, Context, Result};
 use oci_spec::distribution::ErrorResponse;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, io, path::*};
@@ -46,7 +46,7 @@ impl StoredAuth {
     }
 
     pub fn save(&self) -> Result<()> {
-        let path = auth_path().ok_or(Error::NoValidRuntimeDirectory)?;
+        let path = auth_path().context("No valid runtime directory")?;
         let parent = path.parent().unwrap();
         if !parent.exists() {
             fs::create_dir_all(parent)?;
@@ -68,10 +68,10 @@ impl StoredAuth {
                     res.header("www-authenticate").unwrap().to_string()
                 } else {
                     let err = res.into_json::<ErrorResponse>()?;
-                    return Err(Error::RegistryError(err));
+                    return Err(err.into());
                 }
             }
-            Err(ureq::Error::Transport(e)) => return Err(Error::NetworkError(e.into())),
+            Err(ureq::Error::Transport(e)) => return Err(e.into()),
         };
 
         let challenge = AuthChallenge::from_header(&www_auth)?;
@@ -92,14 +92,9 @@ impl StoredAuth {
         req = req
             .query("scope", &challenge.scope)
             .query("service", &challenge.service);
-        match req.call() {
-            Ok(res) => {
-                let token = res.into_json::<Token>()?;
-                Ok(token.token)
-            }
-            Err(ureq::Error::Status(..)) => Err(Error::AuthorizationFailed(token_url.clone())),
-            Err(ureq::Error::Transport(e)) => Err(Error::NetworkError(e.into())),
-        }
+        let res = req.call()?;
+        let token = res.into_json::<Token>()?;
+        Ok(token.token)
     }
 
     pub fn append(&mut self, other: Self) -> Result<()> {
@@ -169,7 +164,7 @@ pub struct AuthChallenge {
 
 impl AuthChallenge {
     pub fn from_header(header: &str) -> Result<Self> {
-        let err = || Error::UnSupportedAuthHeader(header.to_string());
+        let err = || anyhow!("Unsupported WWW-Authenticate header: {}", header);
         let (ty, realm) = header.split_once(' ').ok_or_else(err)?;
         if ty != "Bearer" {
             return Err(err());

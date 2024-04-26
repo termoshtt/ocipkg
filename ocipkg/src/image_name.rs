@@ -1,7 +1,5 @@
-use crate::{
-    distribution::{Name, Reference},
-    error::*,
-};
+use crate::distribution::{Name, Reference};
+use anyhow::Result;
 use std::fmt;
 use url::Url;
 
@@ -45,7 +43,7 @@ use url::Url;
 ///         reference: Reference::new("latest")?,
 ///     }
 /// );
-/// # Ok::<(), ocipkg::error::Error>(())
+/// # Ok::<(), anyhow::Error>(())
 /// ```
 ///
 /// If a port number is included:
@@ -70,7 +68,7 @@ use url::Url;
 ///         reference: Reference::new("latest")?,
 ///     }
 /// );
-/// # Ok::<(), ocipkg::error::Error>(())
+/// # Ok::<(), anyhow::Error>(())
 /// ```
 ///
 /// Default values
@@ -89,7 +87,7 @@ use url::Url;
 ///         reference: Reference::new("20.04")?,
 ///     }
 /// );
-/// # Ok::<(), ocipkg::error::Error>(())
+/// # Ok::<(), anyhow::Error>(())
 /// ```
 ///
 /// If `reference` is absent, use `latest`:
@@ -106,7 +104,7 @@ use url::Url;
 ///         reference: Reference::new("latest")?,
 ///     }
 /// );
-/// # Ok::<(), ocipkg::error::Error>(())
+/// # Ok::<(), anyhow::Error>(())
 /// ```
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

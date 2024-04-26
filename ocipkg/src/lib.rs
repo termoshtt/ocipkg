@@ -5,7 +5,6 @@
 //!
 
 pub mod distribution;
-pub mod error;
 pub mod image;
 pub mod local;
 pub mod media_types;
@@ -16,7 +15,7 @@ mod image_name;
 pub use digest::Digest;
 pub use image_name::ImageName;
 
-use crate::error::*;
+use anyhow::Result;
 use std::fs;
 
 const STATIC_PREFIX: &str = if cfg!(target_os = "windows") {
