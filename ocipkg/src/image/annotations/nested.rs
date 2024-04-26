@@ -1,6 +1,6 @@
 //! Annotations with nested serialization/deserialization
 
-use crate::error::*;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 /// Root namespace for annotations

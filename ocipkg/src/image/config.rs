@@ -1,4 +1,5 @@
-use crate::{error::*, Digest};
+use crate::Digest;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 

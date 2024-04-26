@@ -1,7 +1,8 @@
+use anyhow::Result;
 use cargo_metadata::{Metadata, MetadataCommand, Package};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use ocipkg::{error::*, ImageName};
+use ocipkg::ImageName;
 use std::{
     collections::hash_map::DefaultHasher,
     fs,

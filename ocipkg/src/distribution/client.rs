@@ -1,7 +1,7 @@
+use crate::distribution::*;
+use anyhow::Result;
 use oci_spec::{distribution::*, image::*};
 use url::Url;
-
-use crate::{distribution::*, error::*};
 
 /// A client for `/v2/<name>/` API endpoint
 pub struct Client {
@@ -48,10 +48,10 @@ impl Client {
                     res.header("www-authenticate").unwrap().to_string()
                 } else {
                     let err = res.into_json::<ErrorResponse>()?;
-                    return Err(Error::RegistryError(err));
+                    return Err(err.into());
                 }
             }
-            Err(ureq::Error::Transport(e)) => return Err(Error::NetworkError(e.into())),
+            Err(ureq::Error::Transport(e)) => return Err(e.into()),
         };
         let challenge = AuthChallenge::from_header(&www_auth)?;
         self.token = Some(self.auth.challenge(&challenge)?);

@@ -1,4 +1,4 @@
-use crate::error::*;
+use anyhow::{bail, Context, Result};
 use oci_spec::image::*;
 use std::{
     fs,
@@ -46,7 +46,7 @@ impl<'buf, W: Read + Seek> Archive<'buf, W> {
                 let annotations = annotations::flat::Annotations::from_map(
                     manifest.annotations().clone().unwrap_or_default(),
                 )?;
-                let image_name = annotations.ref_name.ok_or(Error::MissingManifestName)?;
+                let image_name = annotations.ref_name.context("Missing manifest name")?;
                 let image_name = ImageName::parse(&image_name)?;
                 let digest = Digest::new(manifest.digest())?;
                 let manifest = self.get_manifest(&digest)?;
@@ -64,7 +64,7 @@ impl<'buf, W: Read + Seek> Archive<'buf, W> {
                 return Ok(ImageIndex::from_reader(&*out)?);
             }
         }
-        Err(Error::MissingIndex)
+        bail!("Missing index.json")
     }
 
     pub fn get_blob(&mut self, digest: &Digest) -> Result<tar::Entry<&'buf mut W>> {
@@ -74,7 +74,7 @@ impl<'buf, W: Read + Seek> Archive<'buf, W> {
                 return Ok(entry);
             }
         }
-        Err(Error::UnknownDigest(digest.clone()))
+        bail!("Missing blob: {}", digest)
     }
 
     pub fn get_manifest(&mut self, digest: &Digest) -> Result<ImageManifest> {
