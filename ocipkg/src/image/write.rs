@@ -1,5 +1,12 @@
 //! Compose directory as a container tar
 
+use crate::{
+    digest::Digest,
+    image::{annotations::flat::Annotations, Config},
+    media_types::{self, config_json},
+    ImageName,
+};
+use anyhow::{bail, Result};
 use chrono::{DateTime, Utc};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::*;
@@ -7,14 +14,6 @@ use std::{
     collections::HashMap,
     fs, io,
     path::{Path, PathBuf},
-};
-
-use crate::{
-    digest::Digest,
-    error::*,
-    image::{annotations::flat::Annotations, Config},
-    media_types::{self, config_json},
-    ImageName,
 };
 
 /// Build a container in oci-archive format based
@@ -73,7 +72,7 @@ impl<W: io::Write> Builder<W> {
         for path in ps {
             let path = path.as_ref();
             if !path.is_file() {
-                return Err(Error::NotAFile(path.to_owned()));
+                bail!("{} is not a file", path.display());
             }
             let name = path
                 .file_name()
@@ -95,7 +94,7 @@ impl<W: io::Write> Builder<W> {
     /// Append directory as a layer
     pub fn append_dir_all(&mut self, path: &Path) -> Result<()> {
         if !path.is_dir() {
-            return Err(Error::NotADirectory(path.to_owned()));
+            bail!("{} is not a directory", path.display());
         }
         let paths = fs::read_dir(path)?
             .filter_map(|entry| entry.ok().map(|e| e.path()))
