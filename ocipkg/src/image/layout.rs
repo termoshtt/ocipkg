@@ -28,7 +28,7 @@ pub trait ImageLayout {
 
 /// Create new image layout.
 ///
-/// See [ImageLayout] for detail.
+/// Creating [ImageManifest] is out of scope of this trait.
 pub trait ImageLayoutBuilder {
     /// Handler of generated image.
     type ImageLayout: ImageLayout;

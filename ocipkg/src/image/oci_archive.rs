@@ -1,4 +1,7 @@
-use crate::Digest;
+use crate::{
+    image::{ImageLayout, ImageLayoutBuilder},
+    Digest,
+};
 use anyhow::{bail, Result};
 use chrono::Utc;
 use oci_spec::image::{DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType};
@@ -8,33 +11,36 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::ImageLayout;
-
 /// oci-archive, i.e. a tarball of a directory in the form of [OCI Image Layout specification](https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md)
 pub struct OciArchiveBuilder {
+    path: PathBuf,
     ar: tar::Builder<fs::File>,
 }
 
 impl OciArchiveBuilder {
-    pub fn new(out: PathBuf) -> Result<Self> {
-        if out.exists() {
-            bail!("File already exists: {}", out.display());
+    pub fn new(path: PathBuf) -> Result<Self> {
+        if path.exists() {
+            bail!("File already exists: {}", path.display());
         }
-        let f = fs::File::create(&out)?;
+        let f = fs::File::create(&path)?;
         let ar = tar::Builder::new(f);
-        Ok(Self { ar })
+        Ok(Self { ar, path })
     }
+}
 
-    pub fn save_blob(&mut self, blob: &[u8]) -> Result<Digest> {
+impl ImageLayoutBuilder for OciArchiveBuilder {
+    type ImageLayout = OciArchive;
+
+    fn add_blob(&mut self, blob: &[u8]) -> Result<Digest> {
         let digest = Digest::from_buf_sha256(blob);
         self.ar
             .append_data(&mut create_file_header(blob.len()), digest.as_path(), blob)?;
         Ok(digest)
     }
 
-    pub fn finish(mut self, manifest: ImageManifest) -> Result<()> {
+    fn finish(mut self, manifest: ImageManifest) -> Result<Self::ImageLayout> {
         let manifest_json = serde_json::to_string(&manifest)?;
-        let digest = self.save_blob(manifest_json.as_bytes())?;
+        let digest = self.add_blob(manifest_json.as_bytes())?;
         let descriptor = DescriptorBuilder::default()
             .media_type(MediaType::ImageManifest)
             .size(manifest_json.len() as i64)
@@ -50,7 +56,7 @@ impl OciArchiveBuilder {
             .append_data(&mut create_file_header(buf.len()), "index.json", buf)?;
 
         self.ar.finish()?;
-        Ok(())
+        Ok(OciArchive::new(&self.path)?)
     }
 }
 
