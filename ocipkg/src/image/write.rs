@@ -16,8 +16,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Build a container in oci-archive format based
-/// on the [OCI image spec](https://github.com/opencontainers/image-spec)
+/// Build an ocipkg artifact `application/vnd.ocipkg.v1.artifact` as an [OciArchive]
 pub struct Builder {
     /// Include a flag to check if finished
     builder: Option<tar::Builder<fs::File>>,
