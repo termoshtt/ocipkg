@@ -34,4 +34,9 @@ pub trait ImageLayoutBuilder {
     type ImageLayout: ImageLayout;
     fn add_blob(&mut self, data: &[u8]) -> Result<Digest>;
     fn finish(self, manifest: ImageManifest) -> Result<Self::ImageLayout>;
+
+    /// A placeholder for `application/vnd.oci.empty.v1+json"`
+    fn add_empty_json_blob(&mut self) -> Result<Digest> {
+        self.add_blob(b"{}")
+    }
 }
