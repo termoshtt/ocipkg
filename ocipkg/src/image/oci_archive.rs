@@ -56,7 +56,7 @@ impl ImageLayoutBuilder for OciArchiveBuilder {
             .append_data(&mut create_file_header(buf.len()), "index.json", buf)?;
 
         self.ar.finish()?;
-        Ok(OciArchive::new(&self.path)?)
+        OciArchive::new(&self.path)
     }
 }
 
