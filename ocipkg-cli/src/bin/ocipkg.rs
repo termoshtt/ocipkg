@@ -106,8 +106,7 @@ fn main() -> Result<()> {
         } => {
             let mut output = output;
             output.set_extension("tar");
-            let f = fs::File::create(output)?;
-            let mut b = ocipkg::image::Builder::new(f);
+            let mut b = ocipkg::image::Builder::new(&output)?;
             if let Some(name) = tag {
                 b.set_name(&ocipkg::ImageName::parse(&name)?);
             }
@@ -130,8 +129,7 @@ fn main() -> Result<()> {
         } => {
             let mut output = output;
             output.set_extension("tar");
-            let f = fs::File::create(output)?;
-            let mut b = ocipkg::image::Builder::new(f);
+            let mut b = ocipkg::image::Builder::new(&output)?;
             if let Some(name) = tag {
                 b.set_name(&ocipkg::ImageName::parse(&name)?);
             }

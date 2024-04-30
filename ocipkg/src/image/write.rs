@@ -30,16 +30,17 @@ pub struct Builder {
 }
 
 impl Builder {
-    pub fn new(writer: fs::File) -> Self {
-        Builder {
-            builder: Some(tar::Builder::new(writer)),
+    pub fn new(path: &Path) -> Result<Self> {
+        let f = fs::File::create(path)?;
+        Ok(Builder {
+            builder: Some(tar::Builder::new(f)),
             name: None,
             created: None,
             author: None,
             annotations: None,
             layers: Vec::new(),
             config: Config::default(),
-        }
+        })
     }
 
     /// Set name of container, used in `org.opencontainers.image.ref.name` tag.
