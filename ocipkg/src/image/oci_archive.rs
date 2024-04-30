@@ -1,9 +1,10 @@
 use crate::{
     image::{ImageLayout, ImageLayoutBuilder},
-    Digest,
+    Digest, ImageName,
 };
 use anyhow::{bail, Result};
 use chrono::Utc;
+use maplit::hashmap;
 use oci_spec::image::{DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType};
 use std::{
     fs,
@@ -38,13 +39,16 @@ impl ImageLayoutBuilder for OciArchiveBuilder {
         Ok(digest)
     }
 
-    fn finish(mut self, manifest: ImageManifest) -> Result<Self::ImageLayout> {
+    fn build(mut self, manifest: ImageManifest, name: ImageName) -> Result<Self::ImageLayout> {
         let manifest_json = serde_json::to_string(&manifest)?;
         let digest = self.add_blob(manifest_json.as_bytes())?;
         let descriptor = DescriptorBuilder::default()
             .media_type(MediaType::ImageManifest)
             .size(manifest_json.len() as i64)
             .digest(digest.to_string())
+            .annotations(hashmap! {
+                "org.opencontainers.image.ref.name".to_string() => name.to_string()
+            })
             .build()?;
         let index = ImageIndexBuilder::default()
             .schema_version(2_u32)

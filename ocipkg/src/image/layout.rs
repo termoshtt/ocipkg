@@ -1,4 +1,4 @@
-use crate::Digest;
+use crate::{Digest, ImageName};
 use anyhow::{Context, Result};
 use oci_spec::image::{ImageIndex, ImageManifest};
 
@@ -32,8 +32,10 @@ pub trait ImageLayout {
 pub trait ImageLayoutBuilder {
     /// Handler of generated image.
     type ImageLayout: ImageLayout;
+    /// Add a blob to the image layout.
     fn add_blob(&mut self, data: &[u8]) -> Result<Digest>;
-    fn finish(self, manifest: ImageManifest) -> Result<Self::ImageLayout>;
+    /// Finish building image layout.
+    fn build(self, manifest: ImageManifest, name: ImageName) -> Result<Self::ImageLayout>;
 
     /// A placeholder for `application/vnd.oci.empty.v1+json`
     fn add_empty_json_blob(&mut self) -> Result<Digest> {

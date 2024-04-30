@@ -1,17 +1,18 @@
-use crate::image::ImageLayoutBuilder;
+use crate::{image::ImageLayoutBuilder, ImageName};
 use anyhow::Result;
 use oci_spec::image::{DescriptorBuilder, ImageManifest, ImageManifestBuilder, MediaType};
 use std::collections::HashMap;
 
 /// Create a new OCI Artifact over [ImageLayoutBuilder]
 pub struct ArtifactBuilder<Base: ImageLayoutBuilder> {
+    name: ImageName,
     manifest: ImageManifest,
     layout: Base,
 }
 
 impl<Base: ImageLayoutBuilder> ArtifactBuilder<Base> {
     /// Create a new OCI Artifact with its media type
-    pub fn new(mut layout: Base, artifact_type: MediaType) -> Result<Self> {
+    pub fn new(mut layout: Base, artifact_type: MediaType, name: ImageName) -> Result<Self> {
         // OCI Artifact allows empty JSON blob as a configuration. This is a placeholder for it.
         let empty_config = DescriptorBuilder::default()
             .media_type(MediaType::EmptyJSON)
@@ -21,7 +22,11 @@ impl<Base: ImageLayoutBuilder> ArtifactBuilder<Base> {
             .artifact_type(artifact_type)
             .config(empty_config)
             .build()?;
-        Ok(Self { layout, manifest })
+        Ok(Self {
+            layout,
+            manifest,
+            name,
+        })
     }
 
     /// Add `config` of the OCI Artifact
@@ -62,6 +67,6 @@ impl<Base: ImageLayoutBuilder> ArtifactBuilder<Base> {
 
     /// Build the OCI Artifact
     pub fn build(self) -> Result<Base::ImageLayout> {
-        self.layout.finish(self.manifest)
+        self.layout.build(self.manifest, self.name)
     }
 }
