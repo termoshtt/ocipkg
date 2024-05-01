@@ -1,6 +1,6 @@
 use crate::{Digest, ImageName};
 use anyhow::{Context, Result};
-use oci_spec::image::{ImageIndex, ImageManifest};
+use oci_spec::image::{Descriptor, DescriptorBuilder, ImageIndex, ImageManifest, MediaType};
 
 /// Handler of [OCI Image Layout] containing single manifest.
 ///
@@ -45,12 +45,17 @@ pub trait ImageLayoutBuilder {
     /// Handler of generated image.
     type ImageLayout: ImageLayout;
     /// Add a blob to the image layout.
-    fn add_blob(&mut self, data: &[u8]) -> Result<Digest>;
+    fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, i64)>;
     /// Finish building image layout.
     fn build(self, manifest: ImageManifest, name: ImageName) -> Result<Self::ImageLayout>;
 
     /// A placeholder for `application/vnd.oci.empty.v1+json`
-    fn add_empty_json_blob(&mut self) -> Result<Digest> {
-        self.add_blob(b"{}")
+    fn add_empty_json(&mut self) -> Result<Descriptor> {
+        let (digest, size) = self.add_blob(b"{}")?;
+        Ok(DescriptorBuilder::default()
+            .media_type(MediaType::EmptyJSON)
+            .size(size)
+            .digest(digest.to_string())
+            .build()?)
     }
 }

@@ -18,11 +18,7 @@ pub struct ArtifactBuilder<Base: ImageLayoutBuilder> {
 impl<Base: ImageLayoutBuilder> ArtifactBuilder<Base> {
     /// Create a new OCI Artifact with its media type
     pub fn new(mut layout: Base, artifact_type: MediaType, name: ImageName) -> Result<Self> {
-        // OCI Artifact allows empty JSON blob as a configuration. This is a placeholder for it.
-        let empty_config = DescriptorBuilder::default()
-            .media_type(MediaType::EmptyJSON)
-            .digest(layout.add_empty_json_blob()?.to_string())
-            .build()?;
+        let empty_config = layout.add_empty_json()?;
         let manifest = ImageManifestBuilder::default()
             .artifact_type(artifact_type)
             .config(empty_config)
@@ -43,10 +39,12 @@ impl<Base: ImageLayoutBuilder> ArtifactBuilder<Base> {
         config_blob: &[u8],
         annotations: HashMap<String, String>,
     ) -> Result<Descriptor> {
+        let (digest, size) = self.layout.add_blob(config_blob)?;
         let config = DescriptorBuilder::default()
             .media_type(config_type)
             .annotations(annotations)
-            .digest(self.layout.add_blob(config_blob)?.to_string())
+            .digest(digest.to_string())
+            .size(size)
             .build()?;
         self.manifest.set_config(config.clone());
         Ok(config)
@@ -61,9 +59,11 @@ impl<Base: ImageLayoutBuilder> ArtifactBuilder<Base> {
         layer_blob: &[u8],
         annotations: HashMap<String, String>,
     ) -> Result<Descriptor> {
+        let (digest, size) = self.layout.add_blob(layer_blob)?;
         let layer = DescriptorBuilder::default()
             .media_type(layer_type)
-            .digest(self.layout.add_blob(layer_blob)?.to_string())
+            .digest(digest.to_string())
+            .size(size)
             .annotations(annotations)
             .build()?;
         self.manifest.layers_mut().push(layer.clone());
