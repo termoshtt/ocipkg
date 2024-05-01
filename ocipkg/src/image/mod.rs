@@ -1,4 +1,6 @@
-//! Read and Write images based on [OCI image specification](https://github.com/opencontainers/image-spec)
+//! Read and Write ocipkg artifacts defined as `application/vnd.ocipkg.v1.artifact`
+//!
+//! See the crate level documentation for more information.
 
 pub mod annotations;
 

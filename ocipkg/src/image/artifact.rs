@@ -4,6 +4,9 @@ use oci_spec::image::{DescriptorBuilder, ImageManifest, ImageManifestBuilder, Me
 use std::collections::HashMap;
 
 /// Create a new OCI Artifact over [ImageLayoutBuilder]
+///
+/// This creates a generic OCI Artifact, not the ocipkg artifact defined as `application/vnd.ocipkg.v1.artifact`.
+/// It is the task of the [crate::image::Builder].
 pub struct ArtifactBuilder<Base: ImageLayoutBuilder> {
     name: ImageName,
     manifest: ImageManifest,

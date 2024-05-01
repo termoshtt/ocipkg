@@ -16,7 +16,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Build an ocipkg artifact `application/vnd.ocipkg.v1.artifact` as an [OciArchive]
+/// Build an ocipkg artifact defined as `application/vnd.ocipkg.v1.artifact` in the oci-archive format.
 pub struct Builder {
     /// Include a flag to check if finished
     builder: Option<tar::Builder<fs::File>>,
