@@ -23,6 +23,7 @@ impl<Base: ImageLayoutBuilder> ArtifactBuilder<Base> {
             .schema_version(2_u32)
             .artifact_type(artifact_type)
             .config(empty_config)
+            .layers(Vec::new())
             .build()?;
         Ok(Self {
             layout,
