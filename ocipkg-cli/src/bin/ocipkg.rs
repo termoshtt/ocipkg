@@ -106,19 +106,14 @@ fn main() -> Result<()> {
         } => {
             let mut output = output;
             output.set_extension("tar");
-            let mut b = ocipkg::image::Builder::new(&output)?;
-            if let Some(name) = tag {
-                b.set_name(&ocipkg::ImageName::parse(&name)?);
-            }
-            if annotations.is_file() {
-                let f = fs::read(annotations)?;
-                let input = String::from_utf8(f).expect("Non-UTF8 string in TOML");
-                b.set_annotations(
-                    ocipkg::image::annotations::nested::Annotations::from_toml(&input)?.into(),
-                )
-            }
+            let image_name = if let Some(name) = tag {
+                ocipkg::ImageName::parse(&name)?
+            } else {
+                ocipkg::ImageName::default()
+            };
+            let mut b = ocipkg::image::Builder::new(output, image_name)?;
             b.append_dir_all(&input_directory)?;
-            let _output = b.into_inner()?;
+            let _artifact = b.build()?;
         }
 
         Opt::Compose {
@@ -129,18 +124,14 @@ fn main() -> Result<()> {
         } => {
             let mut output = output;
             output.set_extension("tar");
-            let mut b = ocipkg::image::Builder::new(&output)?;
-            if let Some(name) = tag {
-                b.set_name(&ocipkg::ImageName::parse(&name)?);
-            }
-            if annotations.is_file() {
-                let f = fs::read(annotations)?;
-                let input = String::from_utf8(f).expect("Non-UTF8 string in TOML");
-                b.set_annotations(
-                    ocipkg::image::annotations::nested::Annotations::from_toml(&input)?.into(),
-                )
-            }
+            let image_name = if let Some(name) = tag {
+                ocipkg::ImageName::parse(&name)?
+            } else {
+                ocipkg::ImageName::default()
+            };
+            let mut b = ocipkg::image::Builder::new(output, image_name)?;
             b.append_files(&inputs)?;
+            let _artifact = b.build()?;
         }
 
         Opt::Load { input } => {

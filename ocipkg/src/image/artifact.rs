@@ -1,6 +1,8 @@
 use crate::{image::ImageLayoutBuilder, ImageName};
 use anyhow::Result;
-use oci_spec::image::{DescriptorBuilder, ImageManifest, ImageManifestBuilder, MediaType};
+use oci_spec::image::{
+    Descriptor, DescriptorBuilder, ImageManifest, ImageManifestBuilder, MediaType,
+};
 use std::collections::HashMap;
 
 /// Create a new OCI Artifact over [ImageLayoutBuilder]
@@ -36,36 +38,36 @@ impl<Base: ImageLayoutBuilder> ArtifactBuilder<Base> {
     ///
     /// Image manifest of artifact can store any type of configuration blob.
     pub fn add_config(
-        mut self,
+        &mut self,
         config_type: MediaType,
         config_blob: &[u8],
         annotations: HashMap<String, String>,
-    ) -> Result<Self> {
+    ) -> Result<Descriptor> {
         let config = DescriptorBuilder::default()
             .media_type(config_type)
             .annotations(annotations)
             .digest(self.layout.add_blob(config_blob)?.to_string())
             .build()?;
-        self.manifest.set_config(config);
-        Ok(self)
+        self.manifest.set_config(config.clone());
+        Ok(config)
     }
 
     /// Append a `layer` to the OCI Artifact
     ///
     /// Image manifest of artifact can store any type of layer blob.
     pub fn add_layer(
-        mut self,
+        &mut self,
         layer_type: MediaType,
         layer_blob: &[u8],
         annotations: HashMap<String, String>,
-    ) -> Result<Self> {
+    ) -> Result<Descriptor> {
         let layer = DescriptorBuilder::default()
             .media_type(layer_type)
             .digest(self.layout.add_blob(layer_blob)?.to_string())
             .annotations(annotations)
             .build()?;
-        self.manifest.layers_mut().push(layer);
-        Ok(self)
+        self.manifest.layers_mut().push(layer.clone());
+        Ok(layer)
     }
 
     /// Build the OCI Artifact

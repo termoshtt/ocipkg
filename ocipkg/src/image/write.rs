@@ -2,14 +2,12 @@
 
 use crate::{
     digest::Digest,
-    image::{annotations::flat::Annotations, Config},
+    image::{ArtifactBuilder, Config, OciArchive, OciArchiveBuilder},
     media_types::{self, config_json},
     ImageName,
 };
 use anyhow::{bail, Result};
-use chrono::{DateTime, Utc};
 use flate2::{write::GzEncoder, Compression};
-use oci_spec::image::*;
 use std::{
     collections::HashMap,
     fs,
@@ -18,51 +16,20 @@ use std::{
 
 /// Build an ocipkg artifact defined as `application/vnd.ocipkg.v1.artifact` in the oci-archive format.
 pub struct Builder {
-    /// Include a flag to check if finished
-    builder: Option<tar::Builder<fs::File>>,
-    name: Option<ImageName>,
-    created: Option<DateTime<Utc>>,
-    author: Option<String>,
-    annotations: Option<Annotations>,
-    layers: Vec<Descriptor>,
     config: Config,
+    builder: ArtifactBuilder<OciArchiveBuilder>,
 }
 
 impl Builder {
-    pub fn new(path: &Path) -> Result<Self> {
-        let f = fs::File::create(path)?;
+    pub fn new(path: PathBuf, image_name: ImageName) -> Result<Self> {
         Ok(Builder {
-            builder: Some(tar::Builder::new(f)),
-            name: None,
-            created: None,
-            author: None,
-            annotations: None,
-            layers: Vec::new(),
+            builder: ArtifactBuilder::new(
+                OciArchiveBuilder::new(path)?,
+                media_types::artifact(),
+                image_name,
+            )?,
             config: Config::default(),
         })
-    }
-
-    /// Set name of container, used in `org.opencontainers.image.ref.name` tag.
-    ///
-    /// If not set, a random name using UUID v4 hyphenated is set.
-    pub fn set_name(&mut self, name: &ImageName) {
-        self.name = Some(name.clone());
-    }
-
-    /// Set created date time in UTC
-    pub fn set_created(&mut self, created: DateTime<Utc>) {
-        self.created = Some(created);
-    }
-
-    /// Set additional annotations
-    pub fn set_annotations(&mut self, annotations: Annotations) {
-        self.annotations = Some(annotations);
-    }
-
-    /// Set the name and/or email address of the person
-    /// or entity which created and is responsible for maintaining the image.
-    pub fn set_author(&mut self, author: &str) {
-        self.author = Some(author.to_string());
     }
 
     /// Append a files as a layer
@@ -84,10 +51,11 @@ impl Builder {
             ar.append_file(name, &mut f)?;
         }
         let buf = ar.into_inner()?.finish()?;
-        let layer_desc = self.save_blob(media_types::layer_tar_gzip(), &buf)?;
+        let layer = self
+            .builder
+            .add_layer(media_types::layer_tar_gzip(), &buf, HashMap::new())?;
         self.config
-            .add_layer(Digest::new(layer_desc.digest())?, files);
-        self.layers.push(layer_desc);
+            .add_layer(Digest::from_descriptor(&layer)?, files);
         Ok(())
     }
 
@@ -103,116 +71,20 @@ impl Builder {
         let mut ar = tar::Builder::new(GzEncoder::new(Vec::new(), Compression::default()));
         ar.append_dir_all("", path)?;
         let buf = ar.into_inner()?.finish()?;
-        let layer_desc = self.save_blob(media_types::layer_tar_gzip(), &buf)?;
+        let layer_desc =
+            self.builder
+                .add_layer(media_types::layer_tar_gzip(), &buf, HashMap::new())?;
         self.config
             .add_layer(Digest::new(layer_desc.digest())?, paths);
-        self.layers.push(layer_desc);
         Ok(())
     }
 
-    pub fn into_inner(mut self) -> Result<fs::File> {
-        self.finish()?;
-        Ok(self.builder.take().unwrap().into_inner()?)
+    pub fn build(mut self) -> Result<OciArchive> {
+        self.builder.add_config(
+            config_json(),
+            self.config.to_json()?.as_bytes(),
+            HashMap::new(),
+        )?;
+        self.builder.build()
     }
-
-    fn create_annotations_as_map(&self) -> HashMap<String, String> {
-        if let Some(mut a) = self.annotations.clone() {
-            if self.created.is_some() && a.created.is_none() {
-                a.created = self.created.as_ref().map(|date| date.to_string());
-            }
-            if self.author.is_some() && a.authors.is_none() {
-                a.authors.clone_from(&self.author);
-            }
-            a.to_map()
-        } else {
-            HashMap::new()
-        }
-    }
-
-    fn finish(&mut self) -> Result<()> {
-        let config = self.save_blob(config_json(), self.config.to_json()?.as_bytes())?;
-        let mut builder = ImageManifestBuilder::default()
-            .schema_version(SCHEMA_VERSION)
-            .config(config)
-            .layers(std::mem::take(&mut self.layers))
-            .artifact_type(media_types::artifact());
-        if self.annotations.is_some() {
-            builder = builder.annotations(self.create_annotations_as_map());
-        }
-        let image_manifest = builder.build()?;
-        let mut buf = Vec::new();
-        image_manifest.to_writer(&mut buf)?;
-        let mut image_manifest_desc = self.save_blob(MediaType::ImageManifest, &buf)?;
-
-        // https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys
-        // > SHOULD only be considered valid when on descriptors on index.json within image layout.
-        //
-        // We need to set `org.opencontainers.image.ref.name` to index.json
-        image_manifest_desc.set_annotations(Some(HashMap::from([(
-            "org.opencontainers.image.ref.name".to_string(),
-            self.name.clone().unwrap_or_default().to_string(),
-        )])));
-
-        let index = ImageIndexBuilder::default()
-            .schema_version(SCHEMA_VERSION)
-            .manifests(vec![image_manifest_desc])
-            .build()?;
-        let mut index_json = Vec::new();
-        index.to_writer(&mut index_json)?;
-        let index_json = String::from_utf8(index_json).expect("ImageIndex must returns valid JSON");
-        self.save_file(Path::new("index.json"), &index_json)?;
-
-        let version = r#"{"imageLayoutVersion":"1.0.0"}"#;
-        self.save_file(Path::new("oci-layout"), version)?;
-
-        self.builder
-            .as_mut()
-            .expect("builder never becomes None except on Drop")
-            .finish()?;
-
-        Ok(())
-    }
-
-    fn save_blob(&mut self, media_type: MediaType, buf: &[u8]) -> Result<Descriptor> {
-        let digest = Digest::from_buf_sha256(buf);
-
-        let mut header = create_header(buf.len());
-        self.builder
-            .as_mut()
-            .expect("builder never becomes None except on Drop")
-            .append_data(&mut header, digest.as_path(), buf)?;
-
-        Ok(DescriptorBuilder::default()
-            .media_type(media_type)
-            .size(buf.len() as i64)
-            .digest(format!("{}", digest))
-            .build()
-            .expect("Requirement for descriptor is mediaType, digest, and size."))
-    }
-
-    fn save_file(&mut self, dest: &Path, input: &str) -> Result<()> {
-        let mut header = create_header(input.len());
-        self.builder
-            .as_mut()
-            .expect("builder never becomes None except on Drop")
-            .append_data(&mut header, dest, input.as_bytes())?;
-        Ok(())
-    }
-}
-
-impl Drop for Builder {
-    fn drop(&mut self) {
-        if self.builder.is_some() {
-            let _ = self.finish();
-        }
-    }
-}
-
-fn create_header(size: usize) -> tar::Header {
-    let mut header = tar::Header::new_gnu();
-    header.set_size(u64::try_from(size).unwrap());
-    header.set_cksum();
-    header.set_mode(0b110100100); // rw-r--r--
-    header.set_mtime(Utc::now().timestamp() as u64);
-    header
 }

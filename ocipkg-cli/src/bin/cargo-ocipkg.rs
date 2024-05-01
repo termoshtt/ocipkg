@@ -206,11 +206,9 @@ fn main() -> Result<()> {
                     "Creating".green().bold(),
                     dest.display()
                 );
-                let mut b = ocipkg::image::Builder::new(&dest)?;
-                b.set_name(&image_name);
-                b.set_annotations(annotations);
+                let mut b = ocipkg::image::Builder::new(dest, image_name.clone())?;
                 b.append_files(&targets)?;
-                let _output = b.into_inner()?;
+                let _artifact = b.build()?;
             }
         }
 
