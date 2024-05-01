@@ -24,10 +24,6 @@ enum Opt {
         /// Name of container, use UUID v4 hyphenated if not set.
         #[arg(short = 't', long = "tag")]
         tag: Option<String>,
-
-        /// Path to annotations file.
-        #[arg(default_value = "ocipkg.toml")]
-        annotations: PathBuf,
     },
 
     /// Compose files into an oci-archive tar file
@@ -42,10 +38,6 @@ enum Opt {
         /// Name of container, use UUID v4 hyphenated if not set.
         #[arg(short = 't', long = "tag")]
         tag: Option<String>,
-
-        /// Path to annotations file.
-        #[arg(long = "annotations", default_value = "ocipkg.toml")]
-        annotations: PathBuf,
     },
 
     /// Load and expand container local cache
@@ -102,7 +94,6 @@ fn main() -> Result<()> {
             input_directory,
             output,
             tag,
-            annotations,
         } => {
             let mut output = output;
             output.set_extension("tar");
@@ -120,7 +111,6 @@ fn main() -> Result<()> {
             inputs,
             output,
             tag,
-            annotations,
         } => {
             let mut output = output;
             output.set_extension("tar");
