@@ -20,6 +20,7 @@ impl<Base: ImageLayoutBuilder> ArtifactBuilder<Base> {
     pub fn new(mut layout: Base, artifact_type: MediaType, name: ImageName) -> Result<Self> {
         let empty_config = layout.add_empty_json()?;
         let manifest = ImageManifestBuilder::default()
+            .schema_version(2_u32)
             .artifact_type(artifact_type)
             .config(empty_config)
             .build()?;
