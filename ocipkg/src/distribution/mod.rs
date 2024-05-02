@@ -11,17 +11,14 @@ pub use name::Name;
 pub use oci_spec::image::MediaType;
 pub use reference::Reference;
 
-use crate::{
-    error::*,
-    image::{ImageLayoutBuilder, OciDirBuilder},
-    Digest, ImageName,
-};
+use crate::{Digest, ImageName};
+use anyhow::{bail, Result};
 use std::{fs, io::Read, path::Path};
 
 /// Push image to registry
 pub fn push_image(path: &Path) -> Result<()> {
     if !path.is_file() {
-        return Err(Error::NotAFile(path.to_owned()));
+        bail!("{} is not a file", path.display());
     }
     let mut f = fs::File::open(path)?;
     let mut ar = crate::image::Archive::new(&mut f);
@@ -53,7 +50,7 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
             log::info!("Remove existing image: {}", dest.display());
             fs::remove_dir_all(&dest)?;
         } else {
-            return Err(Error::ImageAlreadyExists(dest));
+            bail!("Image already exists: {}", image_name);
         }
     }
     let mut oci_dir = OciDirBuilder::new(dest.join(".oci-dir"))?;
@@ -110,20 +107,4 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
     oci_dir.finish(manifest)?;
 
     Ok(())
-}
-
-/// Get the data blob of a specific image layer, filtering by media_type.
-pub fn get_layer_bytes(image_name: &ImageName, f: impl Fn(&MediaType) -> bool) -> Result<Vec<u8>> {
-    let registry_url = image_name.registry_url()?;
-    let mut client = Client::new(registry_url, image_name.name.clone())?;
-    let manifest = client.get_manifest(&image_name.reference)?;
-    dbg!(&manifest);
-    let layer = manifest
-        .layers()
-        .iter()
-        .find(|&d| f(d.media_type()))
-        .ok_or(Error::MissingLayer)?;
-    let digest = Digest::new(layer.digest())?;
-
-    client.get_blob(&digest)
 }

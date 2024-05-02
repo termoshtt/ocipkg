@@ -1,5 +1,4 @@
-use crate::error::*;
-use oci_spec::image::Descriptor;
+use anyhow::{bail, Result};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
@@ -64,14 +63,14 @@ impl Digest {
                         encoded: encoded.to_string(),
                     })
                 } else {
-                    Err(Error::InvalidDigest(input.to_string()))
+                    bail!("Invalid digest: {}", input);
                 }
             }
-            _ => Err(Error::InvalidDigest(input.to_string())),
+            _ => bail!("Invalid digest: {}", input),
         }
     }
 
-    pub fn from_descriptor(descriptor: &Descriptor) -> Result<Self> {
+    pub fn from_descriptor(descriptor: &oci_spec::image::Descriptor) -> Result<Self> {
         Self::new(descriptor.digest())
     }
 

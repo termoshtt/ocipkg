@@ -1,4 +1,4 @@
-use crate::error::*;
+use anyhow::{bail, Result};
 use regex::Regex;
 use std::fmt;
 
@@ -40,7 +40,7 @@ impl Reference {
         if REF_RE.is_match(name) {
             Ok(Reference(name.to_string()))
         } else {
-            Err(Error::InvalidReference(name.to_string()))
+            bail!("Invalid reference {name}");
         }
     }
 }

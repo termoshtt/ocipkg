@@ -1,8 +1,6 @@
-use crate::{
-    error::*,
-    oci_spec::image::{ImageIndex, ImageManifest},
-    Digest,
-};
+use crate::{Digest, ImageName};
+use anyhow::{Context, Result};
+use oci_spec::image::{Descriptor, DescriptorBuilder, ImageIndex, ImageManifest, MediaType};
 
 /// Handler of [OCI Image Layout] containing single manifest.
 ///
@@ -20,20 +18,44 @@ pub trait ImageLayout {
     /// Get manifest stored in the image layout.
     ///
     /// Note that this trait assumes a single manifest in a single layout.
-    fn get_manifest(&mut self) -> Result<ImageManifest> {
+    /// If `index.json` contains `org.opencontainers.image.ref.name` annotation, it is returned as [ImageName].
+    fn get_manifest(&mut self) -> Result<(Option<ImageName>, ImageManifest)> {
         let index = self.get_index()?;
-        let digest =
-            Digest::from_descriptor(index.manifests().first().ok_or(Error::MissingManifest)?)?;
-        Ok(serde_json::from_slice(self.get_blob(&digest)?.as_slice())?)
+        let desc = index.manifests().first().context("Missing manifest")?;
+        let name = if let Some(name) = desc
+            .annotations()
+            .as_ref()
+            .and_then(|annotations| annotations.get("org.opencontainers.image.ref.name"))
+        {
+            // Invalid image name raises an error, while missing name is just ignored.
+            Some(ImageName::parse(name)?)
+        } else {
+            None
+        };
+        let digest = Digest::from_descriptor(desc)?;
+        let manifest = serde_json::from_slice(self.get_blob(&digest)?.as_slice())?;
+        Ok((name, manifest))
     }
 }
 
 /// Create new image layout.
 ///
-/// See [ImageLayout] for detail.
+/// Creating [ImageManifest] is out of scope of this trait.
 pub trait ImageLayoutBuilder {
     /// Handler of generated image.
     type ImageLayout: ImageLayout;
-    fn add_blob(&mut self, data: &[u8]) -> Result<Digest>;
-    fn finish(self, manifest: ImageManifest) -> Result<Self::ImageLayout>;
+    /// Add a blob to the image layout.
+    fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, i64)>;
+    /// Finish building image layout.
+    fn build(self, manifest: ImageManifest, name: ImageName) -> Result<Self::ImageLayout>;
+
+    /// A placeholder for `application/vnd.oci.empty.v1+json`
+    fn add_empty_json(&mut self) -> Result<Descriptor> {
+        let (digest, size) = self.add_blob(b"{}")?;
+        Ok(DescriptorBuilder::default()
+            .media_type(MediaType::EmptyJSON)
+            .size(size)
+            .digest(digest.to_string())
+            .build()?)
+    }
 }

@@ -2,9 +2,9 @@
 
 use crate::{
     distribution::{Name, Reference},
-    error::*,
     ImageName,
 };
+use anyhow::{anyhow, Result};
 use directories::ProjectDirs;
 use std::{path::*, sync::OnceLock};
 
@@ -15,7 +15,7 @@ static PROJECT_DIRS: OnceLock<ProjectDirs> = OnceLock::new();
 pub fn set_project_dirs(dirs: ProjectDirs) -> Result<()> {
     PROJECT_DIRS
         .set(dirs)
-        .map_err(|_| Error::ProjectDirectoryAlreadySet)
+        .map_err(|_| anyhow!("Failed to set project dirs"))
 }
 
 /// Project root data directory

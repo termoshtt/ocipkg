@@ -81,6 +81,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.82"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f538837af36e6f6a9be0faa67f9a314f8119e4e4b5867c6ab40ed60360142519"
+
+[[package]]
 name = "autocfg"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -776,6 +782,7 @@ dependencies = [
 name = "ocipkg"
 version = "0.3.0"
 dependencies = [
+ "anyhow",
  "base16ct",
  "base64 0.22.0",
  "chrono",
@@ -791,7 +798,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "tar",
- "thiserror",
  "toml",
  "ureq",
  "url",
@@ -803,6 +809,7 @@ dependencies = [
 name = "ocipkg-cli"
 version = "0.3.0"
 dependencies = [
+ "anyhow",
  "base64 0.22.0",
  "cargo_metadata",
  "clap",

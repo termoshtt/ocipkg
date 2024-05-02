@@ -1,5 +1,10 @@
-use crate::{error::*, Digest};
+use crate::{
+    image::{ImageLayout, ImageLayoutBuilder},
+    Digest, ImageName,
+};
+use anyhow::{bail, Result};
 use chrono::Utc;
+use maplit::hashmap;
 use oci_spec::image::{DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType};
 use std::{
     fs,
@@ -7,37 +12,43 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use super::ImageLayout;
-
 /// oci-archive, i.e. a tarball of a directory in the form of [OCI Image Layout specification](https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md)
 pub struct OciArchiveBuilder {
+    path: PathBuf,
     ar: tar::Builder<fs::File>,
 }
 
 impl OciArchiveBuilder {
-    pub fn new(out: PathBuf) -> Result<Self> {
-        if out.exists() {
-            return Err(Error::FileAlreadyExists(out));
+    pub fn new(path: PathBuf) -> Result<Self> {
+        if path.exists() {
+            bail!("File already exists: {}", path.display());
         }
-        let f = fs::File::create(&out)?;
+        let f = fs::File::create(&path)?;
         let ar = tar::Builder::new(f);
-        Ok(Self { ar })
+        Ok(Self { ar, path })
     }
+}
 
-    pub fn save_blob(&mut self, blob: &[u8]) -> Result<Digest> {
+impl ImageLayoutBuilder for OciArchiveBuilder {
+    type ImageLayout = OciArchive;
+
+    fn add_blob(&mut self, blob: &[u8]) -> Result<(Digest, i64)> {
         let digest = Digest::from_buf_sha256(blob);
         self.ar
             .append_data(&mut create_file_header(blob.len()), digest.as_path(), blob)?;
-        Ok(digest)
+        Ok((digest, blob.len() as i64))
     }
 
-    pub fn finish(mut self, manifest: ImageManifest) -> Result<()> {
+    fn build(mut self, manifest: ImageManifest, name: ImageName) -> Result<Self::ImageLayout> {
         let manifest_json = serde_json::to_string(&manifest)?;
-        let digest = self.save_blob(manifest_json.as_bytes())?;
+        let (digest, size) = self.add_blob(manifest_json.as_bytes())?;
         let descriptor = DescriptorBuilder::default()
             .media_type(MediaType::ImageManifest)
-            .size(manifest_json.len() as i64)
+            .size(size)
             .digest(digest.to_string())
+            .annotations(hashmap! {
+                "org.opencontainers.image.ref.name".to_string() => name.to_string()
+            })
             .build()?;
         let index = ImageIndexBuilder::default()
             .schema_version(2_u32)
@@ -49,7 +60,7 @@ impl OciArchiveBuilder {
             .append_data(&mut create_file_header(buf.len()), "index.json", buf)?;
 
         self.ar.finish()?;
-        Ok(())
+        OciArchive::new(&self.path)
     }
 }
 
@@ -70,7 +81,7 @@ pub struct OciArchive {
 impl OciArchive {
     pub fn new(path: &Path) -> Result<Self> {
         if !path.is_file() {
-            return Err(Error::NotAFile(path.to_owned()));
+            bail!("Not a file: {}", path.display());
         }
         let f = fs::File::open(path)?;
         let ar = tar::Archive::new(f);
@@ -104,7 +115,7 @@ impl ImageLayout for OciArchive {
                 return Ok(ImageIndex::from_reader(entry)?);
             }
         }
-        Err(Error::MissingIndex)
+        bail!("Missing index.json")
     }
 
     fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>> {
@@ -116,6 +127,6 @@ impl ImageLayout for OciArchive {
                 return Ok(buf);
             }
         }
-        Err(Error::MissingBlob(digest.clone()))
+        bail!("Missing blob: {}", digest)
     }
 }
