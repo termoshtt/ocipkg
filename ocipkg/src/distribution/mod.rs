@@ -11,7 +11,10 @@ pub use name::Name;
 pub use oci_spec::image::MediaType;
 pub use reference::Reference;
 
-use crate::{Digest, ImageName};
+use crate::{
+    image::{ImageLayoutBuilder, OciDirBuilder},
+    media_types, Digest, ImageName,
+};
 use anyhow::{bail, Result};
 use std::{fs, io::Read, path::Path};
 
@@ -71,7 +74,7 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
         oci_dir.add_blob(&blob)?;
 
         match desc.media_type() {
-            // For compatiblity to 0.2.x
+            // For compatibility to 0.2.x
             MediaType::ImageLayerGzip => {
                 log::warn!(
                     "{} is deprecated. Use OCI Artifact based container.",
@@ -90,21 +93,13 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
             }
 
             // OCI Artifact based (0.3.0+)
-            MediaType::Other(t) if t == "application/vnd.ocipkg.file+gzip" => {
-                let name = desc
-                    .annotations()
-                    .as_ref()
-                    .and_then(|annotations| annotations.get("vnd.ocipkg.file.name"))
-                    .ok_or(Error::MissingAnnotation)?;
-                let mut decoder = flate2::read::GzDecoder::new(blob.as_slice());
-                let mut buf = Vec::new();
-                decoder.read_to_end(&mut buf)?;
-                fs::write(dest.join(name), buf)?;
+            media_type @ MediaType::Other(_) if media_type == &media_types::layer_tar_gzip() => {
+                todo!()
             }
             _ => {}
         }
     }
-    oci_dir.finish(manifest)?;
+    oci_dir.build(manifest, image_name.clone())?;
 
     Ok(())
 }

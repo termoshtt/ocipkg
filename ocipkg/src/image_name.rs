@@ -1,6 +1,6 @@
 use crate::distribution::{Name, Reference};
 use anyhow::Result;
-use std::fmt;
+use std::{fmt, path::PathBuf};
 use url::Url;
 
 /// Image name
@@ -171,7 +171,7 @@ impl ImageName {
     }
 
     pub fn local_path(&self) -> Result<PathBuf> {
-        image_dir(self)
+        todo!()
     }
 }
 
