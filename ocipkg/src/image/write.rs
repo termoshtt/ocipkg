@@ -2,7 +2,7 @@
 
 use crate::{
     digest::Digest,
-    image::{Config, OciArchive, OciArchiveBuilder, OciArtifactBuilder},
+    image::{Artifact, Config, OciArchive, OciArchiveBuilder, OciArtifactBuilder},
     media_types::{self, config_json},
     ImageName,
 };
@@ -14,7 +14,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Build an ocipkg artifact defined as `application/vnd.ocipkg.v1.artifact` in the oci-archive format.
+/// Build [Artifact]
 pub struct Builder {
     config: Config,
     builder: OciArtifactBuilder<OciArchiveBuilder>,

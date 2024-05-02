@@ -38,9 +38,9 @@ pub trait ImageLayout {
     }
 }
 
-/// Create new image layout.
+/// Build an [ImageLayout]
 ///
-/// Creating [ImageManifest] is out of scope of this trait.
+/// Creating [ImageManifest] is the task of [crate::image::OciArtifactBuilder], and out of scope of this trait.
 pub trait ImageLayoutBuilder {
     /// Handler of generated image.
     type ImageLayout: ImageLayout;

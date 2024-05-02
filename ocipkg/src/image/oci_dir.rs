@@ -84,13 +84,9 @@ impl ImageLayoutBuilder for OciDirBuilder {
     }
 }
 
-/// oci-dir, a directory of local filesystem in the form of [OCI Image Layout].
+/// `oci-dir` image layout, a directory in the form of [OCI Image Layout](https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md).
 ///
 /// The name "oci-dir" comes from [`podman save`](https://docs.podman.io/en/latest/markdown/podman-save.1.html).
-/// It is not defined in OCI Image specification.
-///
-/// [OCI Image Layout]: https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md
-///
 pub struct OciDir {
     oci_dir_root: PathBuf,
 }

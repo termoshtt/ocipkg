@@ -11,10 +11,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-/// Create a new OCI Artifact over [ImageLayoutBuilder]
-///
-/// This creates a generic OCI Artifact, not the ocipkg artifact defined as `application/vnd.ocipkg.v1.artifact`.
-/// It is the task of the [crate::image::Builder].
+/// Build a [OciArtifact]
 pub struct OciArtifactBuilder<LayoutBuilder: ImageLayoutBuilder> {
     name: ImageName,
     manifest: ImageManifest,
@@ -88,9 +85,9 @@ impl<LayoutBuilder: ImageLayoutBuilder> OciArtifactBuilder<LayoutBuilder> {
     }
 }
 
-/// OCI Artifact
+/// OCI Artifact, an image layout with a image manifest which stores any type of `config` and `layers` rather than runnable container.
 ///
-/// This is a thin wrapper of an actual layout implementing [ImageLayout] to provide a common interface for OCI Artifacts.
+/// This is a thin wrapper of an actual image layout implementing [ImageLayout] to provide a common interface for OCI Artifacts.
 pub struct OciArtifact<Layout: ImageLayout>(Layout);
 
 impl<Base: ImageLayout> Deref for OciArtifact<Base> {

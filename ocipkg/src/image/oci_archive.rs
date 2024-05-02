@@ -12,7 +12,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// oci-archive, i.e. a tarball of a directory in the form of [OCI Image Layout specification](https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md)
+/// Build an [OciArchive]
 pub struct OciArchiveBuilder {
     path: PathBuf,
     ar: tar::Builder<fs::File>,
@@ -73,6 +73,7 @@ fn create_file_header(size: usize) -> tar::Header {
     header
 }
 
+/// `oci-archive` image layout, a tar archive of [OCI Image Layout](https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md).
 pub struct OciArchive {
     // Since `tar::Archive` does not have API to get mutable reference of inner part, we need to take it out and put it back.
     ar: Option<tar::Archive<fs::File>>,

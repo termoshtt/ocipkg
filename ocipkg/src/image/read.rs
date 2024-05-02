@@ -9,9 +9,7 @@ use std::{
 
 use crate::{digest::Digest, image::*, ImageName};
 
-/// Handler for oci-archive format
-///
-/// oci-archive consists of several manifests i.e. several container.
+/// (To be removed)
 pub struct Archive<'buf, W: Read + Seek> {
     archive: Option<tar::Archive<&'buf mut W>>,
 }
