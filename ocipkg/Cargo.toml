@@ -15,7 +15,7 @@ base16ct = { version = "0.2.0", features = ["alloc"] }
 base64 = "0.22.0"
 chrono = "0.4.38"
 directories = "5.0.1"
-flate2 = "1.0.28"
+flate2 = "1.0.30"
 lazy_static = "1.4.0"
 log = "0.4.21"
 maplit = "1.0.2"
