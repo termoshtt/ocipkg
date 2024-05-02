@@ -1,8 +1,52 @@
-//! Executables and Rust crate for handling OCI images without container runtime.
+//! ocipkg consists of executables (`ocipkg` and `cargo-ocipkg`) and this crate for handling OCI Artifact without container runtime.
 //!
 //! See [README.md at GitHub](https://github.com/termoshtt/ocipkg) for usage of the executables.
 //! This reference describes the crate part.
 //!
+//! Layout, Manifest, and Artifact
+//! -------------------------------
+//! ocipkg defines original type of OCI Artifact, `application/vnd.ocipkg.v1.artifact` to exchange directories containing static libraries.
+//! But this crate is also a general purpose library to handle any kind of OCI Artifact which can contain any kind of data.
+//!
+//! Note that current implementation (from ocipkg 0.3.0) is based on [OCI Image specification] 1.1.0.
+//!
+//! ### Image Manifest
+//! Every contents in a container are stored as blob, and identified by its hash digest (usually SHA256 is used).
+//! [OCI Image Manifest] describes how these blobs are combined to form a container.
+//! From [OCI Image specification] 1.1.0, [OCI Image Manifest] can store OCI Artifact in addition to usual executable containers.
+//!
+//! In this crate, [oci_spec::image::ImageManifest] is used to represent [OCI Image Manifest].
+//!
+//! ### Image Layout
+//! [OCI Image Layout] specifies how blobs are stored as a directory.
+//! Blobs are stored in `blobs/sha256/` directory with its hash digest as a file name.
+//! [OCI Image Manifest] is a JSON string and also stored as a blob, thus we have to find the blob storing the manifest first.
+//! `index.json` lists the digests of manifests stored in the layout.
+//! There is also a file `oci-layout` which contains version of the layout itself.
+//!
+//! Two types of layout formats are supported. `oci-dir` format is a directory containing blobs as [OCI Image Layout] format:
+//!
+//! ```text
+//! {dirname}/
+//! ├── blobs/
+//! │   └── sha256/
+//! │       ├── 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+//! │       └── ...
+//! ├── index.json
+//! └── oci-layout
+//! ```
+//!
+//! `oci-archive` format is a tar archive of a `oci-dir` format. Creating a new image layout takes following steps:
+//!
+//! 1. Create an empty layout
+//! 2. Add blobs, and store their digests
+//! 3. Create a manifest using blob digests, store the manifest itself as blob, and store its digest in `index.json`
+//!
+//! This process is abstracted by [image::ImageLayoutBuilder]. This yields a layout which implements [image::ImageLayout] trait.
+//!
+//! [OCI Image specification]: https://github.com/opencontainers/image-spec/blob/v1.1.0/spec.md
+//! [OCI Image Manifest]: https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md
+//! [OCI Image Layout]: https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md
 
 pub mod distribution;
 pub mod image;

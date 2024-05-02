@@ -24,10 +24,6 @@ enum Opt {
         /// Name of container, use UUID v4 hyphenated if not set.
         #[arg(short = 't', long = "tag")]
         tag: Option<String>,
-
-        /// Path to annotations file.
-        #[arg(default_value = "ocipkg.toml")]
-        annotations: PathBuf,
     },
 
     /// Compose files into an oci-archive tar file
@@ -42,10 +38,6 @@ enum Opt {
         /// Name of container, use UUID v4 hyphenated if not set.
         #[arg(short = 't', long = "tag")]
         tag: Option<String>,
-
-        /// Path to annotations file.
-        #[arg(long = "annotations", default_value = "ocipkg.toml")]
-        annotations: PathBuf,
     },
 
     /// Load and expand container local cache
@@ -102,47 +94,34 @@ fn main() -> Result<()> {
             input_directory,
             output,
             tag,
-            annotations,
         } => {
             let mut output = output;
             output.set_extension("tar");
-            let f = fs::File::create(output)?;
-            let mut b = ocipkg::image::Builder::new(f);
-            if let Some(name) = tag {
-                b.set_name(&ocipkg::ImageName::parse(&name)?);
-            }
-            if annotations.is_file() {
-                let f = fs::read(annotations)?;
-                let input = String::from_utf8(f).expect("Non-UTF8 string in TOML");
-                b.set_annotations(
-                    ocipkg::image::annotations::nested::Annotations::from_toml(&input)?.into(),
-                )
-            }
+            let image_name = if let Some(name) = tag {
+                ocipkg::ImageName::parse(&name)?
+            } else {
+                ocipkg::ImageName::default()
+            };
+            let mut b = ocipkg::image::Builder::new(output, image_name)?;
             b.append_dir_all(&input_directory)?;
-            let _output = b.into_inner()?;
+            let _artifact = b.build()?;
         }
 
         Opt::Compose {
             inputs,
             output,
             tag,
-            annotations,
         } => {
             let mut output = output;
             output.set_extension("tar");
-            let f = fs::File::create(output)?;
-            let mut b = ocipkg::image::Builder::new(f);
-            if let Some(name) = tag {
-                b.set_name(&ocipkg::ImageName::parse(&name)?);
-            }
-            if annotations.is_file() {
-                let f = fs::read(annotations)?;
-                let input = String::from_utf8(f).expect("Non-UTF8 string in TOML");
-                b.set_annotations(
-                    ocipkg::image::annotations::nested::Annotations::from_toml(&input)?.into(),
-                )
-            }
+            let image_name = if let Some(name) = tag {
+                ocipkg::ImageName::parse(&name)?
+            } else {
+                ocipkg::ImageName::default()
+            };
+            let mut b = ocipkg::image::Builder::new(output, image_name)?;
             b.append_files(&inputs)?;
+            let _artifact = b.build()?;
         }
 
         Opt::Load { input } => {

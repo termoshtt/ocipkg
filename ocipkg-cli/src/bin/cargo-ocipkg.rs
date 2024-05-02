@@ -5,7 +5,6 @@ use colored::Colorize;
 use ocipkg::ImageName;
 use std::{
     collections::hash_map::DefaultHasher,
-    fs,
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
     process::Command,
@@ -207,12 +206,9 @@ fn main() -> Result<()> {
                     "Creating".green().bold(),
                     dest.display()
                 );
-                let f = fs::File::create(dest)?;
-                let mut b = ocipkg::image::Builder::new(f);
-                b.set_name(&image_name);
-                b.set_annotations(annotations);
+                let mut b = ocipkg::image::Builder::new(dest, image_name.clone())?;
                 b.append_files(&targets)?;
-                let _output = b.into_inner()?;
+                let _artifact = b.build()?;
             }
         }
 
