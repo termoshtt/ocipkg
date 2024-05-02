@@ -3,6 +3,7 @@ use oci_spec::image::*;
 use std::{
     fs,
     io::{Read, Seek},
+    ops::{Deref, DerefMut},
     path::*,
 };
 
@@ -121,4 +122,35 @@ pub fn load(input: &Path) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// ocipkg artifact defined as `application/vnd.ocipkg.v1.artifact`
+pub struct Artifact<Base: ImageLayout> {
+    base: OciArtifact<Base>,
+}
+
+impl<Base: ImageLayout> Deref for Artifact<Base> {
+    type Target = Base;
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl<Base: ImageLayout> DerefMut for Artifact<Base> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
+    }
+}
+
+impl<Base: ImageLayout> Artifact<Base> {
+    pub fn new(base: Base) -> Self {
+        Self {
+            base: OciArtifact::new(base),
+        }
+    }
+
+    /// Unpack ocipkg artifact into local filesystem with `.oci-dir` directory
+    pub fn unpack(&mut self, dest: &Path) -> Result<OciDir> {
+        todo!()
+    }
 }

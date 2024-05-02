@@ -1,23 +1,33 @@
-use crate::{image::ImageLayoutBuilder, ImageName};
+use crate::{
+    image::{ImageLayout, ImageLayoutBuilder},
+    ImageName,
+};
 use anyhow::Result;
 use oci_spec::image::{
     Descriptor, DescriptorBuilder, ImageManifest, ImageManifestBuilder, MediaType,
 };
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
 /// Create a new OCI Artifact over [ImageLayoutBuilder]
 ///
 /// This creates a generic OCI Artifact, not the ocipkg artifact defined as `application/vnd.ocipkg.v1.artifact`.
 /// It is the task of the [crate::image::Builder].
-pub struct ArtifactBuilder<Base: ImageLayoutBuilder> {
+pub struct OciArtifactBuilder<LayoutBuilder: ImageLayoutBuilder> {
     name: ImageName,
     manifest: ImageManifest,
-    layout: Base,
+    layout: LayoutBuilder,
 }
 
-impl<Base: ImageLayoutBuilder> ArtifactBuilder<Base> {
+impl<LayoutBuilder: ImageLayoutBuilder> OciArtifactBuilder<LayoutBuilder> {
     /// Create a new OCI Artifact with its media type
-    pub fn new(mut layout: Base, artifact_type: MediaType, name: ImageName) -> Result<Self> {
+    pub fn new(
+        mut layout: LayoutBuilder,
+        artifact_type: MediaType,
+        name: ImageName,
+    ) -> Result<Self> {
         let empty_config = layout.add_empty_json()?;
         let manifest = ImageManifestBuilder::default()
             .schema_version(2_u32)
@@ -73,7 +83,39 @@ impl<Base: ImageLayoutBuilder> ArtifactBuilder<Base> {
     }
 
     /// Build the OCI Artifact
-    pub fn build(self) -> Result<Base::ImageLayout> {
+    pub fn build(self) -> Result<LayoutBuilder::ImageLayout> {
         self.layout.build(self.manifest, self.name)
+    }
+}
+
+/// OCI Artifact
+///
+/// This is a thin wrapper of an actual layout implementing [ImageLayout] to provide a common interface for OCI Artifacts.
+pub struct OciArtifact<Layout: ImageLayout>(Layout);
+
+impl<Base: ImageLayout> Deref for OciArtifact<Base> {
+    type Target = Base;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<Layout: ImageLayout> DerefMut for OciArtifact<Layout> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<Layout: ImageLayout> OciArtifact<Layout> {
+    pub fn new(layout: Layout) -> Self {
+        Self(layout)
+    }
+
+    pub fn get_config(&mut self) -> Result<(Descriptor, Vec<u8>)> {
+        todo!()
+    }
+
+    pub fn get_layers(&mut self) -> Result<Vec<(Descriptor, Vec<u8>)>> {
+        todo!()
     }
 }
