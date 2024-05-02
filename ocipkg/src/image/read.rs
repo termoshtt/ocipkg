@@ -142,9 +142,15 @@ impl<Base: ImageLayout> DerefMut for Artifact<Base> {
 
 impl<Base: ImageLayout> Artifact<Base> {
     pub fn new(base: Base) -> Self {
+        // TODO: Check media type
         Self {
             base: OciArtifact::new(base),
         }
+    }
+
+    /// Get list of files stored in the ocipkg artifact
+    pub fn files(&mut self) -> Result<Vec<PathBuf>> {
+        todo!()
     }
 
     /// Unpack ocipkg artifact into local filesystem with `.oci-dir` directory
