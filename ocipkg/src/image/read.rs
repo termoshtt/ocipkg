@@ -108,7 +108,7 @@ pub fn load(input: &Path) -> Result<()> {
         let dest = crate::local::image_dir(&image_name)?;
         if dest.exists() {
             log::warn!(
-                "Local image aleady exists, skip loading: {}",
+                "Local image already exists, skip loading: {}",
                 dest.display()
             );
             continue;

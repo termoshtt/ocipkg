@@ -73,7 +73,7 @@ use url::Url;
 ///
 /// Default values
 /// ---------------
-/// If `hostname` is absent, use `registry-1.docker.io` for docker compatiblity:
+/// If `hostname` is absent, use `registry-1.docker.io` for docker compatibility:
 ///
 /// ```
 /// use ocipkg::{ImageName, distribution::{Name, Reference}};
