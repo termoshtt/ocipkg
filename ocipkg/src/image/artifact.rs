@@ -111,16 +111,24 @@ impl<Base: ImageLayout> DerefMut for Artifact<Base> {
 }
 
 impl<Base: ImageLayout> Artifact<Base> {
-    pub fn new(base: Base) -> Self {
-        // TODO: Check media type
-        Self {
-            base: OciArtifact::new(base),
+    pub fn new(base: Base) -> Result<Self> {
+        let mut base = OciArtifact::new(base);
+        let ty = base.artifact_type()?;
+        if ty != media_types::artifact() {
+            bail!("Not an ocipkg artifact: {}", ty);
         }
+        Ok(Self { base })
+    }
+
+    pub fn get_config(&mut self) -> Result<Config> {
+        let (_, buf) = self.base.get_config()?;
+        Ok(serde_json::from_slice(&buf)?)
     }
 
     /// Get list of files stored in the ocipkg artifact
     pub fn files(&mut self) -> Result<Vec<PathBuf>> {
-        todo!()
+        let config = self.get_config()?;
+        Ok(config.layers().values().flatten().cloned().collect())
     }
 
     /// Unpack ocipkg artifact into local filesystem with `.oci-dir` directory
