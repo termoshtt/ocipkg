@@ -130,11 +130,7 @@ impl ImageLayout for OciDir {
         if let Some(parent) = dest.parent() {
             fs::create_dir_all(parent)?;
         }
-        fs_extra::dir::copy(
-            &self.oci_dir_root,
-            dest,
-            &fs_extra::dir::CopyOptions::new(),
-        )?;
+        fs_extra::dir::copy(&self.oci_dir_root, dest, &fs_extra::dir::CopyOptions::new())?;
         OciDir::new(dest.to_path_buf())
     }
 }
