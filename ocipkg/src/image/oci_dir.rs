@@ -124,7 +124,7 @@ impl ImageLayout for OciDir {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::image::ArtifactBuilder;
+    use crate::image::OciArtifactBuilder;
 
     #[test]
     fn test_artifact_over_oci_dir() -> Result<()> {
@@ -132,7 +132,7 @@ mod tests {
         let path = tmp_dir.path().join("oci-dir");
         let oci_dir = OciDirBuilder::new(path)?;
         let image_name = ImageName::parse("test")?;
-        let mut artifact = ArtifactBuilder::new(
+        let mut artifact = OciArtifactBuilder::new(
             oci_dir,
             MediaType::Other("test".to_string()),
             image_name.clone(),
