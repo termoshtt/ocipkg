@@ -8,6 +8,7 @@ mod artifact;
 mod config;
 mod layout;
 mod oci_archive;
+mod oci_dir;
 mod read;
 mod write;
 
@@ -15,5 +16,6 @@ pub use artifact::*;
 pub use config::*;
 pub use layout::*;
 pub use oci_archive::*;
+pub use oci_dir::*;
 pub use read::*;
 pub use write::*;
