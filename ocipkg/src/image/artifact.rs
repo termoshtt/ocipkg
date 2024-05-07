@@ -133,6 +133,8 @@ impl<Base: ImageLayout> Artifact<Base> {
 
     /// Unpack ocipkg artifact into local filesystem with `.oci-dir` directory
     pub fn unpack(&mut self, dest: &Path) -> Result<OciDir> {
+        let oci_dir = dest.join(".oci-dir");
+        self.base.unpack(&oci_dir)?;
         todo!()
     }
 }

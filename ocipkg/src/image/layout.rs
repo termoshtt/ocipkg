@@ -1,6 +1,7 @@
-use crate::{Digest, ImageName};
+use crate::{image::OciDir, Digest, ImageName};
 use anyhow::{Context, Result};
 use oci_spec::image::{Descriptor, DescriptorBuilder, ImageIndex, ImageManifest, MediaType};
+use std::path::Path;
 
 /// Handler of [OCI Image Layout] containing single manifest.
 ///
@@ -14,6 +15,8 @@ pub trait ImageLayout {
     fn get_index(&mut self) -> Result<ImageIndex>;
     /// Get blob content.
     fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>>;
+    /// Unpack the layout contents into a directory in [OciDir] format.
+    fn unpack(&mut self, dest: &Path) -> Result<OciDir>;
 
     /// Get manifest stored in the image layout.
     ///

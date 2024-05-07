@@ -1,5 +1,5 @@
 use crate::{
-    image::{ImageLayout, ImageLayoutBuilder},
+    image::{ImageLayout, ImageLayoutBuilder, OciDir},
     Digest, ImageName,
 };
 use anyhow::{bail, Result};
@@ -109,6 +109,18 @@ impl OciArchive {
 }
 
 impl ImageLayout for OciArchive {
+    fn unpack(&mut self, dest: &Path) -> Result<OciDir> {
+        if dest.exists() {
+            bail!("Destination already exists: {}", dest.display());
+        }
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        self.rewind()?;
+        self.ar.as_mut().unwrap().unpack(dest)?;
+        Ok(OciDir::new(dest.to_owned())?)
+    }
+
     fn get_index(&mut self) -> Result<ImageIndex> {
         for entry in self.get_entries()? {
             let path = entry.path()?;

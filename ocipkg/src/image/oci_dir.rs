@@ -7,7 +7,10 @@ use maplit::hashmap;
 use oci_spec::image::{
     DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType, OciLayout,
 };
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 /// Build an [OciDir]
 pub struct OciDirBuilder {
@@ -118,6 +121,21 @@ impl ImageLayout for OciDir {
 
     fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>> {
         Ok(fs::read(self.oci_dir_root.join(digest.as_path()))?)
+    }
+
+    fn unpack(&mut self, dest: &Path) -> Result<OciDir> {
+        if dest.exists() {
+            bail!("Destination {} already exists", dest.display());
+        }
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs_extra::dir::copy(
+            &self.oci_dir_root,
+            &dest,
+            &fs_extra::dir::CopyOptions::new(),
+        )?;
+        Ok(OciDir::new(dest.to_path_buf())?)
     }
 }
 
