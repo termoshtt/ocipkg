@@ -145,6 +145,11 @@ mod tests {
             manifest.artifact_type().as_ref().unwrap(),
             &MediaType::Other("test".to_string())
         );
+
+        let (config_desc, config) = artifact.get_config()?;
+        assert_eq!(config_desc.media_type(), &MediaType::EmptyJSON);
+        assert_eq!(config, "{}".as_bytes());
+
         Ok(())
     }
 }

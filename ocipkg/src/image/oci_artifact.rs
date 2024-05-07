@@ -1,8 +1,8 @@
 use crate::{
     image::{ImageLayout, ImageLayoutBuilder},
-    ImageName,
+    Digest, ImageName,
 };
-use anyhow::Result;
+use anyhow::{Context, Result};
 use oci_spec::image::{
     Descriptor, DescriptorBuilder, ImageManifest, ImageManifestBuilder, MediaType,
 };
@@ -80,8 +80,10 @@ impl<LayoutBuilder: ImageLayoutBuilder> OciArtifactBuilder<LayoutBuilder> {
     }
 
     /// Build the OCI Artifact
-    pub fn build(self) -> Result<LayoutBuilder::ImageLayout> {
-        self.layout.build(self.manifest, self.name)
+    pub fn build(self) -> Result<OciArtifact<LayoutBuilder::ImageLayout>> {
+        Ok(OciArtifact::new(
+            self.layout.build(self.manifest, self.name)?,
+        ))
     }
 }
 
@@ -108,11 +110,33 @@ impl<Layout: ImageLayout> OciArtifact<Layout> {
         Self(layout)
     }
 
+    pub fn artifact_type(&mut self) -> Result<MediaType> {
+        let (_image_name, manifest) = self.get_manifest()?;
+        manifest
+            .artifact_type()
+            .clone()
+            .context("artifactType is not specified in manifest")
+    }
+
     pub fn get_config(&mut self) -> Result<(Descriptor, Vec<u8>)> {
-        todo!()
+        let (_image_name, manifest) = self.get_manifest()?;
+        let config_desc = manifest.config();
+        if config_desc.media_type() == &MediaType::EmptyJSON {
+            return Ok((config_desc.clone(), "{}".as_bytes().to_vec()));
+        }
+        let blob = self.get_blob(&Digest::from_descriptor(config_desc)?)?;
+        Ok((config_desc.clone(), blob))
     }
 
     pub fn get_layers(&mut self) -> Result<Vec<(Descriptor, Vec<u8>)>> {
-        todo!()
+        let (_image_name, manifest) = self.get_manifest()?;
+        manifest
+            .layers()
+            .iter()
+            .map(|layer| {
+                let blob = self.get_blob(&Digest::from_descriptor(layer)?)?;
+                Ok((layer.clone(), blob))
+            })
+            .collect()
     }
 }
