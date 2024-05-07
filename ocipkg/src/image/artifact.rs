@@ -135,6 +135,14 @@ impl<Base: ImageLayout> Artifact<Base> {
     pub fn unpack(&mut self, dest: &Path) -> Result<OciDir> {
         let oci_dir = dest.join(".oci-dir");
         self.base.unpack(&oci_dir)?;
-        todo!()
+        for (desc, blob) in self.base.get_layers()? {
+            if desc.media_type() == &media_types::layer_tar_gzip() {
+                let buf = flate2::read::GzDecoder::new(blob.as_slice());
+                tar::Archive::new(buf).unpack(dest)?;
+            } else {
+                bail!("Unsupported layer type: {}", desc.media_type());
+            }
+        }
+        OciDir::new(oci_dir)
     }
 }
