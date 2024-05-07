@@ -10,7 +10,7 @@ repository = "https://github.com/termoshtt/ocipkg"
 readme = "../README.md"
 
 [dependencies]
-anyhow = "1.0.82"
+anyhow = "1.0.83"
 base16ct = { version = "0.2.0", features = ["alloc"] }
 base64 = "0.22.0"
 chrono = "0.4.38"
