@@ -169,10 +169,6 @@ impl ImageName {
         };
         Ok(Url::parse(&url)?)
     }
-
-    pub fn local_path(&self) -> Result<PathBuf> {
-        todo!()
-    }
 }
 
 #[cfg(test)]
