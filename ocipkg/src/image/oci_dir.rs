@@ -132,10 +132,10 @@ impl ImageLayout for OciDir {
         }
         fs_extra::dir::copy(
             &self.oci_dir_root,
-            &dest,
+            dest,
             &fs_extra::dir::CopyOptions::new(),
         )?;
-        Ok(OciDir::new(dest.to_path_buf())?)
+        OciDir::new(dest.to_path_buf())
     }
 }
 

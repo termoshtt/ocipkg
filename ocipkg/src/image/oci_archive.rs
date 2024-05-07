@@ -118,7 +118,7 @@ impl ImageLayout for OciArchive {
         }
         self.rewind()?;
         self.ar.as_mut().unwrap().unpack(dest)?;
-        Ok(OciDir::new(dest.to_owned())?)
+        OciDir::new(dest.to_owned())
     }
 
     fn get_index(&mut self) -> Result<ImageIndex> {
