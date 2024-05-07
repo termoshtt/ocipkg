@@ -2,7 +2,7 @@
 
 use crate::{
     digest::Digest,
-    image::{Config, OciArchive, OciArchiveBuilder, OciArtifactBuilder},
+    image::{Config, OciArchive, OciArchiveBuilder, OciArtifact, OciArtifactBuilder},
     media_types::{self, config_json},
     ImageName,
 };
@@ -79,7 +79,7 @@ impl Builder {
         Ok(())
     }
 
-    pub fn build(mut self) -> Result<OciArchive> {
+    pub fn build(mut self) -> Result<OciArtifact<OciArchive>> {
         self.builder.add_config(
             config_json(),
             self.config.to_json()?.as_bytes(),

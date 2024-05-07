@@ -80,8 +80,10 @@ impl<LayoutBuilder: ImageLayoutBuilder> OciArtifactBuilder<LayoutBuilder> {
     }
 
     /// Build the OCI Artifact
-    pub fn build(self) -> Result<LayoutBuilder::ImageLayout> {
-        self.layout.build(self.manifest, self.name)
+    pub fn build(self) -> Result<OciArtifact<LayoutBuilder::ImageLayout>> {
+        Ok(OciArtifact::new(
+            self.layout.build(self.manifest, self.name)?,
+        ))
     }
 }
 
