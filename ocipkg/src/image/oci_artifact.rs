@@ -124,7 +124,7 @@ impl<Layout: ImageLayout> OciArtifact<Layout> {
         if config_desc.media_type() == &MediaType::EmptyJSON {
             return Ok((config_desc.clone(), "{}".as_bytes().to_vec()));
         }
-        let blob = self.get_blob(&Digest::from_descriptor(&config_desc)?)?;
+        let blob = self.get_blob(&Digest::from_descriptor(config_desc)?)?;
         Ok((config_desc.clone(), blob))
     }
 
@@ -134,7 +134,7 @@ impl<Layout: ImageLayout> OciArtifact<Layout> {
             .layers()
             .iter()
             .map(|layer| {
-                let blob = self.get_blob(&Digest::from_descriptor(&layer)?)?;
+                let blob = self.get_blob(&Digest::from_descriptor(layer)?)?;
                 Ok((layer.clone(), blob))
             })
             .collect()
