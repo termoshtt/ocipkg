@@ -120,3 +120,31 @@ impl ImageLayout for OciDir {
         Ok(fs::read(self.oci_dir_root.join(digest.as_path()))?)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::image::ArtifactBuilder;
+
+    #[test]
+    fn test_artifact_over_oci_dir() -> Result<()> {
+        let tmp_dir = tempfile::tempdir()?;
+        let path = tmp_dir.path().join("oci-dir");
+        let oci_dir = OciDirBuilder::new(path)?;
+        let image_name = ImageName::parse("test")?;
+        let mut artifact = ArtifactBuilder::new(
+            oci_dir,
+            MediaType::Other("test".to_string()),
+            image_name.clone(),
+        )?
+        .build()?;
+
+        let (name, manifest) = artifact.get_manifest()?;
+        assert_eq!(name, Some(image_name));
+        assert_eq!(
+            manifest.artifact_type().as_ref().unwrap(),
+            &MediaType::Other("test".to_string())
+        );
+        Ok(())
+    }
+}
