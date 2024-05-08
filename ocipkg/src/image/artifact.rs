@@ -110,6 +110,20 @@ impl<Base: ImageLayout> DerefMut for Artifact<Base> {
     }
 }
 
+impl Artifact<OciArchive> {
+    pub fn from_oci_archive(path: &Path) -> Result<Self> {
+        let base = OciArtifact::from_oci_archive(path)?;
+        Ok(Self { base })
+    }
+}
+
+impl Artifact<OciDir> {
+    pub fn from_oci_dir(path: &Path) -> Result<Self> {
+        let base = OciArtifact::from_oci_dir(path)?;
+        Ok(Self { base })
+    }
+}
+
 impl<Base: ImageLayout> Artifact<Base> {
     pub fn new(base: Base) -> Result<Self> {
         let mut base = OciArtifact::new(base);
@@ -143,6 +157,6 @@ impl<Base: ImageLayout> Artifact<Base> {
                 bail!("Unsupported layer type: {}", desc.media_type());
             }
         }
-        OciDir::new(oci_dir)
+        OciDir::new(&oci_dir)
     }
 }

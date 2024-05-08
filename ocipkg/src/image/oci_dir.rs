@@ -95,7 +95,7 @@ pub struct OciDir {
 }
 
 impl OciDir {
-    pub fn new(oci_dir_root: PathBuf) -> Result<Self> {
+    pub fn new(oci_dir_root: &Path) -> Result<Self> {
         if !oci_dir_root.is_dir() {
             bail!("{} is not a directory", oci_dir_root.display());
         }
@@ -108,7 +108,9 @@ impl OciDir {
                 oci_dir_root.display()
             );
         }
-        Ok(Self { oci_dir_root })
+        Ok(Self {
+            oci_dir_root: oci_dir_root.to_owned(),
+        })
     }
 }
 
@@ -131,7 +133,7 @@ impl ImageLayout for OciDir {
             fs::create_dir_all(parent)?;
         }
         fs_extra::dir::copy(&self.oci_dir_root, dest, &fs_extra::dir::CopyOptions::new())?;
-        OciDir::new(dest.to_path_buf())
+        OciDir::new(dest)
     }
 }
 
