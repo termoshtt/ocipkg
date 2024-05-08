@@ -160,3 +160,14 @@ impl<Base: ImageLayout> Artifact<Base> {
         OciDir::new(&oci_dir)
     }
 }
+
+/// Load ocipkg artifact into local storage
+pub fn load(input: &Path) -> Result<()> {
+    let mut ar = Artifact::from_oci_archive(input)?;
+    let (Some(image_name), _) = ar.get_manifest()? else {
+        bail!("Missing image name");
+    };
+    let dest = crate::local::image_dir(&image_name)?;
+    ar.unpack(&dest)?;
+    Ok(())
+}
