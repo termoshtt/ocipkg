@@ -1,6 +1,6 @@
 use crate::distribution::{Name, Reference};
 use anyhow::Result;
-use std::{fmt, path::PathBuf};
+use std::fmt;
 use url::Url;
 
 /// Image name
