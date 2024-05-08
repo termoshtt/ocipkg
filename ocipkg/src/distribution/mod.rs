@@ -12,7 +12,7 @@ pub use oci_spec::image::MediaType;
 pub use reference::Reference;
 
 use crate::{
-    image::{ImageLayoutBuilder, OciDirBuilder},
+    image::{Artifact, ImageLayout, ImageLayoutBuilder, OciDirBuilder},
     media_types, Digest, ImageName,
 };
 use anyhow::{bail, Result};
@@ -23,25 +23,21 @@ pub fn push_image(path: &Path) -> Result<()> {
     if !path.is_file() {
         bail!("{} is not a file", path.display());
     }
-    let mut f = fs::File::open(path)?;
-    let mut ar = crate::image::Archive::new(&mut f);
-    for (image_name, manifest) in ar.get_manifests()? {
-        log::info!("Push image: {}", image_name);
-        let mut client = Client::new(image_name.registry_url()?, image_name.name)?;
-        for layer in manifest.layers() {
-            let digest = Digest::new(layer.digest())?;
-            let mut entry = ar.get_blob(&digest)?;
-            let mut buf = Vec::new();
-            entry.read_to_end(&mut buf)?;
-            client.push_blob(&buf)?;
-        }
-        let digest = Digest::new(manifest.config().digest())?;
-        let mut entry = ar.get_blob(&digest)?;
-        let mut buf = Vec::new();
-        entry.read_to_end(&mut buf)?;
-        client.push_blob(&buf)?;
-        client.push_manifest(&image_name.reference, &manifest)?;
+    let mut ar = Artifact::from_oci_archive(path)?;
+    let (image_name, manifest) = ar.get_manifest()?;
+    let Some(image_name) = image_name else {
+        bail!("Missing image name in manifest");
+    };
+    log::info!("Push image: {}", image_name);
+
+    let mut client = Client::new(image_name.registry_url()?, image_name.name)?;
+    for (_, blob) in ar.get_layers()? {
+        client.push_blob(&blob)?;
     }
+    let (_, blob) = ar.get_config()?;
+    client.push_blob(&blob)?;
+    client.push_manifest(&image_name.reference, &manifest)?;
+
     Ok(())
 }
 

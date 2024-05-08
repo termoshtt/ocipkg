@@ -98,7 +98,7 @@ pub struct Artifact<Base: ImageLayout> {
 }
 
 impl<Base: ImageLayout> Deref for Artifact<Base> {
-    type Target = Base;
+    type Target = OciArtifact<Base>;
     fn deref(&self) -> &Self::Target {
         &self.base
     }
@@ -134,14 +134,14 @@ impl<Base: ImageLayout> Artifact<Base> {
         Ok(Self { base })
     }
 
-    pub fn get_config(&mut self) -> Result<Config> {
+    pub fn get_ocipkg_config(&mut self) -> Result<Config> {
         let (_, buf) = self.base.get_config()?;
         Ok(serde_json::from_slice(&buf)?)
     }
 
     /// Get list of files stored in the ocipkg artifact
     pub fn files(&mut self) -> Result<Vec<PathBuf>> {
-        let config = self.get_config()?;
+        let config = self.get_ocipkg_config()?;
         Ok(config.layers().values().flatten().cloned().collect())
     }
 
