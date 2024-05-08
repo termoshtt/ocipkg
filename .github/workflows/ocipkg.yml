@@ -59,25 +59,12 @@ jobs:
       - name: Add path
         run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-      - name: get image from ghcr.io
-        run: |
-          ocipkg login -u ${{ github.repository_owner }} -p ${{ github.token }} https://ghcr.io
-          ocipkg get ghcr.io/termoshtt/ocipkg/dynamic/rust:1d23f83
-
-  get-anonymous:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: --path=ocipkg-cli/ -f
-      - name: Add path
-        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: get image from ghcr.io
+      - name: get image of old style (OCI image spec 1.0 based) from ghcr.io
         run: |
           ocipkg get ghcr.io/termoshtt/ocipkg/dynamic/rust:1d23f83
+      - name: get image of new style (OCI Artifact based) from ghcr.io
+        run: |
+          ocipkg get ghcr.io/termoshtt/ocipkg/static/rust:9a042e8
 
   list:
     runs-on: ubuntu-22.04
