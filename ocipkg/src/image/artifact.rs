@@ -160,6 +160,9 @@ impl<Base: Image> Artifact<Base> {
     }
 
     pub fn get_ocipkg_config(&mut self) -> Result<Config> {
+        if self.version == ArtifactVersion::V0 {
+            bail!("ocipkg config is not available in v0 artifact");
+        }
         let (_, buf) = self.base.get_config()?;
         Ok(serde_json::from_slice(&buf)?)
     }
