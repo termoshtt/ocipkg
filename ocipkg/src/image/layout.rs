@@ -25,7 +25,7 @@ pub trait Image {
     fn get_manifest(&mut self) -> Result<ImageManifest>;
 }
 
-/// Build an [ImageLayout]
+/// Build an [Image]
 ///
 /// Creating [ImageManifest] is out of scope of this trait.
 pub trait ImageBuilder {
