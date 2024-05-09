@@ -1,5 +1,5 @@
-use crate::distribution::*;
-use anyhow::Result;
+use crate::{distribution::*, media_types};
+use anyhow::{bail, Result};
 use oci_spec::{distribution::*, image::*};
 use url::Url;
 
@@ -106,6 +106,25 @@ impl Client {
                 MediaType::ImageManifest,
             ),
         ))?;
+
+        // simple solution to fetch platform manifest from image index
+        if media_types::is_imageindex(res.content_type()) {
+            log::debug!("media_type is imageindex type: {}", &res.content_type());
+            let mi = ImageIndex::from_reader(res.into_reader())?;
+            let m = mi.manifests().iter().find(|m| {
+                m.platform().as_ref().map_or(false, |platform| {
+                    Arch::default().eq(platform.architecture())
+                })
+            });
+            if let Some(m) = m {
+                return self.get_manifest(&Reference::new(m.digest())?);
+            }
+            bail!(
+                "Found ImageIndex but not supported platform: {}",
+                Arch::default()
+            );
+        }
+
         let manifest = ImageManifest::from_reader(res.into_reader())?;
         Ok(manifest)
     }
