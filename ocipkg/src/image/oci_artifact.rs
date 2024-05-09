@@ -1,6 +1,6 @@
 use crate::{
-    image::{ImageLayout, ImageLayoutBuilder},
-    Digest, ImageName,
+    image::{Image, ImageBuilder},
+    Digest,
 };
 use anyhow::{Context, Result};
 use oci_spec::image::{
@@ -12,19 +12,14 @@ use std::{
 };
 
 /// Build a [OciArtifact]
-pub struct OciArtifactBuilder<LayoutBuilder: ImageLayoutBuilder> {
-    name: ImageName,
+pub struct OciArtifactBuilder<LayoutBuilder: ImageBuilder> {
     manifest: ImageManifest,
     layout: LayoutBuilder,
 }
 
-impl<LayoutBuilder: ImageLayoutBuilder> OciArtifactBuilder<LayoutBuilder> {
+impl<LayoutBuilder: ImageBuilder> OciArtifactBuilder<LayoutBuilder> {
     /// Create a new OCI Artifact with its media type
-    pub fn new(
-        mut layout: LayoutBuilder,
-        artifact_type: MediaType,
-        name: ImageName,
-    ) -> Result<Self> {
+    pub fn new(mut layout: LayoutBuilder, artifact_type: MediaType) -> Result<Self> {
         let empty_config = layout.add_empty_json()?;
         let manifest = ImageManifestBuilder::default()
             .schema_version(2_u32)
@@ -32,11 +27,7 @@ impl<LayoutBuilder: ImageLayoutBuilder> OciArtifactBuilder<LayoutBuilder> {
             .config(empty_config)
             .layers(Vec::new())
             .build()?;
-        Ok(Self {
-            layout,
-            manifest,
-            name,
-        })
+        Ok(Self { layout, manifest })
     }
 
     /// Add `config` of the OCI Artifact
@@ -80,38 +71,36 @@ impl<LayoutBuilder: ImageLayoutBuilder> OciArtifactBuilder<LayoutBuilder> {
     }
 
     /// Build the OCI Artifact
-    pub fn build(self) -> Result<OciArtifact<LayoutBuilder::ImageLayout>> {
-        Ok(OciArtifact::new(
-            self.layout.build(self.manifest, self.name)?,
-        ))
+    pub fn build(self) -> Result<OciArtifact<LayoutBuilder::Image>> {
+        Ok(OciArtifact::new(self.layout.build(self.manifest)?))
     }
 }
 
 /// OCI Artifact, an image layout with a image manifest which stores any type of `config` and `layers` rather than runnable container.
 ///
-/// This is a thin wrapper of an actual image layout implementing [ImageLayout] to provide a common interface for OCI Artifacts.
-pub struct OciArtifact<Layout: ImageLayout>(Layout);
+/// This is a thin wrapper of an actual image layout implementing [Image] to provide a common interface for OCI Artifacts.
+pub struct OciArtifact<Layout: Image>(Layout);
 
-impl<Base: ImageLayout> Deref for OciArtifact<Base> {
+impl<Base: Image> Deref for OciArtifact<Base> {
     type Target = Base;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<Layout: ImageLayout> DerefMut for OciArtifact<Layout> {
+impl<Layout: Image> DerefMut for OciArtifact<Layout> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<Layout: ImageLayout> OciArtifact<Layout> {
+impl<Layout: Image> OciArtifact<Layout> {
     pub fn new(layout: Layout) -> Self {
         Self(layout)
     }
 
     pub fn artifact_type(&mut self) -> Result<MediaType> {
-        let (_image_name, manifest) = self.get_manifest()?;
+        let manifest = self.get_manifest()?;
         manifest
             .artifact_type()
             .clone()
@@ -119,7 +108,7 @@ impl<Layout: ImageLayout> OciArtifact<Layout> {
     }
 
     pub fn get_config(&mut self) -> Result<(Descriptor, Vec<u8>)> {
-        let (_image_name, manifest) = self.get_manifest()?;
+        let manifest = self.get_manifest()?;
         let config_desc = manifest.config();
         if config_desc.media_type() == &MediaType::EmptyJSON {
             return Ok((config_desc.clone(), "{}".as_bytes().to_vec()));
@@ -129,7 +118,7 @@ impl<Layout: ImageLayout> OciArtifact<Layout> {
     }
 
     pub fn get_layers(&mut self) -> Result<Vec<(Descriptor, Vec<u8>)>> {
-        let (_image_name, manifest) = self.get_manifest()?;
+        let manifest = self.get_manifest()?;
         manifest
             .layers()
             .iter()

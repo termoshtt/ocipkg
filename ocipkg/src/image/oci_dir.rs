@@ -1,5 +1,5 @@
 use crate::{
-    image::{ImageLayout, ImageLayoutBuilder},
+    image::{Image, ImageBuilder},
     Digest, ImageName,
 };
 use anyhow::{bail, Context, Result};
@@ -9,8 +9,11 @@ use oci_spec::image::{
 };
 use std::{fs, path::PathBuf};
 
+use super::get_name_from_index;
+
 /// Build an [OciDir]
 pub struct OciDirBuilder {
+    image_name: ImageName,
     oci_dir_root: PathBuf,
     is_finished: bool,
 }
@@ -31,20 +34,21 @@ impl Drop for OciDirBuilder {
 }
 
 impl OciDirBuilder {
-    pub fn new(oci_dir_root: PathBuf) -> Result<Self> {
+    pub fn new(oci_dir_root: PathBuf, image_name: ImageName) -> Result<Self> {
         if oci_dir_root.exists() {
             bail!("oci-dir {} already exists", oci_dir_root.display());
         }
         fs::create_dir_all(&oci_dir_root)?;
         Ok(Self {
+            image_name,
             oci_dir_root,
             is_finished: false,
         })
     }
 }
 
-impl ImageLayoutBuilder for OciDirBuilder {
-    type ImageLayout = OciDir;
+impl ImageBuilder for OciDirBuilder {
+    type Image = OciDir;
 
     fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, i64)> {
         let digest = Digest::from_buf_sha256(data);
@@ -54,7 +58,7 @@ impl ImageLayoutBuilder for OciDirBuilder {
         Ok((digest, data.len() as i64))
     }
 
-    fn build(mut self, manifest: ImageManifest, image_name: ImageName) -> Result<OciDir> {
+    fn build(mut self, manifest: ImageManifest) -> Result<OciDir> {
         let manifest_json = serde_json::to_string(&manifest)?;
         let (digest, size) = self.add_blob(manifest_json.as_bytes())?;
         let descriptor = DescriptorBuilder::default()
@@ -62,7 +66,7 @@ impl ImageLayoutBuilder for OciDirBuilder {
             .size(size)
             .digest(digest.to_string())
             .annotations(hashmap! {
-                "org.opencontainers.image.ref.name".to_string() => image_name.to_string(),
+                "org.opencontainers.image.ref.name".to_string() => self.image_name.to_string(),
             })
             .build()?;
         let index = ImageIndexBuilder::default()
@@ -107,17 +111,32 @@ impl OciDir {
         }
         Ok(Self { oci_dir_root })
     }
-}
 
-impl ImageLayout for OciDir {
     fn get_index(&mut self) -> Result<ImageIndex> {
         let index_path = self.oci_dir_root.join("index.json");
         let index_json = fs::read_to_string(index_path)?;
         Ok(serde_json::from_str(&index_json)?)
     }
+}
+
+impl Image for OciDir {
+    fn get_name(&mut self) -> Result<ImageName> {
+        get_name_from_index(&self.get_index()?)
+    }
 
     fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>> {
         Ok(fs::read(self.oci_dir_root.join(digest.as_path()))?)
+    }
+
+    fn get_manifest(&mut self) -> Result<ImageManifest> {
+        let index = self.get_index()?;
+        let desc = index
+            .manifests()
+            .first()
+            .context("No manifest found in index.json")?;
+        let digest = Digest::from_descriptor(desc)?;
+        let manifest = serde_json::from_slice(self.get_blob(&digest)?.as_slice())?;
+        Ok(manifest)
     }
 }
 
@@ -130,17 +149,14 @@ mod tests {
     fn test_artifact_over_oci_dir() -> Result<()> {
         let tmp_dir = tempfile::tempdir()?;
         let path = tmp_dir.path().join("oci-dir");
-        let oci_dir = OciDirBuilder::new(path)?;
         let image_name = ImageName::parse("test")?;
-        let mut artifact = OciArtifactBuilder::new(
-            oci_dir,
-            MediaType::Other("test".to_string()),
-            image_name.clone(),
-        )?
-        .build()?;
+        let oci_dir = OciDirBuilder::new(path, image_name.clone())?;
+        let mut artifact =
+            OciArtifactBuilder::new(oci_dir, MediaType::Other("test".to_string()))?.build()?;
 
-        let (name, manifest) = artifact.get_manifest()?;
-        assert_eq!(name, Some(image_name));
+        let name = artifact.get_name()?;
+        let manifest = artifact.get_manifest()?;
+        assert_eq!(name, image_name);
         assert_eq!(
             manifest.artifact_type().as_ref().unwrap(),
             &MediaType::Other("test".to_string())

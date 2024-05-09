@@ -24,9 +24,8 @@ impl Builder {
     pub fn new(path: PathBuf, image_name: ImageName) -> Result<Self> {
         Ok(Builder {
             builder: OciArtifactBuilder::new(
-                OciArchiveBuilder::new(path)?,
+                OciArchiveBuilder::new(path, image_name)?,
                 media_types::artifact(),
-                image_name,
             )?,
             config: Config::default(),
         })

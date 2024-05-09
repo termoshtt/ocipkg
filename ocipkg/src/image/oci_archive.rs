@@ -1,8 +1,8 @@
 use crate::{
-    image::{ImageLayout, ImageLayoutBuilder},
+    image::{get_name_from_index, Image, ImageBuilder},
     Digest, ImageName,
 };
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use chrono::Utc;
 use maplit::hashmap;
 use oci_spec::image::{DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType};
@@ -14,23 +14,28 @@ use std::{
 
 /// oci-archive, i.e. a tarball of a directory in the form of [OCI Image Layout specification](https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md)
 pub struct OciArchiveBuilder {
+    image_name: ImageName,
     path: PathBuf,
     ar: tar::Builder<fs::File>,
 }
 
 impl OciArchiveBuilder {
-    pub fn new(path: PathBuf) -> Result<Self> {
+    pub fn new(path: PathBuf, image_name: ImageName) -> Result<Self> {
         if path.exists() {
             bail!("File already exists: {}", path.display());
         }
         let f = fs::File::create(&path)?;
         let ar = tar::Builder::new(f);
-        Ok(Self { ar, path })
+        Ok(Self {
+            ar,
+            path,
+            image_name,
+        })
     }
 }
 
-impl ImageLayoutBuilder for OciArchiveBuilder {
-    type ImageLayout = OciArchive;
+impl ImageBuilder for OciArchiveBuilder {
+    type Image = OciArchive;
 
     fn add_blob(&mut self, blob: &[u8]) -> Result<(Digest, i64)> {
         let digest = Digest::from_buf_sha256(blob);
@@ -39,7 +44,7 @@ impl ImageLayoutBuilder for OciArchiveBuilder {
         Ok((digest, blob.len() as i64))
     }
 
-    fn build(mut self, manifest: ImageManifest, name: ImageName) -> Result<Self::ImageLayout> {
+    fn build(mut self, manifest: ImageManifest) -> Result<Self::Image> {
         let manifest_json = serde_json::to_string(&manifest)?;
         let (digest, size) = self.add_blob(manifest_json.as_bytes())?;
         let descriptor = DescriptorBuilder::default()
@@ -47,7 +52,7 @@ impl ImageLayoutBuilder for OciArchiveBuilder {
             .size(size)
             .digest(digest.to_string())
             .annotations(hashmap! {
-                "org.opencontainers.image.ref.name".to_string() => name.to_string()
+                "org.opencontainers.image.ref.name".to_string() => self.image_name.to_string()
             })
             .build()?;
         let index = ImageIndexBuilder::default()
@@ -105,9 +110,7 @@ impl OciArchive {
             .entries_with_seek()?
             .filter_map(|e| e.ok()))
     }
-}
 
-impl ImageLayout for OciArchive {
     fn get_index(&mut self) -> Result<ImageIndex> {
         for entry in self.get_entries()? {
             let path = entry.path()?;
@@ -116,6 +119,12 @@ impl ImageLayout for OciArchive {
             }
         }
         bail!("Missing index.json")
+    }
+}
+
+impl Image for OciArchive {
+    fn get_name(&mut self) -> Result<ImageName> {
+        get_name_from_index(&self.get_index()?)
     }
 
     fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>> {
@@ -128,5 +137,16 @@ impl ImageLayout for OciArchive {
             }
         }
         bail!("Missing blob: {}", digest)
+    }
+
+    fn get_manifest(&mut self) -> Result<ImageManifest> {
+        let index = self.get_index()?;
+        let desc = index
+            .manifests()
+            .first()
+            .context("No manifest found in index.json")?;
+        let digest = Digest::from_descriptor(desc)?;
+        let manifest = serde_json::from_slice(self.get_blob(&digest)?.as_slice())?;
+        Ok(manifest)
     }
 }
