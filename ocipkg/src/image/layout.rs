@@ -25,7 +25,7 @@ pub trait Image {
     fn get_manifest(&mut self) -> Result<ImageManifest>;
 }
 
-/// Create new image layout.
+/// Build an [Image]
 ///
 /// Creating [ImageManifest] is out of scope of this trait.
 pub trait ImageBuilder {
@@ -50,7 +50,7 @@ pub trait ImageBuilder {
 }
 
 /// Copy image from one to another.
-pub fn copy<From: Image, To: ImageBuilder>(mut from: From, mut to: To) -> Result<To::Image> {
+pub fn copy<From: Image, To: ImageBuilder>(from: &mut From, mut to: To) -> Result<To::Image> {
     let name = from.get_name()?;
     let manifest = from.get_manifest()?;
     for layer in manifest.layers() {
@@ -89,7 +89,7 @@ pub fn read(name_or_path: &str) -> Result<Box<dyn Image>> {
         return Ok(Box::new(OciArchive::new(path)?));
     }
     if path.is_dir() {
-        return Ok(Box::new(OciDir::new(path.to_owned())?));
+        return Ok(Box::new(OciDir::new(path)?));
     }
     if let Ok(image_name) = ImageName::parse(name_or_path) {
         return Ok(Box::new(Remote::new(image_name)?));

@@ -59,14 +59,17 @@ impl Client {
     }
 
     fn get(&self, url: &Url) -> ureq::Request {
+        log::info!("GET {}", url);
         self.agent.get(url.as_str())
     }
 
     fn put(&self, url: &Url) -> ureq::Request {
+        log::info!("PUT {}", url);
         self.agent.put(url.as_str())
     }
 
     fn post(&self, url: &Url) -> ureq::Request {
+        log::info!("POST {}", url);
         self.agent.post(url.as_str())
     }
 

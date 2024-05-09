@@ -7,7 +7,10 @@ use maplit::hashmap;
 use oci_spec::image::{
     DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType, OciLayout,
 };
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use super::get_name_from_index;
 
@@ -96,7 +99,7 @@ pub struct OciDir {
 }
 
 impl OciDir {
-    pub fn new(oci_dir_root: PathBuf) -> Result<Self> {
+    pub fn new(oci_dir_root: &Path) -> Result<Self> {
         if !oci_dir_root.is_dir() {
             bail!("{} is not a directory", oci_dir_root.display());
         }
@@ -109,7 +112,9 @@ impl OciDir {
                 oci_dir_root.display()
             );
         }
-        Ok(Self { oci_dir_root })
+        Ok(Self {
+            oci_dir_root: oci_dir_root.to_owned(),
+        })
     }
 
     fn get_index(&mut self) -> Result<ImageIndex> {

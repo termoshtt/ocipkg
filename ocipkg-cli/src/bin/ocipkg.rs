@@ -1,14 +1,8 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use clap::Parser;
-use flate2::read::GzDecoder;
-use oci_spec::image::MediaType;
-use ocipkg::{
-    image::Config,
-    media_types::{artifact, config_json},
-    Digest,
-};
-use std::{fs, io::Read, path::*};
+use ocipkg::image::{Artifact, Image};
+use std::path::*;
 
 #[derive(Debug, Parser)]
 #[command(version)]
@@ -44,6 +38,10 @@ enum Opt {
     Load {
         /// Input oci-archive
         input: PathBuf,
+
+        /// Overwrite existing local cache
+        #[clap(short = 'f', long = "overwrite")]
+        overwrite: bool,
     },
 
     /// Get and save in local storage
@@ -68,11 +66,11 @@ enum Opt {
 
     /// Login to OCI registry
     Login {
-        /// OCI registry to be logined
+        /// OCI registry to be login
         registry: String,
-        #[clap(short = 'u', long = "--username")]
+        #[clap(short = 'u', long = "username")]
         username: String,
-        #[clap(short = 'p', long = "--password")]
+        #[clap(short = 'p', long = "password")]
         password: String,
     },
 
@@ -124,8 +122,8 @@ fn main() -> Result<()> {
             let _artifact = b.build()?;
         }
 
-        Opt::Load { input } => {
-            ocipkg::image::load(&input)?;
+        Opt::Load { input, overwrite } => {
+            ocipkg::image::load(&input, overwrite)?;
         }
 
         Opt::Get {
@@ -170,53 +168,15 @@ fn main() -> Result<()> {
         }
 
         Opt::Inspect { input } => {
-            let mut f = fs::File::open(input)?;
-            let mut ar = ocipkg::image::Archive::new(&mut f);
-            for (name, manifest) in ar.get_manifests()? {
-                let config = if manifest.artifact_type() == &Some(artifact()) {
-                    let config = manifest.config();
-                    if config.media_type() != &config_json() {
-                        bail!("Invalid config media type: {:?}", config.media_type());
-                    }
-                    let mut buf = Vec::new();
-                    ar.get_blob(&Digest::new(config.digest())?)?
-                        .read_to_end(&mut buf)?;
-                    Config::from_slice(&buf)?
+            let mut ar = Artifact::from_oci_archive(&input)?;
+            let image_name = ar.get_name()?;
+            println!("[{image_name}]");
+            let files = ar.files()?;
+            for (i, path) in files.iter().enumerate() {
+                if i < files.len() - 1 {
+                    println!("  ├─ {}", path.display());
                 } else {
-                    log::warn!("ocipkg 0.2.x style artifact is deprecated.");
-                    let mut config = Config::default();
-                    for layer in manifest.layers() {
-                        let digest = ocipkg::Digest::new(layer.digest())?;
-                        let entry = ar.get_blob(&digest)?;
-                        if let MediaType::ImageLayerGzip = layer.media_type() {
-                            let buf = GzDecoder::new(entry);
-                            let mut ar = tar::Archive::new(buf);
-                            config.add_layer(
-                                Digest::new(layer.digest())?,
-                                ar.entries()?
-                                    .filter_map(|entry| {
-                                        Some(entry.ok()?.path().ok()?.to_path_buf())
-                                    })
-                                    .collect(),
-                            )
-                        }
-                    }
-                    config
-                };
-
-                println!("[{}]", name);
-                let paths: Vec<&PathBuf> = config
-                    .layers()
-                    .iter()
-                    .flat_map(|(_digest, paths)| paths)
-                    .collect();
-
-                for (i, path) in paths.iter().enumerate() {
-                    if i < paths.len() - 1 {
-                        println!("  ├─ {}", path.display());
-                    } else {
-                        println!("  └─ {}", path.display());
-                    }
+                    println!("  └─ {}", path.display());
                 }
             }
         }

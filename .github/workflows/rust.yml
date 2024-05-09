@@ -56,3 +56,13 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features -- -D warnings
+
+  doc:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/cargo@v1
+        with:
+          command: doc
+        env:
+          RUSTDOCFLAGS: -D warnings

@@ -1,6 +1,6 @@
 use crate::{
-    image::{Image, ImageBuilder},
-    Digest,
+    image::{Image, ImageBuilder, OciArchive, OciDir, Remote},
+    Digest, ImageName,
 };
 use anyhow::{Context, Result};
 use oci_spec::image::{
@@ -9,6 +9,7 @@ use oci_spec::image::{
 use std::{
     collections::HashMap,
     ops::{Deref, DerefMut},
+    path::Path,
 };
 
 /// Build a [OciArtifact]
@@ -91,6 +92,27 @@ impl<Base: Image> Deref for OciArtifact<Base> {
 impl<Layout: Image> DerefMut for OciArtifact<Layout> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl OciArtifact<OciArchive> {
+    pub fn from_oci_archive(path: &Path) -> Result<Self> {
+        let layout = OciArchive::new(path)?;
+        Ok(Self(layout))
+    }
+}
+
+impl OciArtifact<OciDir> {
+    pub fn from_oci_dir(path: &Path) -> Result<Self> {
+        let layout = OciDir::new(path)?;
+        Ok(Self(layout))
+    }
+}
+
+impl OciArtifact<Remote> {
+    pub fn from_remote(image_name: ImageName) -> Result<Self> {
+        let layout = Remote::new(image_name)?;
+        Ok(Self(layout))
     }
 }
 

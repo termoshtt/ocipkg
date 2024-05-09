@@ -48,6 +48,9 @@
 //! [OCI Image Manifest]: https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md
 //! [OCI Image Layout]: https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md
 
+/// Re-export since this crate exposes types in `oci_spec` crate.
+pub extern crate oci_spec;
+
 pub mod distribution;
 pub mod image;
 pub mod local;
