@@ -1,3 +1,4 @@
+use crate::Digest;
 use anyhow::{bail, Result};
 use regex::Regex;
 use std::fmt;
@@ -5,6 +6,7 @@ use std::fmt;
 /// Reference of container image stored in the repository
 ///
 /// In [OCI distribution spec](https://github.com/opencontainers/distribution-spec/blob/main/spec.md):
+/// > `<reference>`  MUST be either (a) the digest of the manifest or (b) a tag
 /// > `<reference>` as a tag MUST be at most 128 characters
 /// > in length and MUST match the following regular expression:
 /// > ```text
@@ -39,6 +41,9 @@ impl Reference {
     pub fn new(name: &str) -> Result<Self> {
         if REF_RE.is_match(name) {
             Ok(Reference(name.to_string()))
+        } else if name.contains(':') {
+            _ = Digest::new(name)?;
+            Ok(Reference(name.to_string()))
         } else {
             bail!("Invalid reference {name}");
         }
@@ -52,6 +57,10 @@ mod tests {
     #[test]
     fn reference() {
         assert_eq!(Reference::new("latest").unwrap().as_str(), "latest");
+        assert_eq!(
+            Reference::new("sha256:a1b2c3").unwrap().as_str(),
+            "sha256:a1b2c3"
+        );
         // @ is not allowed
         assert!(Reference::new("my_super_tag@2").is_err());
     }
