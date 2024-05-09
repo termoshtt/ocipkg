@@ -27,10 +27,12 @@ pub trait Image {
 pub trait ImageBuilder {
     /// Handler of generated image.
     type Image: Image;
+
     /// Add a blob to the image layout.
     fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, i64)>;
+
     /// Finish building image layout.
-    fn build(self, manifest: ImageManifest, name: ImageName) -> Result<Self::Image>;
+    fn build(self, manifest: ImageManifest) -> Result<Self::Image>;
 
     /// A placeholder for `application/vnd.oci.empty.v1+json`
     fn add_empty_json(&mut self) -> Result<Descriptor> {

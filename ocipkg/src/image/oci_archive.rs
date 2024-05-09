@@ -14,18 +14,23 @@ use std::{
 
 /// oci-archive, i.e. a tarball of a directory in the form of [OCI Image Layout specification](https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md)
 pub struct OciArchiveBuilder {
+    image_name: ImageName,
     path: PathBuf,
     ar: tar::Builder<fs::File>,
 }
 
 impl OciArchiveBuilder {
-    pub fn new(path: PathBuf) -> Result<Self> {
+    pub fn new(path: PathBuf, image_name: ImageName) -> Result<Self> {
         if path.exists() {
             bail!("File already exists: {}", path.display());
         }
         let f = fs::File::create(&path)?;
         let ar = tar::Builder::new(f);
-        Ok(Self { ar, path })
+        Ok(Self {
+            ar,
+            path,
+            image_name,
+        })
     }
 }
 
@@ -39,7 +44,7 @@ impl ImageBuilder for OciArchiveBuilder {
         Ok((digest, blob.len() as i64))
     }
 
-    fn build(mut self, manifest: ImageManifest, name: ImageName) -> Result<Self::Image> {
+    fn build(mut self, manifest: ImageManifest) -> Result<Self::Image> {
         let manifest_json = serde_json::to_string(&manifest)?;
         let (digest, size) = self.add_blob(manifest_json.as_bytes())?;
         let descriptor = DescriptorBuilder::default()
@@ -47,7 +52,7 @@ impl ImageBuilder for OciArchiveBuilder {
             .size(size)
             .digest(digest.to_string())
             .annotations(hashmap! {
-                "org.opencontainers.image.ref.name".to_string() => name.to_string()
+                "org.opencontainers.image.ref.name".to_string() => self.image_name.to_string()
             })
             .build()?;
         let index = ImageIndexBuilder::default()

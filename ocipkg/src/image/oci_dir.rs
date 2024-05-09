@@ -13,6 +13,7 @@ use super::get_name_from_index;
 
 /// Build an [OciDir]
 pub struct OciDirBuilder {
+    image_name: ImageName,
     oci_dir_root: PathBuf,
     is_finished: bool,
 }
@@ -33,12 +34,13 @@ impl Drop for OciDirBuilder {
 }
 
 impl OciDirBuilder {
-    pub fn new(oci_dir_root: PathBuf) -> Result<Self> {
+    pub fn new(oci_dir_root: PathBuf, image_name: ImageName) -> Result<Self> {
         if oci_dir_root.exists() {
             bail!("oci-dir {} already exists", oci_dir_root.display());
         }
         fs::create_dir_all(&oci_dir_root)?;
         Ok(Self {
+            image_name,
             oci_dir_root,
             is_finished: false,
         })
@@ -56,7 +58,7 @@ impl ImageBuilder for OciDirBuilder {
         Ok((digest, data.len() as i64))
     }
 
-    fn build(mut self, manifest: ImageManifest, image_name: ImageName) -> Result<OciDir> {
+    fn build(mut self, manifest: ImageManifest) -> Result<OciDir> {
         let manifest_json = serde_json::to_string(&manifest)?;
         let (digest, size) = self.add_blob(manifest_json.as_bytes())?;
         let descriptor = DescriptorBuilder::default()
@@ -64,7 +66,7 @@ impl ImageBuilder for OciDirBuilder {
             .size(size)
             .digest(digest.to_string())
             .annotations(hashmap! {
-                "org.opencontainers.image.ref.name".to_string() => image_name.to_string(),
+                "org.opencontainers.image.ref.name".to_string() => self.image_name.to_string(),
             })
             .build()?;
         let index = ImageIndexBuilder::default()
@@ -147,14 +149,10 @@ mod tests {
     fn test_artifact_over_oci_dir() -> Result<()> {
         let tmp_dir = tempfile::tempdir()?;
         let path = tmp_dir.path().join("oci-dir");
-        let oci_dir = OciDirBuilder::new(path)?;
         let image_name = ImageName::parse("test")?;
-        let mut artifact = OciArtifactBuilder::new(
-            oci_dir,
-            MediaType::Other("test".to_string()),
-            image_name.clone(),
-        )?
-        .build()?;
+        let oci_dir = OciDirBuilder::new(path, image_name.clone())?;
+        let mut artifact =
+            OciArtifactBuilder::new(oci_dir, MediaType::Other("test".to_string()))?.build()?;
 
         let name = artifact.get_name()?;
         let manifest = artifact.get_manifest()?;

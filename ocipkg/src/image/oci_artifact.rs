@@ -1,6 +1,6 @@
 use crate::{
     image::{Image, ImageBuilder},
-    Digest, ImageName,
+    Digest,
 };
 use anyhow::{Context, Result};
 use oci_spec::image::{
@@ -13,18 +13,13 @@ use std::{
 
 /// Build a [OciArtifact]
 pub struct OciArtifactBuilder<LayoutBuilder: ImageBuilder> {
-    name: ImageName,
     manifest: ImageManifest,
     layout: LayoutBuilder,
 }
 
 impl<LayoutBuilder: ImageBuilder> OciArtifactBuilder<LayoutBuilder> {
     /// Create a new OCI Artifact with its media type
-    pub fn new(
-        mut layout: LayoutBuilder,
-        artifact_type: MediaType,
-        name: ImageName,
-    ) -> Result<Self> {
+    pub fn new(mut layout: LayoutBuilder, artifact_type: MediaType) -> Result<Self> {
         let empty_config = layout.add_empty_json()?;
         let manifest = ImageManifestBuilder::default()
             .schema_version(2_u32)
@@ -32,11 +27,7 @@ impl<LayoutBuilder: ImageBuilder> OciArtifactBuilder<LayoutBuilder> {
             .config(empty_config)
             .layers(Vec::new())
             .build()?;
-        Ok(Self {
-            layout,
-            manifest,
-            name,
-        })
+        Ok(Self { layout, manifest })
     }
 
     /// Add `config` of the OCI Artifact
@@ -81,9 +72,7 @@ impl<LayoutBuilder: ImageBuilder> OciArtifactBuilder<LayoutBuilder> {
 
     /// Build the OCI Artifact
     pub fn build(self) -> Result<OciArtifact<LayoutBuilder::Image>> {
-        Ok(OciArtifact::new(
-            self.layout.build(self.manifest, self.name)?,
-        ))
+        Ok(OciArtifact::new(self.layout.build(self.manifest)?))
     }
 }
 

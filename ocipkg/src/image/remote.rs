@@ -3,7 +3,7 @@ use crate::{
     image::{Image, ImageBuilder},
     Digest, ImageName,
 };
-use anyhow::{bail, Result};
+use anyhow::Result;
 use oci_spec::image::ImageManifest;
 
 /// An image stored in remote registry as [Image]
@@ -53,13 +53,11 @@ impl ImageBuilder for RemoteBuilder {
         Ok((digest, data.len() as i64))
     }
 
-    fn build(self, manifest: ImageManifest, name: ImageName) -> Result<Self::Image> {
-        if name != self.image_name {
-            bail!("Image name mismatch: {} != {}", name, self.image_name);
-        }
-        self.client.push_manifest(&name.reference, &manifest)?;
+    fn build(self, manifest: ImageManifest) -> Result<Self::Image> {
+        self.client
+            .push_manifest(&self.image_name.reference, &manifest)?;
         Ok(Remote {
-            image_name: name,
+            image_name: self.image_name,
             client: self.client,
         })
     }
