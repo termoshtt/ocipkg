@@ -89,7 +89,7 @@ impl<LayoutBuilder: ImageBuilder> OciArtifactBuilder<LayoutBuilder> {
 
 /// OCI Artifact, an image layout with a image manifest which stores any type of `config` and `layers` rather than runnable container.
 ///
-/// This is a thin wrapper of an actual image layout implementing [ImageLayout] to provide a common interface for OCI Artifacts.
+/// This is a thin wrapper of an actual image layout implementing [Image] to provide a common interface for OCI Artifacts.
 pub struct OciArtifact<Layout: Image>(Layout);
 
 impl<Base: Image> Deref for OciArtifact<Base> {
