@@ -12,6 +12,7 @@ use crate::{
 };
 use anyhow::{bail, Result};
 use flate2::{write::GzEncoder, Compression};
+use oci_spec::image::MediaType;
 use std::{
     collections::HashMap,
     fs,
@@ -172,11 +173,25 @@ impl<Base: Image> Artifact<Base> {
         let oci_dir = OciDirBuilder::new(dest.join(".oci-dir"), self.base.get_name()?)?;
         let oci_dir = copy(self.base.deref_mut(), oci_dir)?;
         for (desc, blob) in self.base.get_layers()? {
-            if desc.media_type() == &media_types::layer_tar_gzip() {
-                let buf = flate2::read::GzDecoder::new(blob.as_slice());
-                tar::Archive::new(buf).unpack(&dest)?;
-            } else {
-                bail!("Unsupported layer type: {}", desc.media_type());
+            match desc.media_type() {
+                // v0 format before using OCI Artifact specification
+                MediaType::ImageLayer => {
+                    let buf = blob.as_slice();
+                    tar::Archive::new(buf).unpack(&dest)?;
+                }
+                MediaType::ImageLayerGzip => {
+                    let buf = flate2::read::GzDecoder::new(blob.as_slice());
+                    tar::Archive::new(buf).unpack(&dest)?;
+                }
+
+                // v1 format
+                media_type @ MediaType::Other(_)
+                    if media_type == &media_types::layer_tar_gzip() =>
+                {
+                    let buf = flate2::read::GzDecoder::new(blob.as_slice());
+                    tar::Archive::new(buf).unpack(&dest)?;
+                }
+                _ => bail!("Unsupported layer type: {}", desc.media_type()),
             }
         }
         Ok(oci_dir)
