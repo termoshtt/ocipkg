@@ -111,7 +111,7 @@ impl<Layout: Image> OciArtifact<Layout> {
     }
 
     pub fn artifact_type(&mut self) -> Result<MediaType> {
-        let (_image_name, manifest) = self.get_manifest()?;
+        let manifest = self.get_manifest()?;
         manifest
             .artifact_type()
             .clone()
@@ -119,7 +119,7 @@ impl<Layout: Image> OciArtifact<Layout> {
     }
 
     pub fn get_config(&mut self) -> Result<(Descriptor, Vec<u8>)> {
-        let (_image_name, manifest) = self.get_manifest()?;
+        let manifest = self.get_manifest()?;
         let config_desc = manifest.config();
         if config_desc.media_type() == &MediaType::EmptyJSON {
             return Ok((config_desc.clone(), "{}".as_bytes().to_vec()));
@@ -129,7 +129,7 @@ impl<Layout: Image> OciArtifact<Layout> {
     }
 
     pub fn get_layers(&mut self) -> Result<Vec<(Descriptor, Vec<u8>)>> {
-        let (_image_name, manifest) = self.get_manifest()?;
+        let manifest = self.get_manifest()?;
         manifest
             .layers()
             .iter()

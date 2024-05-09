@@ -1,8 +1,8 @@
 use crate::{
-    image::{Image, ImageBuilder},
+    image::{get_name_from_index, Image, ImageBuilder},
     Digest, ImageName,
 };
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use chrono::Utc;
 use maplit::hashmap;
 use oci_spec::image::{DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType};
@@ -105,9 +105,7 @@ impl OciArchive {
             .entries_with_seek()?
             .filter_map(|e| e.ok()))
     }
-}
 
-impl Image for OciArchive {
     fn get_index(&mut self) -> Result<ImageIndex> {
         for entry in self.get_entries()? {
             let path = entry.path()?;
@@ -116,6 +114,12 @@ impl Image for OciArchive {
             }
         }
         bail!("Missing index.json")
+    }
+}
+
+impl Image for OciArchive {
+    fn get_name(&mut self) -> Result<ImageName> {
+        get_name_from_index(&self.get_index()?)
     }
 
     fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>> {
@@ -128,5 +132,16 @@ impl Image for OciArchive {
             }
         }
         bail!("Missing blob: {}", digest)
+    }
+
+    fn get_manifest(&mut self) -> Result<ImageManifest> {
+        let index = self.get_index()?;
+        let desc = index
+            .manifests()
+            .first()
+            .context("No manifest found in index.json")?;
+        let digest = Digest::from_descriptor(desc)?;
+        let manifest = serde_json::from_slice(self.get_blob(&digest)?.as_slice())?;
+        Ok(manifest)
     }
 }

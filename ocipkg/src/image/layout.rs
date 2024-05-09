@@ -1,41 +1,24 @@
 use crate::{Digest, ImageName};
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use oci_spec::image::{Descriptor, DescriptorBuilder, ImageIndex, ImageManifest, MediaType};
 
-/// Handler of [OCI Image Layout] containing single manifest.
+/// Handler of [OCI Image Layout] with containing single manifest and its name.
 ///
-/// Though the [OCI Image Layout] allows containing multiple manifests in a single layout,
-/// this trait assumes a single manifest in a single layout.
+/// - [OCI Image Layout] allows empty image name, i.e. no `org.opencontainers.image.ref.name` annotation, but this trait does not allow it.
+/// - [OCI Image Layout] allows containing multiple manifests in a single layout,
+///   this trait assumes a single manifest in a single layout.
 ///
 /// [OCI Image Layout]: https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md
 ///
 pub trait Image {
-    /// Get `index.json`
-    fn get_index(&mut self) -> Result<ImageIndex>;
+    /// The name of this image.
+    fn get_name(&mut self) -> Result<ImageName>;
+
     /// Get blob content.
     fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>>;
 
-    /// Get manifest stored in the image layout.
-    ///
-    /// Note that this trait assumes a single manifest in a single layout.
-    /// If `index.json` contains `org.opencontainers.image.ref.name` annotation, it is returned as [ImageName].
-    fn get_manifest(&mut self) -> Result<(Option<ImageName>, ImageManifest)> {
-        let index = self.get_index()?;
-        let desc = index.manifests().first().context("Missing manifest")?;
-        let name = if let Some(name) = desc
-            .annotations()
-            .as_ref()
-            .and_then(|annotations| annotations.get("org.opencontainers.image.ref.name"))
-        {
-            // Invalid image name raises an error, while missing name is just ignored.
-            Some(ImageName::parse(name)?)
-        } else {
-            None
-        };
-        let digest = Digest::from_descriptor(desc)?;
-        let manifest = serde_json::from_slice(self.get_blob(&digest)?.as_slice())?;
-        Ok((name, manifest))
-    }
+    /// The manifest of this image
+    fn get_manifest(&mut self) -> Result<ImageManifest>;
 }
 
 /// Create new image layout.
@@ -58,4 +41,17 @@ pub trait ImageBuilder {
             .digest(digest.to_string())
             .build()?)
     }
+}
+
+pub(crate) fn get_name_from_index(index: &ImageIndex) -> Result<ImageName> {
+    if index.manifests().len() != 1 {
+        bail!("Multiple manifests in a index.json, it is not allowed in ocipkg.");
+    }
+    let manifest = index.manifests().first().unwrap();
+    let name = manifest
+        .annotations()
+        .as_ref()
+        .and_then(|annotations| annotations.get("org.opencontainers.image.ref.name"))
+        .context("org.opencontainers.image.ref.name is not found in manifest annotation")?;
+    ImageName::parse(name)
 }

@@ -9,6 +9,8 @@ use oci_spec::image::{
 };
 use std::{fs, path::PathBuf};
 
+use super::get_name_from_index;
+
 /// Build an [OciDir]
 pub struct OciDirBuilder {
     oci_dir_root: PathBuf,
@@ -107,17 +109,32 @@ impl OciDir {
         }
         Ok(Self { oci_dir_root })
     }
-}
 
-impl Image for OciDir {
     fn get_index(&mut self) -> Result<ImageIndex> {
         let index_path = self.oci_dir_root.join("index.json");
         let index_json = fs::read_to_string(index_path)?;
         Ok(serde_json::from_str(&index_json)?)
     }
+}
+
+impl Image for OciDir {
+    fn get_name(&mut self) -> Result<ImageName> {
+        get_name_from_index(&self.get_index()?)
+    }
 
     fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>> {
         Ok(fs::read(self.oci_dir_root.join(digest.as_path()))?)
+    }
+
+    fn get_manifest(&mut self) -> Result<ImageManifest> {
+        let index = self.get_index()?;
+        let desc = index
+            .manifests()
+            .first()
+            .context("No manifest found in index.json")?;
+        let digest = Digest::from_descriptor(desc)?;
+        let manifest = serde_json::from_slice(self.get_blob(&digest)?.as_slice())?;
+        Ok(manifest)
     }
 }
 
@@ -139,8 +156,9 @@ mod tests {
         )?
         .build()?;
 
-        let (name, manifest) = artifact.get_manifest()?;
-        assert_eq!(name, Some(image_name));
+        let name = artifact.get_name()?;
+        let manifest = artifact.get_manifest()?;
+        assert_eq!(name, image_name);
         assert_eq!(
             manifest.artifact_type().as_ref().unwrap(),
             &MediaType::Other("test".to_string())
