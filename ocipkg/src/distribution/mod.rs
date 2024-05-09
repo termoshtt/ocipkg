@@ -12,7 +12,7 @@ pub use oci_spec::image::MediaType;
 pub use reference::Reference;
 
 use crate::{
-    image::{Artifact, ImageLayout, ImageLayoutBuilder, OciDirBuilder},
+    image::{copy, Image, ImageBuilder, OciArchive, OciDirBuilder, RemoteBuilder},
     media_types, Digest, ImageName,
 };
 use anyhow::{bail, Result};
@@ -20,24 +20,10 @@ use std::{fs, io::Read, path::Path};
 
 /// Push image to registry
 pub fn push_image(path: &Path) -> Result<()> {
-    if !path.is_file() {
-        bail!("{} is not a file", path.display());
-    }
-    let mut ar = Artifact::from_oci_archive(path)?;
-    let (image_name, manifest) = ar.get_manifest()?;
-    let Some(image_name) = image_name else {
-        bail!("Missing image name in manifest");
-    };
-    log::info!("Push image: {}", image_name);
-
-    let mut client = Client::new(image_name.registry_url()?, image_name.name)?;
-    for (_, blob) in ar.get_layers()? {
-        client.push_blob(&blob)?;
-    }
-    let (_, blob) = ar.get_config()?;
-    client.push_blob(&blob)?;
-    client.push_manifest(&image_name.reference, &manifest)?;
-
+    let mut oci_archive = OciArchive::new(path)?;
+    let image_name = oci_archive.get_name()?;
+    let remote = RemoteBuilder::new(image_name)?;
+    copy(oci_archive, remote)?;
     Ok(())
 }
 
@@ -52,7 +38,7 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
             bail!("Image already exists: {}", image_name);
         }
     }
-    let mut oci_dir = OciDirBuilder::new(dest.join(".oci-dir"))?;
+    let mut oci_dir = OciDirBuilder::new(dest.join(".oci-dir"), image_name.clone())?;
 
     let mut client = Client::from_image_name(image_name)?;
 
@@ -95,7 +81,7 @@ pub fn get_image(image_name: &ImageName, overwrite: bool) -> Result<()> {
             _ => {}
         }
     }
-    oci_dir.build(manifest, image_name.clone())?;
+    oci_dir.build(manifest)?;
 
     Ok(())
 }

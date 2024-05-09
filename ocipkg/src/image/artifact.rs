@@ -3,7 +3,7 @@
 use crate::{
     digest::Digest,
     image::{
-        Config, ImageLayout, OciArchive, OciArchiveBuilder, OciArtifact, OciArtifactBuilder, OciDir,
+        Config, Image, OciArchive, OciArchiveBuilder, OciArtifact, OciArtifactBuilder, OciDir,
     },
     media_types::{self, config_json},
     ImageName,
@@ -27,9 +27,8 @@ impl Builder {
     pub fn new(path: PathBuf, image_name: ImageName) -> Result<Self> {
         Ok(Builder {
             builder: OciArtifactBuilder::new(
-                OciArchiveBuilder::new(path)?,
+                OciArchiveBuilder::new(path, image_name)?,
                 media_types::artifact(),
-                image_name,
             )?,
             config: Config::default(),
         })
@@ -93,18 +92,18 @@ impl Builder {
 }
 
 /// ocipkg artifact defined as `application/vnd.ocipkg.v1.artifact`
-pub struct Artifact<Base: ImageLayout> {
+pub struct Artifact<Base: Image> {
     base: OciArtifact<Base>,
 }
 
-impl<Base: ImageLayout> Deref for Artifact<Base> {
+impl<Base: Image> Deref for Artifact<Base> {
     type Target = OciArtifact<Base>;
     fn deref(&self) -> &Self::Target {
         &self.base
     }
 }
 
-impl<Base: ImageLayout> DerefMut for Artifact<Base> {
+impl<Base: Image> DerefMut for Artifact<Base> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
     }
@@ -124,7 +123,7 @@ impl Artifact<OciDir> {
     }
 }
 
-impl<Base: ImageLayout> Artifact<Base> {
+impl<Base: Image> Artifact<Base> {
     pub fn new(base: Base) -> Result<Self> {
         let mut base = OciArtifact::new(base);
         let ty = base.artifact_type()?;
@@ -164,9 +163,7 @@ impl<Base: ImageLayout> Artifact<Base> {
 /// Load ocipkg artifact into local storage
 pub fn load(input: &Path) -> Result<()> {
     let mut ar = Artifact::from_oci_archive(input)?;
-    let (Some(image_name), _) = ar.get_manifest()? else {
-        bail!("Missing image name");
-    };
+    let image_name = ar.get_name()?;
     let dest = crate::local::image_dir(&image_name)?;
     ar.unpack(&dest)?;
     Ok(())

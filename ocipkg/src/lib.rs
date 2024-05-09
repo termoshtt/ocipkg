@@ -42,7 +42,7 @@
 //! 2. Add blobs, and store their digests
 //! 3. Create a manifest using blob digests, store the manifest itself as blob, and store its digest in `index.json`
 //!
-//! This process is abstracted by [image::ImageLayoutBuilder]. This yields a layout which implements [image::ImageLayout] trait.
+//! This process is abstracted by [image::ImageBuilder]. This yields a layout which implements [image::Image] trait.
 //!
 //! [OCI Image specification]: https://github.com/opencontainers/image-spec/blob/v1.1.0/spec.md
 //! [OCI Image Manifest]: https://github.com/opencontainers/image-spec/blob/v1.1.0/manifest.md

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use clap::Parser;
-use ocipkg::image::{Artifact, ImageLayout};
+use ocipkg::image::{Artifact, Image};
 use std::path::*;
 
 #[derive(Debug, Parser)]
@@ -165,14 +165,8 @@ fn main() -> Result<()> {
 
         Opt::Inspect { input } => {
             let mut ar = Artifact::from_oci_archive(&input)?;
-            let (image_name, _) = ar.get_manifest()?;
-            let name = if let Some(image_name) = image_name {
-                image_name.to_string()
-            } else {
-                "unnamed".to_string()
-            };
-
-            println!("[{name}]");
+            let image_name = ar.get_name()?;
+            println!("[{image_name}]");
             let files = ar.files()?;
             for (i, path) in files.iter().enumerate() {
                 if i < files.len() - 1 {
