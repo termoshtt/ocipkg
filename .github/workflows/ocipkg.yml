@@ -66,32 +66,8 @@ jobs:
         run: |
           ocipkg get ghcr.io/termoshtt/ocipkg/static/rust:9a042e8
 
-  list:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: --path=ocipkg-cli/ -f
-      - name: Add path
-        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Setup registry
-        run: |
-          ./test/fixture.sh
-      - name: get image
-        run: |
-          ocipkg get localhost:5000/test_repo:tag1
-          ocipkg get localhost:5000/test_repo:tag2
-      - name: list
+      - name: ocipkg list
         run: test $(ocipkg list | wc -l) -eq 2
-
-    services:
-      registry:
-        image: registry:2
-        ports:
-          - 5000:5000
 
   push:
     runs-on: ubuntu-22.04
