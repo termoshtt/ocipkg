@@ -21,9 +21,6 @@ pub trait Image {
     /// Get blob content.
     fn get_blob(&mut self, digest: &Digest) -> Result<Vec<u8>>;
 
-    /// Unpack the layout contents into a directory in [OciDir] format.
-    fn unpack(&mut self, dest: &Path) -> Result<OciDir>;
-
     /// The manifest of this image
     fn get_manifest(&mut self) -> Result<ImageManifest>;
 }
@@ -53,7 +50,7 @@ pub trait ImageBuilder {
 }
 
 /// Copy image from one to another.
-pub fn copy<From: Image, To: ImageBuilder>(mut from: From, mut to: To) -> Result<To::Image> {
+pub fn copy<From: Image, To: ImageBuilder>(from: &mut From, mut to: To) -> Result<To::Image> {
     let name = from.get_name()?;
     let manifest = from.get_manifest()?;
     for layer in manifest.layers() {

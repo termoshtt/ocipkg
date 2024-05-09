@@ -1,5 +1,5 @@
 use crate::{
-    image::{get_name_from_index, Image, ImageBuilder, OciDir},
+    image::{get_name_from_index, Image, ImageBuilder},
     Digest, ImageName,
 };
 use anyhow::{bail, Context, Result};
@@ -149,17 +149,5 @@ impl Image for OciArchive {
         let digest = Digest::from_descriptor(desc)?;
         let manifest = serde_json::from_slice(self.get_blob(&digest)?.as_slice())?;
         Ok(manifest)
-    }
-
-    fn unpack(&mut self, dest: &Path) -> Result<OciDir> {
-        if dest.exists() {
-            bail!("Destination already exists: {}", dest.display());
-        }
-        if let Some(parent) = dest.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        self.rewind()?;
-        self.ar.as_mut().unwrap().unpack(dest)?;
-        OciDir::new(dest)
     }
 }

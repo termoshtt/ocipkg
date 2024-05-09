@@ -133,17 +133,6 @@ impl Image for OciDir {
         Ok(fs::read(self.oci_dir_root.join(digest.as_path()))?)
     }
 
-    fn unpack(&mut self, dest: &Path) -> Result<OciDir> {
-        if dest.exists() {
-            bail!("Destination {} already exists", dest.display());
-        }
-        if let Some(parent) = dest.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs_extra::dir::copy(&self.oci_dir_root, dest, &fs_extra::dir::CopyOptions::new())?;
-        OciDir::new(dest)
-    }
-
     fn get_manifest(&mut self) -> Result<ImageManifest> {
         let index = self.get_index()?;
         let desc = index

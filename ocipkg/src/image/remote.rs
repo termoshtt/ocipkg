@@ -31,10 +31,6 @@ impl Image for Remote {
     fn get_manifest(&mut self) -> Result<ImageManifest> {
         self.client.get_manifest(&self.image_name.reference)
     }
-
-    fn unpack(&mut self, dest: &std::path::Path) -> Result<super::OciDir> {
-        todo!()
-    }
 }
 
 /// Build a [Remote] image, pushing blobs and manifest to remote registry

@@ -3,7 +3,8 @@
 use crate::{
     digest::Digest,
     image::{
-        Config, Image, OciArchive, OciArchiveBuilder, OciArtifact, OciArtifactBuilder, OciDir,
+        copy, Config, Image, OciArchive, OciArchiveBuilder, OciArtifact, OciArtifactBuilder,
+        OciDir, OciDirBuilder,
     },
     media_types::{self, config_json},
     ImageName,
@@ -146,8 +147,8 @@ impl<Base: Image> Artifact<Base> {
 
     /// Unpack ocipkg artifact into local filesystem with `.oci-dir` directory
     pub fn unpack(&mut self, dest: &Path) -> Result<OciDir> {
-        let oci_dir = dest.join(".oci-dir");
-        self.base.unpack(&oci_dir)?;
+        let oci_dir = OciDirBuilder::new(dest.join(".oci-dir"), self.base.get_name()?)?;
+        let oci_dir = copy(self.base.deref_mut(), oci_dir)?;
         for (desc, blob) in self.base.get_layers()? {
             if desc.media_type() == &media_types::layer_tar_gzip() {
                 let buf = flate2::read::GzDecoder::new(blob.as_slice());
@@ -156,7 +157,7 @@ impl<Base: Image> Artifact<Base> {
                 bail!("Unsupported layer type: {}", desc.media_type());
             }
         }
-        OciDir::new(&oci_dir)
+        Ok(oci_dir)
     }
 }
 

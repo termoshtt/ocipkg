@@ -23,7 +23,7 @@ pub fn push_image(path: &Path) -> Result<()> {
     let mut oci_archive = OciArchive::new(path)?;
     let image_name = oci_archive.get_name()?;
     let remote = RemoteBuilder::new(image_name)?;
-    copy(oci_archive, remote)?;
+    copy(&mut oci_archive, remote)?;
     Ok(())
 }
 
