@@ -4,8 +4,9 @@ use crate::{
     digest::Digest,
     image::{
         copy, Config, Image, OciArchive, OciArchiveBuilder, OciArtifact, OciArtifactBuilder,
-        OciDir, OciDirBuilder,
+        OciDir, OciDirBuilder, Remote,
     },
+    local::image_dir,
     media_types::{self, config_json},
     ImageName,
 };
@@ -124,6 +125,13 @@ impl Artifact<OciDir> {
     }
 }
 
+impl Artifact<Remote> {
+    pub fn from_remote(image_name: ImageName) -> Result<Self> {
+        let base = OciArtifact::from_remote(image_name)?;
+        Ok(Self { base })
+    }
+}
+
 impl<Base: Image> Artifact<Base> {
     pub fn new(base: Base) -> Result<Self> {
         let mut base = OciArtifact::new(base);
@@ -146,13 +154,27 @@ impl<Base: Image> Artifact<Base> {
     }
 
     /// Unpack ocipkg artifact into local filesystem with `.oci-dir` directory
-    pub fn unpack(&mut self, dest: &Path) -> Result<OciDir> {
+    pub fn unpack(&mut self, overwrite: bool) -> Result<OciDir> {
+        let image_name = self.base.get_name()?;
+        let dest = image_dir(&image_name)?;
+        if dest.exists() {
+            if overwrite {
+                log::warn!(
+                    "Destination already exists: {}. Removing...",
+                    dest.display()
+                );
+                fs::remove_dir_all(&dest)?;
+            } else {
+                bail!("Destination already exists: {}", dest.display());
+            }
+        }
+        fs::create_dir_all(&dest)?;
         let oci_dir = OciDirBuilder::new(dest.join(".oci-dir"), self.base.get_name()?)?;
         let oci_dir = copy(self.base.deref_mut(), oci_dir)?;
         for (desc, blob) in self.base.get_layers()? {
             if desc.media_type() == &media_types::layer_tar_gzip() {
                 let buf = flate2::read::GzDecoder::new(blob.as_slice());
-                tar::Archive::new(buf).unpack(dest)?;
+                tar::Archive::new(buf).unpack(&dest)?;
             } else {
                 bail!("Unsupported layer type: {}", desc.media_type());
             }
@@ -162,10 +184,8 @@ impl<Base: Image> Artifact<Base> {
 }
 
 /// Load ocipkg artifact into local storage
-pub fn load(input: &Path) -> Result<()> {
+pub fn load(input: &Path, overwrite: bool) -> Result<()> {
     let mut ar = Artifact::from_oci_archive(input)?;
-    let image_name = ar.get_name()?;
-    let dest = crate::local::image_dir(&image_name)?;
-    ar.unpack(&dest)?;
+    ar.unpack(overwrite)?;
     Ok(())
 }

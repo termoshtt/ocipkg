@@ -1,6 +1,6 @@
 use crate::{
-    image::{Image, ImageBuilder, OciArchive, OciDir},
-    Digest,
+    image::{Image, ImageBuilder, OciArchive, OciDir, Remote},
+    Digest, ImageName,
 };
 use anyhow::{Context, Result};
 use oci_spec::image::{
@@ -105,6 +105,13 @@ impl OciArtifact<OciArchive> {
 impl OciArtifact<OciDir> {
     pub fn from_oci_dir(path: &Path) -> Result<Self> {
         let layout = OciDir::new(path)?;
+        Ok(Self(layout))
+    }
+}
+
+impl OciArtifact<Remote> {
+    pub fn from_remote(image_name: ImageName) -> Result<Self> {
+        let layout = Remote::new(image_name)?;
         Ok(Self(layout))
     }
 }

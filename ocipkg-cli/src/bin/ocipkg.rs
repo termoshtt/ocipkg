@@ -38,6 +38,10 @@ enum Opt {
     Load {
         /// Input oci-archive
         input: PathBuf,
+
+        /// Overwrite existing local cache
+        #[clap(short = 'f', long = "overwrite")]
+        overwrite: bool,
     },
 
     /// Get and save in local storage
@@ -62,11 +66,11 @@ enum Opt {
 
     /// Login to OCI registry
     Login {
-        /// OCI registry to be logined
+        /// OCI registry to be login
         registry: String,
-        #[clap(short = 'u', long = "--username")]
+        #[clap(short = 'u', long = "username")]
         username: String,
-        #[clap(short = 'p', long = "--password")]
+        #[clap(short = 'p', long = "password")]
         password: String,
     },
 
@@ -118,8 +122,8 @@ fn main() -> Result<()> {
             let _artifact = b.build()?;
         }
 
-        Opt::Load { input } => {
-            ocipkg::image::load(&input)?;
+        Opt::Load { input, overwrite } => {
+            ocipkg::image::load(&input, overwrite)?;
         }
 
         Opt::Get {
