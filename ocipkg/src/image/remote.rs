@@ -33,6 +33,7 @@ impl Image for Remote {
     }
 }
 
+/// Build a [Remote] image, pushing blobs and manifest to remote registry
 pub struct RemoteBuilder {
     image_name: ImageName,
     client: Client,
