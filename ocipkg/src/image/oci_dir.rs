@@ -46,7 +46,7 @@ impl OciDirBuilder {
 }
 
 impl ImageBuilder for OciDirBuilder {
-    type ImageLayout = OciDir;
+    type Image = OciDir;
 
     fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, i64)> {
         let digest = Digest::from_buf_sha256(data);

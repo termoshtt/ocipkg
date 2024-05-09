@@ -26,11 +26,11 @@ pub trait Image {
 /// Creating [ImageManifest] is out of scope of this trait.
 pub trait ImageBuilder {
     /// Handler of generated image.
-    type ImageLayout: Image;
+    type Image: Image;
     /// Add a blob to the image layout.
     fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, i64)>;
     /// Finish building image layout.
-    fn build(self, manifest: ImageManifest, name: ImageName) -> Result<Self::ImageLayout>;
+    fn build(self, manifest: ImageManifest, name: ImageName) -> Result<Self::Image>;
 
     /// A placeholder for `application/vnd.oci.empty.v1+json`
     fn add_empty_json(&mut self) -> Result<Descriptor> {

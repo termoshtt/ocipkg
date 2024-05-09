@@ -162,7 +162,7 @@ impl Client {
     /// and following `PUT` to URL obtained by `POST`.
     ///
     /// See [corresponding OCI distribution spec document](https://github.com/opencontainers/distribution-spec/blob/main/spec.md#pushing-manifests) for detail.
-    pub fn push_blob(&mut self, blob: &[u8]) -> Result<Url> {
+    pub fn push_blob(&mut self, blob: &[u8]) -> Result<(Digest, Url)> {
         let url = self
             .url
             .join(&format!("/v2/{}/blobs/uploads/", self.name))?;
@@ -186,7 +186,8 @@ impl Client {
         let loc = res
             .header("Location")
             .expect("Location header is lacked in OCI registry response");
-        Ok(Url::parse(loc).or_else(|_| self.url.join(loc))?)
+        let url = Url::parse(loc).or_else(|_| self.url.join(loc))?;
+        Ok((digest, url))
     }
 }
 

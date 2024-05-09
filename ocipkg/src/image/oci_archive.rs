@@ -30,7 +30,7 @@ impl OciArchiveBuilder {
 }
 
 impl ImageBuilder for OciArchiveBuilder {
-    type ImageLayout = OciArchive;
+    type Image = OciArchive;
 
     fn add_blob(&mut self, blob: &[u8]) -> Result<(Digest, i64)> {
         let digest = Digest::from_buf_sha256(blob);
@@ -39,7 +39,7 @@ impl ImageBuilder for OciArchiveBuilder {
         Ok((digest, blob.len() as i64))
     }
 
-    fn build(mut self, manifest: ImageManifest, name: ImageName) -> Result<Self::ImageLayout> {
+    fn build(mut self, manifest: ImageManifest, name: ImageName) -> Result<Self::Image> {
         let manifest_json = serde_json::to_string(&manifest)?;
         let (digest, size) = self.add_blob(manifest_json.as_bytes())?;
         let descriptor = DescriptorBuilder::default()
