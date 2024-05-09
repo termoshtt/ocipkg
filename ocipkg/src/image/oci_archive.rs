@@ -1,5 +1,5 @@
 use crate::{
-    image::{ImageLayout, ImageLayoutBuilder},
+    image::{Image, ImageBuilder},
     Digest, ImageName,
 };
 use anyhow::{bail, Result};
@@ -29,7 +29,7 @@ impl OciArchiveBuilder {
     }
 }
 
-impl ImageLayoutBuilder for OciArchiveBuilder {
+impl ImageBuilder for OciArchiveBuilder {
     type ImageLayout = OciArchive;
 
     fn add_blob(&mut self, blob: &[u8]) -> Result<(Digest, i64)> {
@@ -107,7 +107,7 @@ impl OciArchive {
     }
 }
 
-impl ImageLayout for OciArchive {
+impl Image for OciArchive {
     fn get_index(&mut self) -> Result<ImageIndex> {
         for entry in self.get_entries()? {
             let path = entry.path()?;

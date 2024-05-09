@@ -9,7 +9,7 @@ use oci_spec::image::{Descriptor, DescriptorBuilder, ImageIndex, ImageManifest, 
 ///
 /// [OCI Image Layout]: https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md
 ///
-pub trait ImageLayout {
+pub trait Image {
     /// Get `index.json`
     fn get_index(&mut self) -> Result<ImageIndex>;
     /// Get blob content.
@@ -41,9 +41,9 @@ pub trait ImageLayout {
 /// Create new image layout.
 ///
 /// Creating [ImageManifest] is out of scope of this trait.
-pub trait ImageLayoutBuilder {
+pub trait ImageBuilder {
     /// Handler of generated image.
-    type ImageLayout: ImageLayout;
+    type ImageLayout: Image;
     /// Add a blob to the image layout.
     fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, i64)>;
     /// Finish building image layout.

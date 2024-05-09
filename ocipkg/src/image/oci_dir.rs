@@ -1,5 +1,5 @@
 use crate::{
-    image::{ImageLayout, ImageLayoutBuilder},
+    image::{Image, ImageBuilder},
     Digest, ImageName,
 };
 use anyhow::{bail, Context, Result};
@@ -43,7 +43,7 @@ impl OciDirBuilder {
     }
 }
 
-impl ImageLayoutBuilder for OciDirBuilder {
+impl ImageBuilder for OciDirBuilder {
     type ImageLayout = OciDir;
 
     fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, i64)> {
@@ -109,7 +109,7 @@ impl OciDir {
     }
 }
 
-impl ImageLayout for OciDir {
+impl Image for OciDir {
     fn get_index(&mut self) -> Result<ImageIndex> {
         let index_path = self.oci_dir_root.join("index.json");
         let index_json = fs::read_to_string(index_path)?;

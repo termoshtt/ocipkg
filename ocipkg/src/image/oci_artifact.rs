@@ -1,5 +1,5 @@
 use crate::{
-    image::{ImageLayout, ImageLayoutBuilder},
+    image::{Image, ImageBuilder},
     Digest, ImageName,
 };
 use anyhow::{Context, Result};
@@ -12,13 +12,13 @@ use std::{
 };
 
 /// Build a [OciArtifact]
-pub struct OciArtifactBuilder<LayoutBuilder: ImageLayoutBuilder> {
+pub struct OciArtifactBuilder<LayoutBuilder: ImageBuilder> {
     name: ImageName,
     manifest: ImageManifest,
     layout: LayoutBuilder,
 }
 
-impl<LayoutBuilder: ImageLayoutBuilder> OciArtifactBuilder<LayoutBuilder> {
+impl<LayoutBuilder: ImageBuilder> OciArtifactBuilder<LayoutBuilder> {
     /// Create a new OCI Artifact with its media type
     pub fn new(
         mut layout: LayoutBuilder,
@@ -90,22 +90,22 @@ impl<LayoutBuilder: ImageLayoutBuilder> OciArtifactBuilder<LayoutBuilder> {
 /// OCI Artifact, an image layout with a image manifest which stores any type of `config` and `layers` rather than runnable container.
 ///
 /// This is a thin wrapper of an actual image layout implementing [ImageLayout] to provide a common interface for OCI Artifacts.
-pub struct OciArtifact<Layout: ImageLayout>(Layout);
+pub struct OciArtifact<Layout: Image>(Layout);
 
-impl<Base: ImageLayout> Deref for OciArtifact<Base> {
+impl<Base: Image> Deref for OciArtifact<Base> {
     type Target = Base;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<Layout: ImageLayout> DerefMut for OciArtifact<Layout> {
+impl<Layout: Image> DerefMut for OciArtifact<Layout> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-impl<Layout: ImageLayout> OciArtifact<Layout> {
+impl<Layout: Image> OciArtifact<Layout> {
     pub fn new(layout: Layout) -> Self {
         Self(layout)
     }
