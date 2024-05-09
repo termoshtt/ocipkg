@@ -2,6 +2,7 @@ use crate::{distribution::Client, image::Image, Digest, ImageName};
 use anyhow::Result;
 use oci_spec::image::ImageManifest;
 
+/// An image stored in remote registry as [Image]
 pub struct Remote {
     image_name: ImageName,
     client: Client,
