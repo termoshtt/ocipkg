@@ -94,8 +94,17 @@ impl Builder {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ArtifactVersion {
+    /// Old style ocipkg artifact used in 0.2.x and before
+    V0,
+    /// `application/vnd.ocipkg.v1.artifact`
+    V1,
+}
+
 /// ocipkg artifact defined as `application/vnd.ocipkg.v1.artifact`
 pub struct Artifact<Base: Image> {
+    version: ArtifactVersion,
     base: OciArtifact<Base>,
 }
 
@@ -114,33 +123,40 @@ impl<Base: Image> DerefMut for Artifact<Base> {
 
 impl Artifact<OciArchive> {
     pub fn from_oci_archive(path: &Path) -> Result<Self> {
-        let base = OciArtifact::from_oci_archive(path)?;
-        Ok(Self { base })
+        let layout = OciArchive::new(path)?;
+        Self::new(layout)
     }
 }
 
 impl Artifact<OciDir> {
     pub fn from_oci_dir(path: &Path) -> Result<Self> {
-        let base = OciArtifact::from_oci_dir(path)?;
-        Ok(Self { base })
+        let layout = OciDir::new(path)?;
+        Self::new(layout)
     }
 }
 
 impl Artifact<Remote> {
     pub fn from_remote(image_name: ImageName) -> Result<Self> {
-        let base = OciArtifact::from_remote(image_name)?;
-        Ok(Self { base })
+        let layout = Remote::new(image_name)?;
+        Self::new(layout)
     }
 }
 
 impl<Base: Image> Artifact<Base> {
     pub fn new(base: Base) -> Result<Self> {
         let mut base = OciArtifact::new(base);
-        let ty = base.artifact_type()?;
-        if ty != media_types::artifact() {
-            bail!("Not an ocipkg artifact: {}", ty);
+        if let Ok(ty) = base.artifact_type() {
+            if ty == media_types::artifact() {
+                return Ok(Self {
+                    base,
+                    version: ArtifactVersion::V1,
+                });
+            }
         }
-        Ok(Self { base })
+        Ok(Self {
+            base,
+            version: ArtifactVersion::V0,
+        })
     }
 
     pub fn get_ocipkg_config(&mut self) -> Result<Config> {
@@ -150,8 +166,38 @@ impl<Base: Image> Artifact<Base> {
 
     /// Get list of files stored in the ocipkg artifact
     pub fn files(&mut self) -> Result<Vec<PathBuf>> {
-        let config = self.get_ocipkg_config()?;
-        Ok(config.layers().values().flatten().cloned().collect())
+        match self.version {
+            ArtifactVersion::V0 => {
+                let mut files = Vec::new();
+                for (desc, blob) in self.base.get_layers()? {
+                    match desc.media_type() {
+                        MediaType::ImageLayer => {
+                            let mut ar = tar::Archive::new(blob.as_slice());
+                            for entry in ar.entries()? {
+                                let entry = entry?;
+                                let path = entry.path()?;
+                                files.push(path.to_path_buf());
+                            }
+                        }
+                        MediaType::ImageLayerGzip => {
+                            let buf = flate2::read::GzDecoder::new(blob.as_slice());
+                            let mut ar = tar::Archive::new(buf);
+                            for entry in ar.entries()? {
+                                let entry = entry?;
+                                let path = entry.path()?;
+                                files.push(path.to_path_buf());
+                            }
+                        }
+                        _ => bail!("Unsupported layer type: {}", desc.media_type()),
+                    }
+                }
+                Ok(files)
+            }
+            ArtifactVersion::V1 => {
+                let config = self.get_ocipkg_config()?;
+                Ok(config.layers().values().flatten().cloned().collect())
+            }
+        }
     }
 
     /// Unpack ocipkg artifact into local filesystem with `.oci-dir` directory
@@ -173,19 +219,16 @@ impl<Base: Image> Artifact<Base> {
         let oci_dir = OciDirBuilder::new(dest.join(".oci-dir"), self.base.get_name()?)?;
         let oci_dir = copy(self.base.deref_mut(), oci_dir)?;
         for (desc, blob) in self.base.get_layers()? {
-            match desc.media_type() {
-                // v0 format before using OCI Artifact specification
-                MediaType::ImageLayer => {
+            match (self.version, desc.media_type()) {
+                (ArtifactVersion::V0, MediaType::ImageLayer) => {
                     let buf = blob.as_slice();
                     tar::Archive::new(buf).unpack(&dest)?;
                 }
-                MediaType::ImageLayerGzip => {
+                (ArtifactVersion::V0, MediaType::ImageLayerGzip) => {
                     let buf = flate2::read::GzDecoder::new(blob.as_slice());
                     tar::Archive::new(buf).unpack(&dest)?;
                 }
-
-                // v1 format
-                media_type @ MediaType::Other(_)
+                (ArtifactVersion::V1, media_type)
                     if media_type == &media_types::layer_tar_gzip() =>
                 {
                     let buf = flate2::read::GzDecoder::new(blob.as_slice());
