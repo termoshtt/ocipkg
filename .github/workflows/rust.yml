@@ -66,3 +66,12 @@ jobs:
           command: doc
         env:
           RUSTDOCFLAGS: -D warnings
+
+  semver-check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install semver-check
+        run: cargo install cargo-semver-checks --locked
+      - name: semver check
+        run: cargo semver-checks
