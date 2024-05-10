@@ -14,12 +14,25 @@ use std::{
 
 /// Build an [OciArchive]
 pub struct OciArchiveBuilder {
-    image_name: ImageName,
+    image_name: Option<ImageName>,
     path: PathBuf,
     ar: tar::Builder<fs::File>,
 }
 
 impl OciArchiveBuilder {
+    pub fn new_unnamed(path: PathBuf) -> Result<Self> {
+        if path.exists() {
+            bail!("File already exists: {}", path.display());
+        }
+        let f = fs::File::create(&path)?;
+        let ar = tar::Builder::new(f);
+        Ok(Self {
+            ar,
+            path,
+            image_name: None,
+        })
+    }
+
     pub fn new(path: PathBuf, image_name: ImageName) -> Result<Self> {
         if path.exists() {
             bail!("File already exists: {}", path.display());
@@ -29,7 +42,7 @@ impl OciArchiveBuilder {
         Ok(Self {
             ar,
             path,
-            image_name,
+            image_name: Some(image_name),
         })
     }
 }
@@ -51,8 +64,12 @@ impl ImageBuilder for OciArchiveBuilder {
             .media_type(MediaType::ImageManifest)
             .size(size)
             .digest(digest.to_string())
-            .annotations(hashmap! {
-                "org.opencontainers.image.ref.name".to_string() => self.image_name.to_string()
+            .annotations(if let Some(name) = &self.image_name {
+                hashmap! {
+                    "org.opencontainers.image.ref.name".to_string() => name.to_string()
+                }
+            } else {
+                hashmap! {}
             })
             .build()?;
         let index = ImageIndexBuilder::default()
