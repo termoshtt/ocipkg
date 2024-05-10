@@ -1,10 +1,6 @@
 //! Manage container images stored in local storage
 
-use crate::{
-    distribution::{Name, Reference},
-    image::Image,
-    ImageName,
-};
+use crate::ImageName;
 use anyhow::{anyhow, Result};
 use directories::ProjectDirs;
 use std::{path::*, sync::OnceLock};
