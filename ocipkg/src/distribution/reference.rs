@@ -6,7 +6,7 @@ use std::fmt;
 /// Reference of container image stored in the repository
 ///
 /// In [OCI distribution spec](https://github.com/opencontainers/distribution-spec/blob/main/spec.md):
-/// > `<reference>`  MUST be either (a) the digest of the manifest or (b) a tag
+/// > `<reference>` MUST be either (a) the digest of the manifest or (b) a tag
 /// > `<reference>` as a tag MUST be at most 128 characters
 /// > in length and MUST match the following regular expression:
 /// > ```text
