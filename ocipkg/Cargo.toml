@@ -1,6 +1,6 @@
 [package]
 name = "ocipkg"
-version = "0.3.3"
+version = "0.3.4"
 authors = ["Toshiki Teramura <toshiki.teramura@gmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
