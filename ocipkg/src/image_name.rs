@@ -233,7 +233,7 @@ impl ImageName {
 
 #[cfg(test)]
 mod test {
-    use crate::ImageName;
+    use super::*;
 
     #[test]
     fn ttlsh_style() {
@@ -246,5 +246,26 @@ mod test {
             "79219A62-4E86-41B3-854D-95D8F4636C9C"
         );
         assert_eq!(image_name.reference.as_str(), "1h")
+    }
+
+    fn test_as_path(name: &str, path: &Path) -> Result<()> {
+        let image_name = ImageName::parse(name)?;
+        assert_eq!(image_name.as_path(), path);
+        assert_eq!(ImageName::from_path(&image_name.as_path())?, image_name);
+        Ok(())
+    }
+
+    #[test]
+    fn as_path() -> Result<()> {
+        test_as_path(
+            "localhost:5000/test_repo:latest",
+            "localhost__5000/test_repo/__latest".as_ref(),
+        )?;
+        test_as_path(
+            "ubuntu:20.04",
+            "registry-1.docker.io/ubuntu/__20.04".as_ref(),
+        )?;
+        test_as_path("alpine", "registry-1.docker.io/alpine/__latest".as_ref())?;
+        Ok(())
     }
 }
