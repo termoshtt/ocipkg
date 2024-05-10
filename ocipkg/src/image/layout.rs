@@ -6,16 +6,15 @@ use anyhow::{bail, Context, Result};
 use oci_spec::image::{Descriptor, DescriptorBuilder, ImageIndex, ImageManifest, MediaType};
 use std::path::Path;
 
-/// Handler of [OCI Image Layout] with containing single manifest and its name.
+/// Handler of [OCI Image Layout] with containing single manifest
 ///
-/// - [OCI Image Layout] allows empty image name, i.e. no `org.opencontainers.image.ref.name` annotation, but this trait does not allow it.
 /// - [OCI Image Layout] allows containing multiple manifests in a single layout,
 ///   this trait assumes a single manifest in a single layout.
 ///
 /// [OCI Image Layout]: https://github.com/opencontainers/image-spec/blob/v1.1.0/image-layout.md
 ///
 pub trait Image {
-    /// The name of this image.
+    /// The name of this image. This fails if the image does not have name.
     fn get_name(&mut self) -> Result<ImageName>;
 
     /// Get blob content.

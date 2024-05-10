@@ -16,7 +16,7 @@ use super::get_name_from_index;
 
 /// Build an [OciDir]
 pub struct OciDirBuilder {
-    image_name: ImageName,
+    image_name: Option<ImageName>,
     oci_dir_root: PathBuf,
     is_finished: bool,
 }
@@ -37,13 +37,25 @@ impl Drop for OciDirBuilder {
 }
 
 impl OciDirBuilder {
+    pub fn new_unnamed(oci_dir_root: PathBuf) -> Result<Self> {
+        if oci_dir_root.exists() {
+            bail!("oci-dir {} already exists", oci_dir_root.display());
+        }
+        fs::create_dir_all(&oci_dir_root)?;
+        Ok(Self {
+            image_name: None,
+            oci_dir_root,
+            is_finished: false,
+        })
+    }
+
     pub fn new(oci_dir_root: PathBuf, image_name: ImageName) -> Result<Self> {
         if oci_dir_root.exists() {
             bail!("oci-dir {} already exists", oci_dir_root.display());
         }
         fs::create_dir_all(&oci_dir_root)?;
         Ok(Self {
-            image_name,
+            image_name: Some(image_name),
             oci_dir_root,
             is_finished: false,
         })
@@ -68,8 +80,12 @@ impl ImageBuilder for OciDirBuilder {
             .media_type(MediaType::ImageManifest)
             .size(size)
             .digest(digest.to_string())
-            .annotations(hashmap! {
-                "org.opencontainers.image.ref.name".to_string() => self.image_name.to_string(),
+            .annotations(if let Some(name) = &self.image_name {
+                hashmap! {
+                    "org.opencontainers.image.ref.name".to_string() => name.to_string()
+                }
+            } else {
+                hashmap! {}
             })
             .build()?;
         let index = ImageIndexBuilder::default()
