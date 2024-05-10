@@ -1,0 +1,35 @@
+name: Start next development cycle
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+
+jobs:
+  create-pull-request:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - name: Install cargo-edit
+        run: cargo install cargo-edit
+
+      - name: Bump version
+        run: |
+          cargo set-version --bump patch
+          echo "NEW_VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')" >> $GITHUB_ENV
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "Start developing ${{ env.NEW_VERSION}}"
+          branch: "version-updater/${{ env.NEW_VERSION}}"
+          base: "main"
