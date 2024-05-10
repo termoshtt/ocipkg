@@ -1,6 +1,9 @@
 use crate::distribution::{Name, Reference};
 use anyhow::Result;
-use std::fmt;
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+};
 use url::Url;
 
 /// Image name
@@ -168,6 +171,21 @@ impl ImageName {
             format!("https://{}", hostname)
         };
         Ok(Url::parse(&url)?)
+    }
+
+    pub fn as_path(&self) -> PathBuf {
+        PathBuf::from(if let Some(port) = self.port {
+            format!(
+                "{}__{}/{}/__{}",
+                self.hostname, port, self.name, self.reference
+            )
+        } else {
+            format!("{}/{}/__{}", self.hostname, self.name, self.reference)
+        })
+    }
+
+    pub fn from_path(path: &Path) -> Result<Self> {
+        todo!()
     }
 }
 
