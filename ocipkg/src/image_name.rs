@@ -1,6 +1,9 @@
 use crate::distribution::{Name, Reference};
-use anyhow::Result;
-use std::fmt;
+use anyhow::{anyhow, bail, Context, Result};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+};
 use url::Url;
 
 /// Image name
@@ -169,11 +172,68 @@ impl ImageName {
         };
         Ok(Url::parse(&url)?)
     }
+
+    /// Encode image name into a path by `{hostname}/{name}/__{reference}` or `{hostname}__{port}/{name}/__{reference}` if port is specified.
+    pub fn as_path(&self) -> PathBuf {
+        PathBuf::from(if let Some(port) = self.port {
+            format!(
+                "{}__{}/{}/__{}",
+                self.hostname, port, self.name, self.reference
+            )
+        } else {
+            format!("{}/{}/__{}", self.hostname, self.name, self.reference)
+        })
+    }
+
+    /// Parse image name from a path encoded by [ImageName::as_path]
+    pub fn from_path(path: &Path) -> Result<Self> {
+        let components = path
+            .components()
+            .map(|c| {
+                c.as_os_str()
+                    .to_str()
+                    .context("Try to convert a path including non UTF-8 character")
+            })
+            .collect::<Result<Vec<&str>>>()?;
+        let n = components.len();
+        if n < 3 {
+            bail!(
+                "Path for image name must consist of registry, name, and tag: {}",
+                path.display()
+            );
+        }
+
+        let registry = &components[0];
+        let mut iter = registry.split("__");
+        let hostname = iter
+            .next()
+            .with_context(|| anyhow!("Invalid registry: {registry}"))?
+            .to_string();
+        let port = iter
+            .next()
+            .map(|port| str::parse(port).context("Invalid port number"))
+            .transpose()?;
+
+        let name = Name::new(&components[1..n - 1].join("/"))?;
+
+        let reference = Reference::new(
+            components[n - 1]
+                .strip_prefix("__")
+                .with_context(|| anyhow!("Missing tag in path: {}", path.display()))?,
+        )?;
+
+        Ok(ImageName {
+            hostname,
+            port,
+            name,
+            reference,
+        })
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::ImageName;
+    use super::*;
 
     #[test]
     fn ttlsh_style() {
@@ -186,5 +246,26 @@ mod test {
             "79219A62-4E86-41B3-854D-95D8F4636C9C"
         );
         assert_eq!(image_name.reference.as_str(), "1h")
+    }
+
+    fn test_as_path(name: &str, path: &Path) -> Result<()> {
+        let image_name = ImageName::parse(name)?;
+        assert_eq!(image_name.as_path(), path);
+        assert_eq!(ImageName::from_path(&image_name.as_path())?, image_name);
+        Ok(())
+    }
+
+    #[test]
+    fn as_path() -> Result<()> {
+        test_as_path(
+            "localhost:5000/test_repo:latest",
+            "localhost__5000/test_repo/__latest".as_ref(),
+        )?;
+        test_as_path(
+            "ubuntu:20.04",
+            "registry-1.docker.io/ubuntu/__20.04".as_ref(),
+        )?;
+        test_as_path("alpine", "registry-1.docker.io/alpine/__latest".as_ref())?;
+        Ok(())
     }
 }
