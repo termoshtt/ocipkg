@@ -2,6 +2,7 @@
 
 use crate::{
     distribution::{Name, Reference},
+    image::Image,
     ImageName,
 };
 use anyhow::{anyhow, Result};
@@ -31,53 +32,14 @@ pub fn data_dir() -> Result<PathBuf> {
 
 /// Resolve a path to local storage where the image will be stored
 pub fn image_dir(name: &ImageName) -> Result<PathBuf> {
-    let dir = data_dir()?;
-    if let Some(port) = name.port {
-        Ok(dir.join(format!(
-            "{}__{}/{}/__{}",
-            name.hostname, port, name.name, name.reference
-        )))
-    } else {
-        Ok(dir.join(format!(
-            "{}/{}/__{}",
-            name.hostname, name.name, name.reference
-        )))
-    }
+    Ok(data_dir()?.join(name.as_path()))
 }
 
 fn path_to_image_name(path: &Path) -> Result<ImageName> {
     let rel_path = path
         .strip_prefix(data_dir()?)
         .expect("WalkDir must return path under data_dir");
-    let components: Vec<_> = rel_path
-        .components()
-        .map(|c| {
-            c.as_os_str()
-                .to_str()
-                .expect("Non UTF-8 charactor never included here")
-        })
-        .collect();
-    let n = components.len();
-    assert!(n >= 3);
-    let registry = &components[0];
-    let name = Name::new(&components[1..n - 1].join("/"))?;
-    let reference = Reference::new(
-        components[n - 1]
-            .strip_prefix("__")
-            .expect("This has been checked"),
-    )?;
-
-    let mut iter = registry.split("__");
-    let hostname = iter.next().unwrap().to_string();
-    let port = iter
-        .next()
-        .map(|port| str::parse(port).expect("Invalid port number"));
-    Ok(ImageName {
-        hostname,
-        port,
-        name,
-        reference,
-    })
+    ImageName::from_path(rel_path)
 }
 
 /// Get images stored in local storage

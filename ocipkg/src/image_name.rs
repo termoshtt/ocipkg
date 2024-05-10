@@ -1,5 +1,5 @@
 use crate::distribution::{Name, Reference};
-use anyhow::Result;
+use anyhow::{anyhow, bail, Context, Result};
 use std::{
     fmt,
     path::{Path, PathBuf},
@@ -173,6 +173,7 @@ impl ImageName {
         Ok(Url::parse(&url)?)
     }
 
+    /// Encode image name into a path by `{hostname}/{name}/__{reference}` or `{hostname}__{port}/{name}/__{reference}` if port is specified.
     pub fn as_path(&self) -> PathBuf {
         PathBuf::from(if let Some(port) = self.port {
             format!(
@@ -184,8 +185,49 @@ impl ImageName {
         })
     }
 
+    /// Parse image name from a path encoded by [ImageName::as_path]
     pub fn from_path(path: &Path) -> Result<Self> {
-        todo!()
+        let components = path
+            .components()
+            .map(|c| {
+                c.as_os_str()
+                    .to_str()
+                    .context("Try to convert a path including non UTF-8 character")
+            })
+            .collect::<Result<Vec<&str>>>()?;
+        let n = components.len();
+        if n < 3 {
+            bail!(
+                "Path for image name must consist of registry, name, and tag: {}",
+                path.display()
+            );
+        }
+
+        let registry = &components[0];
+        let mut iter = registry.split("__");
+        let hostname = iter
+            .next()
+            .with_context(|| anyhow!("Invalid registry: {registry}"))?
+            .to_string();
+        let port = iter
+            .next()
+            .map(|port| str::parse(port).context("Invalid port number"))
+            .transpose()?;
+
+        let name = Name::new(&components[1..n - 1].join("/"))?;
+
+        let reference = Reference::new(
+            components[n - 1]
+                .strip_prefix("__")
+                .with_context(|| anyhow!("Missing tag in path: {}", path.display()))?,
+        )?;
+
+        Ok(ImageName {
+            hostname,
+            port,
+            name,
+            reference,
+        })
     }
 }
 
