@@ -175,13 +175,11 @@ impl ImageName {
 
     /// Encode image name into a path by `{hostname}/{name}/__{reference}` or `{hostname}__{port}/{name}/__{reference}` if port is specified.
     pub fn as_path(&self) -> PathBuf {
+        let reference = self.reference.replace(":", "__");
         PathBuf::from(if let Some(port) = self.port {
-            format!(
-                "{}__{}/{}/__{}",
-                self.hostname, port, self.name, self.reference
-            )
+            format!("{}__{}/{}/__{}", self.hostname, port, self.name, reference)
         } else {
-            format!("{}/{}/__{}", self.hostname, self.name, self.reference)
+            format!("{}/{}/__{}", self.hostname, self.name, reference)
         })
     }
 
@@ -217,9 +215,10 @@ impl ImageName {
         let name = Name::new(&components[1..n - 1].join("/"))?;
 
         let reference = Reference::new(
-            components[n - 1]
+            &components[n - 1]
                 .strip_prefix("__")
-                .with_context(|| anyhow!("Missing tag in path: {}", path.display()))?,
+                .with_context(|| anyhow!("Missing tag in path: {}", path.display()))?
+                .replace("__", ":"),
         )?;
 
         Ok(ImageName {
@@ -266,6 +265,10 @@ mod test {
             "registry-1.docker.io/ubuntu/__20.04".as_ref(),
         )?;
         test_as_path("alpine", "registry-1.docker.io/alpine/__latest".as_ref())?;
+        test_as_path(
+            "quay.io/jitesoft/alpine:sha256:6755355f801f8e3694bffb1a925786813462cea16f1ce2b0290b6a48acf2500c",
+            "quay.io/jitesoft/alpine/__sha256__6755355f801f8e3694bffb1a925786813462cea16f1ce2b0290b6a48acf2500c".as_ref()
+        )?;
         Ok(())
     }
 }
