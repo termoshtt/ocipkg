@@ -175,7 +175,7 @@ impl ImageName {
 
     /// Encode image name into a path by `{hostname}/{name}/__{reference}` or `{hostname}__{port}/{name}/__{reference}` if port is specified.
     pub fn as_path(&self) -> PathBuf {
-        let reference = self.reference.replace(":", "__");
+        let reference = self.reference.replace(':', "__");
         PathBuf::from(if let Some(port) = self.port {
             format!("{}__{}/{}/__{}", self.hostname, port, self.name, reference)
         } else {
