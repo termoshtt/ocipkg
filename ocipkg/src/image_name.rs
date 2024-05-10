@@ -74,6 +74,30 @@ use url::Url;
 /// # Ok::<(), anyhow::Error>(())
 /// ```
 ///
+/// [Reference] can be a digest:
+///
+/// ```text
+/// quay.io/jitesoft/alpine:sha256:6755355f801f8e3694bffb1a925786813462cea16f1ce2b0290b6a48acf2500c
+/// ^^^^^^^-------------------- hostname
+///         ^^^^^^^^^^^^^^^---- name
+///            reference ---^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/// ```
+///
+/// ```
+/// use ocipkg::{ImageName, distribution::{Name, Reference}};
+/// let name = ImageName::parse("quay.io/jitesoft/alpine:sha256:6755355f801f8e3694bffb1a925786813462cea16f1ce2b0290b6a48acf2500c")?;
+/// assert_eq!(
+///     name,
+///     ImageName {
+///         hostname: "quay.io".to_string(),
+///         port: None,
+///         name: Name::new("jitesoft/alpine")?,
+///         reference: Reference::new("sha256:6755355f801f8e3694bffb1a925786813462cea16f1ce2b0290b6a48acf2500c")?,
+///     }
+/// );
+/// # Ok::<(), anyhow::Error>(())
+/// ```
+///
 /// Default values
 /// ---------------
 /// If `hostname` is absent, use `registry-1.docker.io` for docker compatibility:
