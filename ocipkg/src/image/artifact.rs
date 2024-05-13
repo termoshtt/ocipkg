@@ -191,6 +191,15 @@ impl<Base: Image> Artifact<Base> {
                                 files.push(path.to_path_buf());
                             }
                         }
+                        media_type if media_type.to_string().ends_with("gzip") => {
+                            let buf = flate2::read::GzDecoder::new(blob.as_slice());
+                            let mut ar = tar::Archive::new(buf);
+                            for entry in ar.entries()? {
+                                let entry = entry?;
+                                let path = entry.path()?;
+                                files.push(path.to_path_buf());
+                            }
+                        }
                         _ => bail!("Unsupported layer type: {}", desc.media_type()),
                     }
                 }
@@ -228,6 +237,10 @@ impl<Base: Image> Artifact<Base> {
                     tar::Archive::new(buf).unpack(&dest)?;
                 }
                 (ArtifactVersion::V0, MediaType::ImageLayerGzip) => {
+                    let buf = flate2::read::GzDecoder::new(blob.as_slice());
+                    tar::Archive::new(buf).unpack(&dest)?;
+                }
+                (ArtifactVersion::V0, media_type) if media_type.to_string().ends_with("gzip") => {
                     let buf = flate2::read::GzDecoder::new(blob.as_slice());
                     tar::Archive::new(buf).unpack(&dest)?;
                 }

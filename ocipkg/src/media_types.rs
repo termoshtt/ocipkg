@@ -18,3 +18,14 @@ pub fn config_json() -> MediaType {
 pub fn layer_tar_gzip() -> MediaType {
     MediaType::Other("application/vnd.ocipkg.v1.layer.tar+gzip".to_string())
 }
+
+/// Test media_type is imageindex
+///
+/// DockerV2S2 can't directly match by MediaType
+pub fn is_imageindex(media_type: &str) -> bool {
+    matches!(
+        media_type,
+        "application/vnd.docker.distribution.manifest.list.v2+json"
+            | "application/vnd.oci.image.index.v1+json"
+    )
+}
