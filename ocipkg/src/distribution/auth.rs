@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use base64::engine::{general_purpose::STANDARD, Engine};
 use oci_spec::distribution::ErrorResponse;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, io, path::*};
@@ -99,7 +100,9 @@ impl StoredAuth {
 
     pub fn append(&mut self, other: Self) -> Result<()> {
         for (key, value) in other.auths.into_iter() {
-            self.auths.insert(key, value);
+            if value.is_valid() {
+                self.auths.insert(key, value);
+            }
         }
         Ok(())
     }
@@ -116,7 +119,17 @@ impl StoredAuth {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Auth {
+    // base64 encoded username:password
     auth: String,
+}
+
+impl Auth {
+    fn is_valid(&self) -> bool {
+        let Ok(decoded) = STANDARD.decode(&self.auth) else {
+            return false;
+        };
+        decoded.split(|b| *b == b':').count() == 2
+    }
 }
 
 fn auth_path() -> Option<PathBuf> {
