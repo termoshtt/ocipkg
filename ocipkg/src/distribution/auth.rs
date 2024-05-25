@@ -42,6 +42,12 @@ impl StoredAuth {
         Ok(auth)
     }
 
+    pub fn add(&mut self, domain: &str, username: &str, password: &str) {
+        self.auths
+            .insert(domain.to_string(), Auth::new(username, password));
+    }
+
+    #[deprecated(note = "Use `add` instead")]
     pub fn insert(&mut self, domain: &str, octet: String) {
         self.auths.insert(domain.to_string(), Auth { auth: octet });
     }
@@ -50,8 +56,10 @@ impl StoredAuth {
         let path = auth_path().context("No valid runtime directory")?;
         let parent = path.parent().unwrap();
         if !parent.exists() {
+            log::info!("Creating directory: {}", parent.display());
             fs::create_dir_all(parent)?;
         }
+        log::info!("Saving auth info to: {}", path.display());
         let f = fs::File::create(&path)?;
         serde_json::to_writer_pretty(f, self)?;
         Ok(())
@@ -96,11 +104,6 @@ impl StoredAuth {
         let res = req.call()?;
         let token = res.into_json::<Token>()?;
         Ok(token.token)
-    }
-
-    pub fn add(&mut self, domain: &str, username: &str, password: &str) {
-        self.auths
-            .insert(domain.to_string(), Auth::new(username, password));
     }
 
     pub fn append(&mut self, other: Self) -> Result<()> {
