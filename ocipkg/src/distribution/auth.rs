@@ -98,6 +98,11 @@ impl StoredAuth {
         Ok(token.token)
     }
 
+    pub fn add(&mut self, domain: &str, username: &str, password: &str) {
+        self.auths
+            .insert(domain.to_string(), Auth::new(username, password));
+    }
+
     pub fn append(&mut self, other: Self) -> Result<()> {
         for (key, value) in other.auths.into_iter() {
             if value.is_valid() {
@@ -124,6 +129,12 @@ struct Auth {
 }
 
 impl Auth {
+    fn new(username: &str, password: &str) -> Self {
+        let auth = format!("{}:{}", username, password);
+        let auth = STANDARD.encode(auth.as_bytes());
+        Self { auth }
+    }
+
     fn is_valid(&self) -> bool {
         let Ok(decoded) = STANDARD.decode(&self.auth) else {
             return false;

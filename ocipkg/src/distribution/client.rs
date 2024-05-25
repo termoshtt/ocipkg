@@ -32,6 +32,10 @@ impl Client {
         Self::new(image.registry_url()?, image.name.clone())
     }
 
+    pub fn add_basic_auth(&mut self, domain: &str, username: &str, password: &str) {
+        self.auth.add(domain, username, password);
+    }
+
     fn call(&mut self, req: ureq::Request) -> Result<ureq::Response> {
         if let Some(token) = &self.token {
             return Ok(req
