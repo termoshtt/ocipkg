@@ -197,6 +197,14 @@ impl ImageName {
         Ok(Url::parse(&url)?)
     }
 
+    pub fn as_encoded_path(&self) -> PathBuf {
+        todo!()
+    }
+
+    pub fn from_encoded_path(_path: &Path) -> Result<Self> {
+        todo!()
+    }
+
     /// Encode image name into a path by `{hostname}/{name}/__{reference}` or `{hostname}__{port}/{name}/__{reference}` if port is specified.
     pub fn as_path(&self) -> PathBuf {
         let reference = self.reference.replace(':', "__");
