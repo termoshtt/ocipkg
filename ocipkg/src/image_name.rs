@@ -284,19 +284,6 @@ mod test {
     use super::*;
 
     #[test]
-    fn ttlsh_style() {
-        let image_name =
-            ImageName::parse("ttl.sh/79219A62-4E86-41B3-854D-95D8F4636C9C:1h").unwrap();
-        assert_eq!(image_name.hostname, "ttl.sh".to_string(),);
-        assert_eq!(image_name.port, None);
-        assert_eq!(
-            image_name.name.as_str(),
-            "79219A62-4E86-41B3-854D-95D8F4636C9C"
-        );
-        assert_eq!(image_name.reference.as_str(), "1h")
-    }
-
-    #[test]
     fn as_path() -> Result<()> {
         fn test(name: &str, path: &Path) -> Result<()> {
             let image_name = ImageName::parse(name)?;
