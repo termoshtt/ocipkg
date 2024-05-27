@@ -2,7 +2,7 @@
 name = "ocipkg-cli"
 authors = ["Toshiki Teramura <toshiki.teramura@gmail.com>"]
 license = "MIT OR Apache-2.0"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2021"
 description = "CLI for ocipkg"
 documentation = "https://docs.rs/ocipkg-cli"
@@ -25,7 +25,7 @@ tar = "0.4.40"
 url = "2.5.0"
 
 [dependencies.ocipkg]
-version = "0.3.4"
+version = "0.3.5"
 path = "../ocipkg"
 
 [[bin]]
