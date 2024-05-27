@@ -170,7 +170,7 @@ fn main() -> Result<()> {
                 }
             }
 
-            auth.try_login(&url)?;
+            let _token = auth.get_token(&url)?;
             log::info!("Login succeed");
             auth.save()?;
         }

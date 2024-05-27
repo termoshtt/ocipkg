@@ -65,15 +65,14 @@ impl StoredAuth {
         Ok(())
     }
 
-    /// Try login by accessing the API root `/v2/`
-    pub fn try_login(&self, url: &url::Url) -> Result<()> {
+    /// Get token by trying to access API root `/v2/`
+    pub fn get_token(&self, url: &url::Url) -> Result<Option<String>> {
         let test_url = url.join("/v2/").unwrap();
         let challenge = match ureq::get(test_url.as_str()).call() {
-            Ok(_) => return Ok(()),
+            Ok(_) => return Ok(None),
             Err(e) => AuthChallenge::try_from(e)?,
         };
-        let _token = self.challenge(&challenge).map(Some);
-        Ok(())
+        self.challenge(&challenge).map(Some)
     }
 
     /// Get token based on WWW-Authentication header
