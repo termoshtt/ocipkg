@@ -65,13 +65,11 @@ impl StoredAuth {
         Ok(())
     }
 
-    /// Get token by trying to access API root `/v2/`
-    ///
-    /// Returns `None` if no authentication is required.
-    pub fn get_token(&self, url: &url::Url) -> Result<Option<String>> {
+    /// Try login by accessing the API root `/v2/`
+    pub fn try_login(&self, url: &url::Url) -> Result<()> {
         let test_url = url.join("/v2/").unwrap();
         let www_auth = match ureq::get(test_url.as_str()).call() {
-            Ok(_) => return Ok(None),
+            Ok(_) => return Ok(()),
             Err(ureq::Error::Status(status, res)) => {
                 if status == 401 {
                     res.header("www-authenticate").unwrap().to_string()
@@ -84,7 +82,8 @@ impl StoredAuth {
         };
 
         let challenge = AuthChallenge::from_header(&www_auth)?;
-        self.challenge(&challenge).map(Some)
+        let _token = self.challenge(&challenge).map(Some);
+        Ok(())
     }
 
     /// Get token based on WWW-Authentication header
