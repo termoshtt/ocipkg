@@ -38,6 +38,20 @@ impl Reference {
         &self.0
     }
 
+    /// Encode upper letters and `:` to URL encoding, e.g. `A` -> `%41`
+    pub fn encoded(&self) -> String {
+        self.0
+            .chars()
+            .map(|c| {
+                if c.is_ascii_uppercase() || c == ':' {
+                    format!("%{:02X}", c as u8)
+                } else {
+                    c.to_string()
+                }
+            })
+            .collect()
+    }
+
     pub fn new(name: &str) -> Result<Self> {
         if REF_RE.is_match(name) {
             Ok(Reference(name.to_string()))
@@ -63,5 +77,15 @@ mod tests {
         );
         // @ is not allowed
         assert!(Reference::new("my_super_tag@2").is_err());
+
+        // Upper ASCII is encoded
+        assert_eq!(
+            Reference::new("SuperTag").unwrap().encoded(),
+            "%53uper%54ag"
+        );
+        assert_eq!(
+            Reference::new("sha256:a1b2c3").unwrap().encoded(),
+            "sha256%3Aa1b2c3"
+        );
     }
 }
