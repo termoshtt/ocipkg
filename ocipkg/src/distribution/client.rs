@@ -32,6 +32,10 @@ impl Client {
         Self::new(image.registry_url()?, image.name.clone())
     }
 
+    pub fn add_basic_auth(&mut self, domain: &str, username: &str, password: &str) {
+        self.auth.add(domain, username, password);
+    }
+
     fn call(&mut self, req: ureq::Request) -> Result<ureq::Response> {
         if let Some(token) = &self.token {
             return Ok(req
@@ -41,19 +45,10 @@ impl Client {
 
         // Try get token
         let try_req = req.clone();
-        let www_auth = match try_req.call() {
+        let challenge = match try_req.call() {
             Ok(res) => return Ok(res),
-            Err(ureq::Error::Status(status, res)) => {
-                if status == 401 && res.has("www-authenticate") {
-                    res.header("www-authenticate").unwrap().to_string()
-                } else {
-                    let err = res.into_json::<ErrorResponse>()?;
-                    return Err(err.into());
-                }
-            }
-            Err(ureq::Error::Transport(e)) => return Err(e.into()),
+            Err(e) => AuthChallenge::try_from(e)?,
         };
-        let challenge = AuthChallenge::from_header(&www_auth)?;
         self.token = Some(self.auth.challenge(&challenge)?);
         self.call(req)
     }

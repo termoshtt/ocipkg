@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use base64::engine::{general_purpose::STANDARD, Engine};
 use oci_spec::distribution::ErrorResponse;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, io, path::*};
@@ -41,6 +42,12 @@ impl StoredAuth {
         Ok(auth)
     }
 
+    pub fn add(&mut self, domain: &str, username: &str, password: &str) {
+        self.auths
+            .insert(domain.to_string(), Auth::new(username, password));
+    }
+
+    #[deprecated(note = "Use `add` instead")]
     pub fn insert(&mut self, domain: &str, octet: String) {
         self.auths.insert(domain.to_string(), Auth { auth: octet });
     }
@@ -49,32 +56,22 @@ impl StoredAuth {
         let path = auth_path().context("No valid runtime directory")?;
         let parent = path.parent().unwrap();
         if !parent.exists() {
+            log::info!("Creating directory: {}", parent.display());
             fs::create_dir_all(parent)?;
         }
+        log::info!("Saving auth info to: {}", path.display());
         let f = fs::File::create(&path)?;
         serde_json::to_writer_pretty(f, self)?;
         Ok(())
     }
 
     /// Get token by trying to access API root `/v2/`
-    ///
-    /// Returns `None` if no authentication is required.
     pub fn get_token(&self, url: &url::Url) -> Result<Option<String>> {
         let test_url = url.join("/v2/").unwrap();
-        let www_auth = match ureq::get(test_url.as_str()).call() {
+        let challenge = match ureq::get(test_url.as_str()).call() {
             Ok(_) => return Ok(None),
-            Err(ureq::Error::Status(status, res)) => {
-                if status == 401 {
-                    res.header("www-authenticate").unwrap().to_string()
-                } else {
-                    let err = res.into_json::<ErrorResponse>()?;
-                    return Err(err.into());
-                }
-            }
-            Err(ureq::Error::Transport(e)) => return Err(e.into()),
+            Err(e) => AuthChallenge::try_from(e)?,
         };
-
-        let challenge = AuthChallenge::from_header(&www_auth)?;
         self.challenge(&challenge).map(Some)
     }
 
@@ -99,7 +96,9 @@ impl StoredAuth {
 
     pub fn append(&mut self, other: Self) -> Result<()> {
         for (key, value) in other.auths.into_iter() {
-            self.auths.insert(key, value);
+            if value.is_valid() {
+                self.auths.insert(key, value);
+            }
         }
         Ok(())
     }
@@ -116,7 +115,23 @@ impl StoredAuth {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Auth {
+    // base64 encoded username:password
     auth: String,
+}
+
+impl Auth {
+    fn new(username: &str, password: &str) -> Self {
+        let auth = format!("{}:{}", username, password);
+        let auth = STANDARD.encode(auth.as_bytes());
+        Self { auth }
+    }
+
+    fn is_valid(&self) -> bool {
+        let Ok(decoded) = STANDARD.decode(&self.auth) else {
+            return false;
+        };
+        decoded.split(|b| *b == b':').count() == 2
+    }
 }
 
 fn auth_path() -> Option<PathBuf> {
@@ -160,6 +175,23 @@ pub struct AuthChallenge {
     pub url: String,
     pub service: String,
     pub scope: String,
+}
+
+impl TryFrom<ureq::Error> for AuthChallenge {
+    type Error = anyhow::Error;
+    fn try_from(res: ureq::Error) -> Result<Self> {
+        match res {
+            ureq::Error::Status(status, res) => {
+                if status == 401 && res.has("www-authenticate") {
+                    Self::from_header(res.header("www-authenticate").unwrap())
+                } else {
+                    let err = res.into_json::<ErrorResponse>()?;
+                    Err(err.into())
+                }
+            }
+            ureq::Error::Transport(e) => Err(e.into()),
+        }
+    }
 }
 
 impl AuthChallenge {

@@ -1,5 +1,4 @@
-use anyhow::Result;
-use base64::{engine::general_purpose::STANDARD, Engine};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use ocipkg::image::{Artifact, Image};
 use std::path::*;
@@ -69,9 +68,9 @@ enum Opt {
         /// OCI registry to be login
         registry: String,
         #[clap(short = 'u', long = "username")]
-        username: String,
+        username: Option<String>,
         #[clap(short = 'p', long = "password")]
-        password: String,
+        password: Option<String>,
     },
 
     /// Inspect components in OCI archive
@@ -156,14 +155,23 @@ fn main() -> Result<()> {
             password,
         } => {
             let url = url::Url::parse(&registry)?;
-            let octet = STANDARD.encode(format!("{}:{}", username, password,));
-            let mut new_auth = ocipkg::distribution::StoredAuth::default();
-            new_auth.insert(url.domain().unwrap(), octet);
-            let _token = new_auth.get_token(&url)?;
-            println!("Login succeed");
-
             let mut auth = ocipkg::distribution::StoredAuth::load()?;
-            auth.append(new_auth)?;
+            match (username, password) {
+                (Some(username), Some(password)) => {
+                    auth.add(
+                        url.domain().context("URL does not contain domain name")?,
+                        &username,
+                        &password,
+                    );
+                }
+                (None, None) => {}
+                _ => {
+                    bail!("Both username and password must be set");
+                }
+            }
+
+            let _token = auth.get_token(&url)?;
+            log::info!("Login succeed");
             auth.save()?;
         }
 
