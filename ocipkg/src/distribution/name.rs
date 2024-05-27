@@ -4,12 +4,11 @@ use std::fmt;
 
 /// Namespace of the repository
 ///
-/// In [OCI distribution spec](https://github.com/opencontainers/distribution-spec/blob/main/spec.md):
-/// > `<name>` MUST match the following regular expression:
-/// > ```text
-/// > [a-z0-9]+([._-][a-z0-9]+)*(/[a-z0-9]+([._-][a-z0-9]+)*)*
-/// > ```
-/// This struct checks this restriction at creation.
+/// The name must satisfy the following regular expression in [OCI distribution spec 1.1.0](https://github.com/opencontainers/distribution-spec/blob/v1.1.0/spec.md):
+///
+/// ```regex
+/// [a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(\/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*)*
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Name(String);
 
@@ -27,7 +26,7 @@ impl fmt::Display for Name {
 }
 
 lazy_static::lazy_static! {
-    static ref NAME_RE: Regex = Regex::new(r"^[A-Za-z0-9]+([._-][A-Za-z0-9]+)*(/[A-Za-z0-9]+([._-][A-Za-z0-9]+)*)*$").unwrap();
+    static ref NAME_RE: Regex = Regex::new(r"^[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(\/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*)*$").unwrap();
 }
 
 impl Name {
@@ -54,5 +53,8 @@ mod tests {
         // Head must be alphanum
         assert!(Name::new("_ghcr.io").is_err());
         assert!(Name::new("/ghcr.io").is_err());
+
+        // Capital letter is not allowed
+        assert!(Name::new("ghcr.io/Termoshtt").is_err());
     }
 }
