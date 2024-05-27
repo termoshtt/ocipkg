@@ -197,12 +197,29 @@ impl ImageName {
         Ok(Url::parse(&url)?)
     }
 
-    pub fn as_encoded_path(&self) -> PathBuf {
-        todo!()
+    pub fn as_escaped_path(&self) -> PathBuf {
+        PathBuf::from(if let Some(port) = &self.port {
+            format!(
+                "{}%3A{}/{}%3A{}",
+                self.hostname,
+                port,
+                self.name,
+                self.reference.encoded()
+            )
+        } else {
+            format!(
+                "{}/{}%3A{}",
+                self.hostname,
+                self.name.as_str(),
+                self.reference.encoded()
+            )
+        })
     }
 
-    pub fn from_encoded_path(_path: &Path) -> Result<Self> {
-        todo!()
+    pub fn from_escaped_path(path: &Path) -> Result<Self> {
+        let image_name =
+            urlencoding::decode(path.as_os_str().to_str().context("Non UTF-8 file path")?)?;
+        Self::parse(&image_name)
     }
 
     /// Encode image name into a path by `{hostname}/{name}/__{reference}` or `{hostname}__{port}/{name}/__{reference}` if port is specified.
@@ -279,27 +296,53 @@ mod test {
         assert_eq!(image_name.reference.as_str(), "1h")
     }
 
-    fn test_as_path(name: &str, path: &Path) -> Result<()> {
-        let image_name = ImageName::parse(name)?;
-        assert_eq!(image_name.as_path(), path);
-        assert_eq!(ImageName::from_path(&image_name.as_path())?, image_name);
+    #[test]
+    fn as_path() -> Result<()> {
+        fn test(name: &str, path: &Path) -> Result<()> {
+            let image_name = ImageName::parse(name)?;
+            assert_eq!(image_name.as_path(), path);
+            assert_eq!(ImageName::from_path(&image_name.as_path())?, image_name);
+            Ok(())
+        }
+
+        test(
+            "localhost:5000/test_repo:latest",
+            "localhost__5000/test_repo/__latest".as_ref(),
+        )?;
+        test(
+            "ubuntu:20.04",
+            "registry-1.docker.io/ubuntu/__20.04".as_ref(),
+        )?;
+        test("alpine", "registry-1.docker.io/alpine/__latest".as_ref())?;
+        test(
+            "quay.io/jitesoft/alpine:sha256:6755355f801f8e3694bffb1a925786813462cea16f1ce2b0290b6a48acf2500c",
+            "quay.io/jitesoft/alpine/__sha256__6755355f801f8e3694bffb1a925786813462cea16f1ce2b0290b6a48acf2500c".as_ref()
+        )?;
         Ok(())
     }
 
     #[test]
-    fn as_path() -> Result<()> {
-        test_as_path(
+    fn escaped_path() -> Result<()> {
+        fn test(name: &str, path: &Path) -> Result<()> {
+            let image_name = ImageName::parse(name)?;
+            let escaped = image_name.as_escaped_path();
+            assert_eq!(escaped, path);
+            assert_eq!(ImageName::from_escaped_path(&escaped)?, image_name);
+            Ok(())
+        }
+
+        test(
             "localhost:5000/test_repo:latest",
-            "localhost__5000/test_repo/__latest".as_ref(),
+            "localhost%3A5000/test_repo%3Alatest".as_ref(),
         )?;
-        test_as_path(
+        test(
             "ubuntu:20.04",
-            "registry-1.docker.io/ubuntu/__20.04".as_ref(),
+            "registry-1.docker.io/ubuntu%3A20.04".as_ref(),
         )?;
-        test_as_path("alpine", "registry-1.docker.io/alpine/__latest".as_ref())?;
-        test_as_path(
+        test("alpine", "registry-1.docker.io/alpine%3Alatest".as_ref())?;
+        test(
             "quay.io/jitesoft/alpine:sha256:6755355f801f8e3694bffb1a925786813462cea16f1ce2b0290b6a48acf2500c",
-            "quay.io/jitesoft/alpine/__sha256__6755355f801f8e3694bffb1a925786813462cea16f1ce2b0290b6a48acf2500c".as_ref()
+            "quay.io/jitesoft/alpine%3Asha256%3A6755355f801f8e3694bffb1a925786813462cea16f1ce2b0290b6a48acf2500c".as_ref()
         )?;
         Ok(())
     }
