@@ -68,20 +68,10 @@ impl StoredAuth {
     /// Try login by accessing the API root `/v2/`
     pub fn try_login(&self, url: &url::Url) -> Result<()> {
         let test_url = url.join("/v2/").unwrap();
-        let www_auth = match ureq::get(test_url.as_str()).call() {
+        let challenge = match ureq::get(test_url.as_str()).call() {
             Ok(_) => return Ok(()),
-            Err(ureq::Error::Status(status, res)) => {
-                if status == 401 {
-                    res.header("www-authenticate").unwrap().to_string()
-                } else {
-                    let err = res.into_json::<ErrorResponse>()?;
-                    return Err(err.into());
-                }
-            }
-            Err(ureq::Error::Transport(e)) => return Err(e.into()),
+            Err(e) => AuthChallenge::try_from(e)?,
         };
-
-        let challenge = AuthChallenge::from_header(&www_auth)?;
         let _token = self.challenge(&challenge).map(Some);
         Ok(())
     }
@@ -186,6 +176,23 @@ pub struct AuthChallenge {
     pub url: String,
     pub service: String,
     pub scope: String,
+}
+
+impl TryFrom<ureq::Error> for AuthChallenge {
+    type Error = anyhow::Error;
+    fn try_from(res: ureq::Error) -> Result<Self> {
+        match res {
+            ureq::Error::Status(status, res) => {
+                if status == 401 && res.has("www-authenticate") {
+                    Self::from_header(res.header("www-authenticate").unwrap())
+                } else {
+                    let err = res.into_json::<ErrorResponse>()?;
+                    Err(err.into())
+                }
+            }
+            ureq::Error::Transport(e) => Err(e.into()),
+        }
+    }
 }
 
 impl AuthChallenge {
