@@ -102,6 +102,14 @@ impl<LayoutBuilder: ImageBuilder> OciArtifactBuilder<LayoutBuilder> {
         )
     }
 
+    /// Set `org.opencontainers.image.documentation` annotation, URL to get documentation on the image
+    pub fn add_documentation(&mut self, url: &Url) {
+        self.add_annotation(
+            "org.opencontainers.image.documentation".to_string(),
+            url.to_string(),
+        )
+    }
+
     /// Set `org.opencontainers.image.url` annotation, URL to find more information on the image
     pub fn add_url(&mut self, url: &Url) {
         self.add_annotation("org.opencontainers.image.url".to_string(), url.to_string())
@@ -113,6 +121,40 @@ impl<LayoutBuilder: ImageBuilder> OciArtifactBuilder<LayoutBuilder> {
             "org.opencontainers.image.created".to_string(),
             created.to_rfc3339(),
         )
+    }
+
+    /// Set `org.opencontainers.image.revision` annotation, source control revision identifier for the packaged software.
+    pub fn add_revision(&mut self, revision: String) {
+        self.add_annotation("org.opencontainers.image.revision".to_string(), revision)
+    }
+
+    /// Set `org.opencontainers.image.vendor` annotation, name of the distributing entity, organization or individual.
+    pub fn add_vendor(&mut self, vendor: String) {
+        self.add_annotation("org.opencontainers.image.vendor".to_string(), vendor)
+    }
+
+    /// Set `org.opencontainers.image.title` annotation, human-readable title of the image.
+    pub fn add_title(&mut self, title: String) {
+        self.add_annotation("org.opencontainers.image.title".to_string(), title)
+    }
+
+    /// Set `org.opencontainers.image.licenses` annotation, SPDX license expression(s) that apply to the image.
+    pub fn add_licenses(&mut self, licenses: String) {
+        self.add_annotation("org.opencontainers.image.licenses".to_string(), licenses)
+    }
+
+    /// Set `org.opencontainers.image.authors` annotation, name and/or email address of the person or entity who authored the image.
+    pub fn add_authors(&mut self, authors: String) {
+        self.add_annotation("org.opencontainers.image.authors".to_string(), authors)
+    }
+
+    /// Set `org.opencontainers.image.version` annotation, version of the packaged software.
+    ///
+    /// - The version MAY match a label or tag in the source code repository
+    /// - version MAY be Semantic versioning-compatible
+    ///
+    pub fn add_versions(&mut self, versions: String) {
+        self.add_annotation("org.opencontainers.image.versions".to_string(), versions)
     }
 
     /// Build the OCI Artifact
