@@ -3,6 +3,7 @@ use crate::{
     Digest, ImageName,
 };
 use anyhow::{Context, Result};
+use chrono::{DateTime, TimeZone};
 use oci_spec::image::{
     Descriptor, DescriptorBuilder, ImageManifest, ImageManifestBuilder, MediaType,
 };
@@ -11,6 +12,7 @@ use std::{
     ops::{Deref, DerefMut},
     path::Path,
 };
+use url::Url;
 
 /// Build a [OciArtifact]
 pub struct OciArtifactBuilder<LayoutBuilder: ImageBuilder> {
@@ -69,6 +71,48 @@ impl<LayoutBuilder: ImageBuilder> OciArtifactBuilder<LayoutBuilder> {
             .build()?;
         self.manifest.layers_mut().push(layer.clone());
         Ok(layer)
+    }
+
+    /// Add any type of annotation to the manifest of the OCI Artifact
+    pub fn add_annotation(&mut self, key: String, value: String) {
+        self.manifest
+            .annotations_mut()
+            .get_or_insert(HashMap::new())
+            .insert(key, value);
+    }
+
+    /// Set `org.opencontainers.image.description` annotation
+    ///
+    /// Note that ghcr.io [requires](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) the length of this description in 512 characters or less.
+    /// But it is not enforced by the OCI specification, and the length of the description is not limited here.
+    pub fn add_description(&mut self, description: String) {
+        self.add_annotation(
+            "org.opencontainers.image.description".to_string(),
+            description,
+        )
+    }
+
+    /// Set `org.opencontainers.image.source` annotation which helps to track the source code of the image
+    ///
+    /// Note that ghcr.io [uses](https://docs.github.com/en/packages/learn-github-packages/connecting-a-repository-to-a-package#connecting-a-repository-to-a-container-image-using-the-command-line) this annotation to connect container image to source code repository.
+    pub fn add_source(&mut self, url: &Url) {
+        self.add_annotation(
+            "org.opencontainers.image.source".to_string(),
+            url.to_string(),
+        )
+    }
+
+    /// Set `org.opencontainers.image.url` annotation, URL to find more information on the image
+    pub fn add_url(&mut self, url: &Url) {
+        self.add_annotation("org.opencontainers.image.url".to_string(), url.to_string())
+    }
+
+    /// Set `org.opencontainers.image.created` annotation, date and time on which the image was built.
+    pub fn add_created<TZ: TimeZone>(&mut self, created: &DateTime<TZ>) {
+        self.add_annotation(
+            "org.opencontainers.image.created".to_string(),
+            created.to_rfc3339(),
+        )
     }
 
     /// Build the OCI Artifact
