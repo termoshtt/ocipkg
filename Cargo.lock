@@ -774,7 +774,7 @@ dependencies = [
 
 [[package]]
 name = "ocipkg"
-version = "0.3.5"
+version = "0.3.6"
 dependencies = [
  "anyhow",
  "base16ct",
@@ -802,7 +802,7 @@ dependencies = [
 
 [[package]]
 name = "ocipkg-cli"
-version = "0.3.5"
+version = "0.3.6"
 dependencies = [
  "anyhow",
  "base64",
