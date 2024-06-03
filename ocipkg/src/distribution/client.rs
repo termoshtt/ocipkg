@@ -1,5 +1,5 @@
 use crate::distribution::*;
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{bail, ensure, Result};
 use oci_spec::{distribution::*, image::*};
 use url::Url;
 
@@ -130,9 +130,12 @@ impl Client {
             req = req.set("Authorization", &format!("Bearer {}", token));
         }
         let res = req.send_bytes(&buf)?;
-        let loc = res
-            .header("Location")
-            .expect("Location header is lacked in OCI registry response");
+        let Some(loc) = res.header("Location") else {
+            bail!(
+                "Location header is lacked in `PUT {url}`, Response: {}",
+                res.into_string()?
+            )
+        };
         Ok(Url::parse(loc).or_else(|_| self.url.join(loc))?)
     }
 
@@ -167,9 +170,12 @@ impl Client {
             .url
             .join(&format!("/v2/{}/blobs/uploads/", self.name))?;
         let res = self.call(self.post(&url))?;
-        let loc = res
-            .header("Location")
-            .expect("Location header is lacked in OCI registry response");
+        let Some(loc) = res.header("Location") else {
+            bail!(
+                "Location header is lacked in `POST {url}`, Response: {}",
+                res.into_string()?
+            )
+        };
         let url = Url::parse(loc).or_else(|_| self.url.join(loc))?;
 
         let digest = Digest::from_buf_sha256(blob);
@@ -183,9 +189,12 @@ impl Client {
             req = req.set("Authorization", &format!("Bearer {}", token))
         }
         let res = req.send_bytes(blob)?;
-        let loc = res
-            .header("Location")
-            .expect("Location header is lacked in OCI registry response");
+        let Some(loc) = res.header("Location") else {
+            bail!(
+                "Location header is lacked in `PUT {url}`, Response: {}",
+                res.into_string()?
+            )
+        };
         let url = Url::parse(loc).or_else(|_| self.url.join(loc))?;
         Ok((digest, url))
     }
