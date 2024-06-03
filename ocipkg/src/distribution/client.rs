@@ -1,5 +1,5 @@
 use crate::distribution::*;
-use anyhow::Result;
+use anyhow::{bail, ensure, Context, Result};
 use oci_spec::{distribution::*, image::*};
 use url::Url;
 
@@ -37,20 +37,22 @@ impl Client {
     }
 
     fn call(&mut self, req: ureq::Request) -> Result<ureq::Response> {
-        if let Some(token) = &self.token {
-            return Ok(req
-                .set("Authorization", &format!("Bearer {}", token))
-                .call()?);
+        if self.token.is_none() {
+            // Try get token
+            let try_req = req.clone();
+            let challenge = match try_req.call() {
+                Ok(res) => return Ok(res),
+                Err(e) => AuthChallenge::try_from(e)?,
+            };
+            self.token = Some(self.auth.challenge(&challenge)?);
         }
-
-        // Try get token
-        let try_req = req.clone();
-        let challenge = match try_req.call() {
-            Ok(res) => return Ok(res),
-            Err(e) => AuthChallenge::try_from(e)?,
-        };
-        self.token = Some(self.auth.challenge(&challenge)?);
-        self.call(req)
+        ensure!(self.token.is_some());
+        Ok(req
+            .set(
+                "Authorization",
+                &format!("Bearer {}", self.token.as_ref().unwrap()),
+            )
+            .call()?)
     }
 
     fn get(&self, url: &Url) -> ureq::Request {
