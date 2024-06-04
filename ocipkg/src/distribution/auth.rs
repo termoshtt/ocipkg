@@ -80,7 +80,7 @@ impl StoredAuth {
         let token_url = Url::parse(&challenge.url)?;
         let domain = token_url
             .domain()
-            .expect("www-authenticate header returns invalid URL");
+            .with_context(|| format!("www-authenticate header returns invalid URL: {token_url}"))?;
 
         let mut req = ureq::get(token_url.as_str()).set("Accept", "application/json");
         if let Some(auth) = self.auths.get(domain) {

@@ -10,7 +10,7 @@ use crate::{
     media_types::{self, config_json},
     ImageName,
 };
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::MediaType;
 use std::{
@@ -50,7 +50,7 @@ impl Builder {
                 .file_name()
                 .expect("This never fails since checked above")
                 .to_str()
-                .expect("Non-UTF8 file name");
+                .context("Non-UTF8 file name")?;
             let mut f = fs::File::open(path)?;
             files.push(PathBuf::from(name));
             ar.append_file(name, &mut f)?;

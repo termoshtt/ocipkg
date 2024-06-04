@@ -1,5 +1,5 @@
 use crate::distribution::*;
-use anyhow::Result;
+use anyhow::{bail, ensure, Result};
 use oci_spec::{distribution::*, image::*};
 use url::Url;
 
@@ -37,20 +37,22 @@ impl Client {
     }
 
     fn call(&mut self, req: ureq::Request) -> Result<ureq::Response> {
-        if let Some(token) = &self.token {
-            return Ok(req
-                .set("Authorization", &format!("Bearer {}", token))
-                .call()?);
+        if self.token.is_none() {
+            // Try get token
+            let try_req = req.clone();
+            let challenge = match try_req.call() {
+                Ok(res) => return Ok(res),
+                Err(e) => AuthChallenge::try_from(e)?,
+            };
+            self.token = Some(self.auth.challenge(&challenge)?);
         }
-
-        // Try get token
-        let try_req = req.clone();
-        let challenge = match try_req.call() {
-            Ok(res) => return Ok(res),
-            Err(e) => AuthChallenge::try_from(e)?,
-        };
-        self.token = Some(self.auth.challenge(&challenge)?);
-        self.call(req)
+        ensure!(self.token.is_some());
+        Ok(req
+            .set(
+                "Authorization",
+                &format!("Bearer {}", self.token.as_ref().unwrap()),
+            )
+            .call()?)
     }
 
     fn get(&self, url: &Url) -> ureq::Request {
@@ -128,9 +130,12 @@ impl Client {
             req = req.set("Authorization", &format!("Bearer {}", token));
         }
         let res = req.send_bytes(&buf)?;
-        let loc = res
-            .header("Location")
-            .expect("Location header is lacked in OCI registry response");
+        let Some(loc) = res.header("Location") else {
+            bail!(
+                "Location header is lacked in `PUT {url}`, Response: {}",
+                res.into_string()?
+            )
+        };
         Ok(Url::parse(loc).or_else(|_| self.url.join(loc))?)
     }
 
@@ -165,9 +170,12 @@ impl Client {
             .url
             .join(&format!("/v2/{}/blobs/uploads/", self.name))?;
         let res = self.call(self.post(&url))?;
-        let loc = res
-            .header("Location")
-            .expect("Location header is lacked in OCI registry response");
+        let Some(loc) = res.header("Location") else {
+            bail!(
+                "Location header is lacked in `POST {url}`, Response: {}",
+                res.into_string()?
+            )
+        };
         let url = Url::parse(loc).or_else(|_| self.url.join(loc))?;
 
         let digest = Digest::from_buf_sha256(blob);
@@ -181,9 +189,12 @@ impl Client {
             req = req.set("Authorization", &format!("Bearer {}", token))
         }
         let res = req.send_bytes(blob)?;
-        let loc = res
-            .header("Location")
-            .expect("Location header is lacked in OCI registry response");
+        let Some(loc) = res.header("Location") else {
+            bail!(
+                "Location header is lacked in `PUT {url}`, Response: {}",
+                res.into_string()?
+            )
+        };
         let url = Url::parse(loc).or_else(|_| self.url.join(loc))?;
         Ok((digest, url))
     }

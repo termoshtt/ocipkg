@@ -62,7 +62,7 @@ mod image_name;
 pub use digest::Digest;
 pub use image_name::ImageName;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::fs;
 
 const STATIC_PREFIX: &str = if cfg!(target_os = "windows") {
@@ -95,7 +95,7 @@ pub fn link_package(image_name: &str) -> Result<()> {
             .file_stem()
             .unwrap()
             .to_str()
-            .expect("Non UTF-8 is not supported");
+            .context("Non UTF-8 path is not supported")?;
         let name = if let Some(name) = name.strip_prefix(STATIC_PREFIX) {
             name
         } else {
