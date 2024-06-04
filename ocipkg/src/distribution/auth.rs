@@ -229,6 +229,7 @@ impl AuthChallenge {
                 scope = format!("{}push", scope.trim_end_matches("pull"));
             }
         }
+        dbg!(&url, &service, &scope);
         Ok(Self {
             url,
             service,
