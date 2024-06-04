@@ -162,6 +162,7 @@ fn podman_auth_path() -> Option<PathBuf> {
 ///
 /// let auth = AuthChallenge::from_header(
 ///   r#"Bearer realm="https://ghcr.io/token",service="ghcr.io",scope="repository:termoshtt/ocipkg/rust-lib:pull""#,
+///   "GET"
 /// ).unwrap();
 ///
 /// assert_eq!(auth, AuthChallenge {
