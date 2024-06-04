@@ -1,5 +1,5 @@
 use crate::distribution::*;
-use anyhow::{bail, ensure, Result};
+use anyhow::{bail, Result};
 use oci_spec::{distribution::*, image::*};
 use url::Url;
 
@@ -12,8 +12,6 @@ pub struct Client {
     name: Name,
     /// Loaded authentication info from filesystem
     auth: StoredAuth,
-    /// Cached token
-    token: Option<String>,
 }
 
 impl Client {
@@ -24,7 +22,6 @@ impl Client {
             url,
             name,
             auth,
-            token: None,
         })
     }
 
@@ -37,21 +34,14 @@ impl Client {
     }
 
     fn call(&mut self, req: ureq::Request) -> Result<ureq::Response> {
-        if self.token.is_none() {
-            // Try get token
-            let try_req = req.clone();
-            let challenge = match try_req.call() {
-                Ok(res) => return Ok(res),
-                Err(e) => AuthChallenge::try_from(e)?,
-            };
-            self.token = Some(self.auth.challenge(&challenge)?);
-        }
-        ensure!(self.token.is_some());
+        let try_req = req.clone();
+        let challenge = match try_req.call() {
+            Ok(res) => return Ok(res),
+            Err(e) => AuthChallenge::try_from(e)?,
+        };
+        let token = self.auth.challenge(&challenge)?;
         Ok(req
-            .set(
-                "Authorization",
-                &format!("Bearer {}", self.token.as_ref().unwrap()),
-            )
+            .set("Authorization", &format!("Bearer {}", token))
             .call()?)
     }
 
