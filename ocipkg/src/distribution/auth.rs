@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use base64::engine::{general_purpose::STANDARD, Engine};
 use oci_spec::distribution::ErrorResponse;
 use serde::{Deserialize, Serialize};
@@ -70,7 +70,7 @@ impl StoredAuth {
         let test_url = url.join("/v2/").unwrap();
         let challenge = match ureq::get(test_url.as_str()).call() {
             Ok(_) => return Ok(None),
-            Err(e) => AuthChallenge::try_from(e)?,
+            Err(e) => AuthChallenge::from_err(e, "GET")?,
         };
         self.challenge(&challenge).map(Some)
     }
@@ -177,13 +177,15 @@ pub struct AuthChallenge {
     pub scope: String,
 }
 
-impl TryFrom<ureq::Error> for AuthChallenge {
-    type Error = anyhow::Error;
-    fn try_from(res: ureq::Error) -> Result<Self> {
-        match res {
+impl AuthChallenge {
+    pub fn from_err(err: ureq::Error, http_method: &str) -> Result<Self> {
+        match err {
             ureq::Error::Status(status, res) => {
                 if status == 401 && res.has("www-authenticate") {
-                    Self::from_header(res.header("www-authenticate").unwrap())
+                    Self::from_header(
+                        res.header("www-authenticate").expect("Already checked"),
+                        http_method,
+                    )
                 } else {
                     let err = res.into_json::<ErrorResponse>()?;
                     Err(err.into())
@@ -192,14 +194,12 @@ impl TryFrom<ureq::Error> for AuthChallenge {
             ureq::Error::Transport(e) => Err(e.into()),
         }
     }
-}
 
-impl AuthChallenge {
-    pub fn from_header(header: &str) -> Result<Self> {
+    pub fn from_header(header: &str, http_method: &str) -> Result<Self> {
         let err = || anyhow!("Unsupported WWW-Authenticate header: {}", header);
         let (ty, realm) = header.split_once(' ').ok_or_else(err)?;
         if ty != "Bearer" {
-            return Err(err());
+            bail!("WWW-Authorization header is not Bearer: {}", ty);
         }
 
         let mut url = None;
@@ -215,6 +215,7 @@ impl AuthChallenge {
                 _ => continue,
             }
         }
+        dbg!(&scope, http_method);
         Ok(Self {
             url: url.ok_or_else(err)?,
             service: service.ok_or_else(err)?,

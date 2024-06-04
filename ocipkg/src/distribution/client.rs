@@ -42,7 +42,7 @@ impl Client {
             let try_req = req.clone();
             let challenge = match try_req.call() {
                 Ok(res) => return Ok(res),
-                Err(e) => AuthChallenge::try_from(e)?,
+                Err(e) => AuthChallenge::from_err(e, req.method())?,
             };
             self.token = Some(self.auth.challenge(&challenge)?);
         }
