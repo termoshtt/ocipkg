@@ -25,7 +25,7 @@ serde = "1.0.203"
 serde_json = "1.0.117"
 sha2 = "0.10.8"
 tar = "0.4.40"
-toml = "0.8.13"
+toml = "0.8.14"
 ureq = { version = "2.9.7", features = ["json"] }
 url = "2.5.0"
 urlencoding = "2.1.3"
