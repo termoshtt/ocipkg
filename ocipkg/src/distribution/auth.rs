@@ -197,17 +197,21 @@ impl AuthChallenge {
     }
 
     pub fn from_header(header: &str, http_method: &str) -> Result<Self> {
-        let err = || anyhow!("Unsupported WWW-Authenticate header: {}", header);
-        let (ty, realm) = header.split_once(' ').ok_or_else(err)?;
+        let (ty, realm) = header
+            .split_once(' ')
+            .with_context(|| format!("Invalid WWW-Authenticate header: {header}"))?;
+
         if ty != "Bearer" {
-            bail!("WWW-Authorization header is not Bearer: {}", ty);
+            bail!("Only Bearer authentication method is supported, required={ty}");
         }
 
         let mut url = None;
         let mut service = None;
         let mut scope = None;
         for param in realm.split(',') {
-            let (key, value) = param.split_once('=').ok_or_else(err)?;
+            let (key, value) = param
+                .split_once('=')
+                .with_context(|| format!("Invalid param in WWW-Authenticate header: {param}"))?;
             let value = value.trim_matches('"').to_string();
             match key {
                 "realm" => url = Some(value),
@@ -216,11 +220,19 @@ impl AuthChallenge {
                 _ => continue,
             }
         }
-        dbg!(&scope, http_method);
+        let url = url.context("realm is absent in WWW-Authenticate header")?;
+        let service = service.context("service is absent in WWW-Authenticate header")?;
+        let mut scope = scope.context("scope is absent in WWW-Authenticate header")?;
+        if http_method.to_lowercase() != "get" {
+            // ghcr.io returns `pull` scope even for POST and PUT requests
+            if scope.ends_with("pull") {
+                scope = format!("{}push", scope.trim_end_matches("pull"));
+            }
+        }
         Ok(Self {
-            url: url.ok_or_else(err)?,
-            service: service.ok_or_else(err)?,
-            scope: scope.ok_or_else(err)?,
+            url,
+            service,
+            scope,
         })
     }
 }
