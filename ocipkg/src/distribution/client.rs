@@ -19,6 +19,15 @@ pub struct Client {
 impl Client {
     pub fn new(url: Url, name: Name) -> Result<Self> {
         let auth = StoredAuth::load_all()?;
+        Self::new_with_auth(url, name, auth)
+    }
+
+    pub fn from_image_name(image: &ImageName) -> Result<Self> {
+        let auth = StoredAuth::load_all()?;
+        Self::from_image_name_with_auth(image, auth)
+    }
+
+    pub fn new_with_auth(url: Url, name: Name, auth: StoredAuth) -> Result<Self> {
         Ok(Client {
             agent: ureq::Agent::new(),
             url,
@@ -28,8 +37,8 @@ impl Client {
         })
     }
 
-    pub fn from_image_name(image: &ImageName) -> Result<Self> {
-        Self::new(image.registry_url()?, image.name.clone())
+    pub fn from_image_name_with_auth(image: &ImageName, auth: StoredAuth) -> Result<Self> {
+        Self::new_with_auth(image.registry_url()?, image.name.clone(), auth)
     }
 
     pub fn add_basic_auth(&mut self, domain: &str, username: &str, password: &str) {
