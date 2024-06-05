@@ -26,7 +26,7 @@ impl StoredAuth {
         {
             if let Ok(new) = Self::from_path(&path) {
                 log::info!("Loaded auth info from: {}", path.display());
-                auth.get_or_insert_with(|| Self::default()).append(new);
+                auth.get_or_insert_with(Self::default).append(new);
             }
         }
         auth.context("No valid auth info found")
@@ -135,7 +135,7 @@ fn auth_path() -> Result<PathBuf> {
     let dirs = directories::ProjectDirs::from("", "", "ocipkg")
         .context("Cannot get project directory of ocipkg")?;
     if let Some(runtime_dir) = dirs.runtime_dir() {
-        return Ok(runtime_dir.join("auth.json"));
+        Ok(runtime_dir.join("auth.json"))
     } else {
         // Most of container does not set XDG_RUNTIME_DIR,
         // and then this fallback to `~/.ocipkg/config.json` like docker.
