@@ -155,7 +155,7 @@ fn main() -> Result<()> {
             password,
         } => {
             let url = url::Url::parse(&registry)?;
-            let mut auth = ocipkg::distribution::StoredAuth::load()?;
+            let mut auth = ocipkg::distribution::StoredAuth::load().unwrap_or_default();
             match (username, password) {
                 (Some(username), Some(password)) => {
                     auth.add(

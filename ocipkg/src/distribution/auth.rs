@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use base64::engine::{general_purpose::STANDARD, Engine};
 use oci_spec::distribution::ErrorResponse;
 use serde::{Deserialize, Serialize};
@@ -14,32 +14,22 @@ pub struct StoredAuth {
 impl StoredAuth {
     /// Load authentication info stored by ocipkg
     pub fn load() -> Result<Self> {
-        let mut auth = StoredAuth::default();
-        if let Some(path) = auth_path() {
-            let new = Self::from_path(&path)?;
-            auth.append(new)?;
-        }
-        Ok(auth)
+        Self::from_path(&auth_path()?)
     }
 
     /// Load authentication info with docker and podman setting
     pub fn load_all() -> Result<Self> {
-        let mut auth = StoredAuth::default();
-        if let Some(path) = docker_auth_path() {
+        let mut auth = None;
+        for path in [docker_auth_path(), podman_auth_path(), auth_path()]
+            .into_iter()
+            .filter_map(|x| x.ok())
+        {
             if let Ok(new) = Self::from_path(&path) {
-                auth.append(new)?;
+                log::info!("Loaded auth info from: {}", path.display());
+                auth.get_or_insert_with(Self::default).append(new);
             }
         }
-        if let Some(path) = podman_auth_path() {
-            if let Ok(new) = Self::from_path(&path) {
-                auth.append(new)?;
-            }
-        }
-        if let Some(path) = auth_path() {
-            let new = Self::from_path(&path)?;
-            auth.append(new)?;
-        }
-        Ok(auth)
+        auth.context("No valid auth info found")
     }
 
     pub fn add(&mut self, domain: &str, username: &str, password: &str) {
@@ -94,22 +84,24 @@ impl StoredAuth {
         Ok(token.token)
     }
 
-    pub fn append(&mut self, other: Self) -> Result<()> {
+    pub fn append(&mut self, other: Self) {
         for (key, value) in other.auths.into_iter() {
             if value.is_valid() {
                 self.auths.insert(key, value);
             }
         }
-        Ok(())
     }
 
-    fn from_path(path: &Path) -> Result<Self> {
-        if path.is_file() {
-            let f = fs::File::open(path)?;
-            Ok(serde_json::from_reader(io::BufReader::new(f))?)
-        } else {
-            Ok(Self::default())
+    /// Load auth info from file
+    pub fn from_path(path: &Path) -> Result<Self> {
+        if !path.is_file() {
+            bail!("Auth file not found: {}", path.display());
         }
+        let f = fs::File::open(path)?;
+        let loaded = serde_json::from_reader(io::BufReader::new(f))?;
+        let mut out = Self::default();
+        out.append(loaded);
+        Ok(out)
     }
 }
 
@@ -134,25 +126,34 @@ impl Auth {
     }
 }
 
-fn auth_path() -> Option<PathBuf> {
-    directories::ProjectDirs::from("", "", "ocipkg")
-        .and_then(|dirs| Some(dirs.runtime_dir()?.join("auth.json")))
-        .or_else(|| {
-            // Most of container does not set XDG_RUNTIME_DIR,
-            // and then this fallback to `~/.ocipkg/config.json` like docker.
-            let dirs = directories::BaseDirs::new()?;
-            Some(dirs.home_dir().join(".ocipkg/config.json"))
-        })
+fn home_dir() -> Result<PathBuf> {
+    let dirs = directories::BaseDirs::new().context("Cannot get $HOME directory")?;
+    Ok(dirs.home_dir().to_path_buf())
 }
 
-fn docker_auth_path() -> Option<PathBuf> {
-    let dirs = directories::BaseDirs::new()?;
-    Some(dirs.home_dir().join(".docker/config.json"))
+fn auth_path() -> Result<PathBuf> {
+    let dirs = directories::ProjectDirs::from("", "", "ocipkg")
+        .context("Cannot get project directory of ocipkg")?;
+    if let Some(runtime_dir) = dirs.runtime_dir() {
+        Ok(runtime_dir.join("auth.json"))
+    } else {
+        // Most of container does not set XDG_RUNTIME_DIR,
+        // and then this fallback to `~/.ocipkg/config.json` like docker.
+        Ok(home_dir()?.join(".ocipkg/config.json"))
+    }
 }
 
-fn podman_auth_path() -> Option<PathBuf> {
-    let dirs = directories::ProjectDirs::from("", "", "containers")?;
-    Some(dirs.runtime_dir()?.join("auth.json"))
+fn docker_auth_path() -> Result<PathBuf> {
+    Ok(home_dir()?.join(".docker/config.json"))
+}
+
+fn podman_auth_path() -> Result<PathBuf> {
+    let dirs = directories::ProjectDirs::from("", "", "containers")
+        .context("Cannot get the project directory of podman")?;
+    Ok(dirs
+        .runtime_dir()
+        .context("Cannot get runtime directory of podman")?
+        .join("auth.json"))
 }
 
 /// WWW-Authentication challenge
