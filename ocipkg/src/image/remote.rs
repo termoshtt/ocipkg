@@ -17,6 +17,15 @@ impl Remote {
         let client = Client::from_image_name(&image_name)?;
         Ok(Self { image_name, client })
     }
+
+    pub fn new_with_auth(image_name: ImageName, auth: StoredAuth) -> Result<Self> {
+        let client = Client::from_image_name_with_auth(&image_name, auth)?;
+        Ok(Self { image_name, client })
+    }
+
+    pub fn add_basic_auth(&mut self, domain: &str, username: &str, password: &str) {
+        self.client.add_basic_auth(domain, username, password);
+    }
 }
 
 impl Image for Remote {
