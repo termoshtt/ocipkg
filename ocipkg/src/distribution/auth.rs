@@ -19,17 +19,17 @@ impl StoredAuth {
 
     /// Load authentication info with docker and podman setting
     pub fn load_all() -> Result<Self> {
-        let mut auth = StoredAuth::default();
+        let mut auth = None;
         for path in [docker_auth_path(), podman_auth_path(), auth_path()]
             .into_iter()
             .filter_map(|x| x.ok())
         {
             if let Ok(new) = Self::from_path(&path) {
                 log::info!("Loaded auth info from: {}", path.display());
-                auth.append(new);
+                auth.get_or_insert_with(|| Self::default()).append(new);
             }
         }
-        Ok(auth)
+        auth.context("No valid auth info found")
     }
 
     pub fn add(&mut self, domain: &str, username: &str, password: &str) {
