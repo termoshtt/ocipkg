@@ -1,7 +1,4 @@
-use crate::{
-    distribution::{Name, Reference},
-    image::Image,
-};
+use crate::distribution::{Name, Reference};
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{
