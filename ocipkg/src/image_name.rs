@@ -1,8 +1,10 @@
 use crate::distribution::{Name, Reference};
 use anyhow::{anyhow, bail, Context, Result};
+use serde::{Deserialize, Serialize};
 use std::{
     fmt,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 use url::Url;
 
@@ -163,8 +165,9 @@ impl Default for ImageName {
     }
 }
 
-impl ImageName {
-    pub fn parse(name: &str) -> Result<Self> {
+impl FromStr for ImageName {
+    type Err = anyhow::Error;
+    fn from_str(name: &str) -> Result<Self> {
         let (hostname, name) = name
             .split_once('/')
             .unwrap_or(("registry-1.docker.io", name));
@@ -180,6 +183,31 @@ impl ImageName {
             name: Name::new(name)?,
             reference: Reference::new(reference)?,
         })
+    }
+}
+
+impl Serialize for ImageName {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for ImageName {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        ImageName::parse(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+impl ImageName {
+    pub fn parse(name: &str) -> Result<Self> {
+        Self::from_str(name)
     }
 
     /// URL for OCI distribution API endpoint
@@ -332,5 +360,22 @@ mod test {
             "quay.io/jitesoft/alpine%3Asha256%3A6755355f801f8e3694bffb1a925786813462cea16f1ce2b0290b6a48acf2500c".as_ref()
         )?;
         Ok(())
+    }
+
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    struct SerializeTest {
+        name: ImageName,
+    }
+
+    #[test]
+    fn serialize() {
+        let input = SerializeTest {
+            name: ImageName::parse("localhost:5000/test_repo:latest").unwrap(),
+        };
+        let json = serde_json::to_string(&input).unwrap();
+        assert_eq!(json, r#"{"name":"localhost:5000/test_repo:latest"}"#);
+
+        let output: SerializeTest = serde_json::from_str(&json).unwrap();
+        assert_eq!(input, output)
     }
 }
