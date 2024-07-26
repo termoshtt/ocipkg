@@ -1,8 +1,12 @@
-use crate::distribution::{Name, Reference};
+use crate::{
+    distribution::{Name, Reference},
+    image::Image,
+};
 use anyhow::{anyhow, bail, Context, Result};
 use std::{
     fmt,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 use url::Url;
 
@@ -163,8 +167,9 @@ impl Default for ImageName {
     }
 }
 
-impl ImageName {
-    pub fn parse(name: &str) -> Result<Self> {
+impl FromStr for ImageName {
+    type Err = anyhow::Error;
+    fn from_str(name: &str) -> Result<Self> {
         let (hostname, name) = name
             .split_once('/')
             .unwrap_or(("registry-1.docker.io", name));
@@ -180,6 +185,12 @@ impl ImageName {
             name: Name::new(name)?,
             reference: Reference::new(reference)?,
         })
+    }
+}
+
+impl ImageName {
+    pub fn parse(name: &str) -> Result<Self> {
+        Self::from_str(name)
     }
 
     /// URL for OCI distribution API endpoint
