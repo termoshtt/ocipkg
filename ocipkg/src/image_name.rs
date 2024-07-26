@@ -361,4 +361,21 @@ mod test {
         )?;
         Ok(())
     }
+
+    #[derive(Debug, PartialEq, Serialize, Deserialize)]
+    struct SerializeTest {
+        name: ImageName,
+    }
+
+    #[test]
+    fn serialize() {
+        let input = SerializeTest {
+            name: ImageName::parse("localhost:5000/test_repo:latest").unwrap(),
+        };
+        let json = serde_json::to_string(&input).unwrap();
+        assert_eq!(json, r#"{"name":"localhost:5000/test_repo:latest"}"#);
+
+        let output: SerializeTest = serde_json::from_str(&json).unwrap();
+        assert_eq!(input, output)
+    }
 }
