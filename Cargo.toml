@@ -10,7 +10,7 @@ base64 = "0.22.1"
 cargo_metadata = "0.18.1"
 chrono = "0.4.39"
 clap = { version = "4.5.29", features = ["derive"] }
-colored = "2.2.0"
+colored = "3.0.0"
 directories = "5.0.1"
 env_logger = "0.11.6"
 flate2 = "1.0.35"
