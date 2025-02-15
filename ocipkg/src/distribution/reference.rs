@@ -1,7 +1,7 @@
-use crate::Digest;
 use anyhow::{bail, Result};
+use oci_spec::image::Digest;
 use regex::Regex;
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 /// Reference of container image stored in the repository
 ///
@@ -56,7 +56,7 @@ impl Reference {
         if REF_RE.is_match(name) {
             Ok(Reference(name.to_string()))
         } else if name.contains(':') {
-            _ = Digest::new(name)?;
+            _ = Digest::from_str(name)?;
             Ok(Reference(name.to_string()))
         } else {
             bail!("Invalid reference {name}");
@@ -72,8 +72,12 @@ mod tests {
     fn reference() {
         assert_eq!(Reference::new("latest").unwrap().as_str(), "latest");
         assert_eq!(
-            Reference::new("sha256:a1b2c3").unwrap().as_str(),
-            "sha256:a1b2c3"
+            Reference::new(
+                "sha256:a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4"
+            )
+            .unwrap()
+            .as_str(),
+            "sha256:a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4"
         );
         // @ is not allowed
         assert!(Reference::new("my_super_tag@2").is_err());
@@ -84,8 +88,12 @@ mod tests {
             "%53uper%54ag"
         );
         assert_eq!(
-            Reference::new("sha256:a1b2c3").unwrap().encoded(),
-            "sha256%3Aa1b2c3"
+            Reference::new(
+                "sha256:a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4"
+            )
+            .unwrap()
+            .encoded(),
+            "sha256%3Aa1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4"
         );
     }
 }

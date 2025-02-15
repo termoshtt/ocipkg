@@ -1,4 +1,4 @@
-use crate::distribution::*;
+use crate::{digest::DigestExt, distribution::*};
 use anyhow::{bail, ensure, Result};
 use oci_spec::{
     distribution::TagList,
@@ -189,7 +189,7 @@ impl Client {
         };
         let url = Url::parse(loc).or_else(|_| self.url.join(loc))?;
 
-        let digest = Digest::from_buf_sha256(blob);
+        let digest = Digest::eval_sha256_digest(blob);
         let mut req = self
             .put(&url)
             .query("digest", &digest.to_string())
@@ -247,7 +247,7 @@ mod tests {
         for tag in ["tag1", "tag2", "tag3"] {
             let manifest = client.get_manifest(&Reference::new(tag)?)?;
             for layer in manifest.layers() {
-                let buf = client.get_blob(&Digest::new(layer.digest().as_ref())?)?;
+                let buf = client.get_blob(layer.digest())?;
                 dbg!(buf.len());
             }
         }

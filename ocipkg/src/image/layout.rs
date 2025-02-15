@@ -1,9 +1,11 @@
 use crate::{
     image::{OciArchive, OciDir, Remote},
-    Digest, ImageName,
+    ImageName,
 };
 use anyhow::{bail, Context, Result};
-use oci_spec::image::{Descriptor, DescriptorBuilder, ImageIndex, ImageManifest, MediaType};
+use oci_spec::image::{
+    Descriptor, DescriptorBuilder, Digest, ImageIndex, ImageManifest, MediaType,
+};
 use std::path::Path;
 
 /// Handler of [OCI Image Layout] with containing single manifest
@@ -54,10 +56,10 @@ pub fn copy<From: Image, To: ImageBuilder>(from: &mut From, mut to: To) -> Resul
     let name = from.get_name()?;
     let manifest = from.get_manifest()?;
     for layer in manifest.layers() {
-        let digest = Digest::from_descriptor(layer)?;
+        let digest = layer.digest();
         let blob = from.get_blob(&digest)?;
         let (digest_new, size) = to.add_blob(&blob)?;
-        if digest != digest_new {
+        if digest != &digest_new {
             bail!("Digest of a layer in {name} mismatch: {digest} != {digest_new}",);
         }
         if size != layer.size() {
@@ -68,10 +70,10 @@ pub fn copy<From: Image, To: ImageBuilder>(from: &mut From, mut to: To) -> Resul
         }
     }
     let config = manifest.config();
-    let digest = Digest::from_descriptor(config)?;
+    let digest = config.digest();
     let blob = from.get_blob(&digest)?;
     let (digest_new, size) = to.add_blob(&blob)?;
-    if digest != digest_new {
+    if digest != &digest_new {
         bail!("Digest of a config in {name} mismatch: {digest} != {digest_new}",);
     }
     if size != config.size() {

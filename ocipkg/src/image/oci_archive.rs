@@ -1,11 +1,14 @@
 use crate::{
+    digest::DigestExt,
     image::{get_name_from_index, Image, ImageBuilder},
-    Digest, ImageName,
+    ImageName,
 };
 use anyhow::{bail, Context, Result};
 use chrono::Utc;
 use maplit::hashmap;
-use oci_spec::image::{DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType};
+use oci_spec::image::{
+    DescriptorBuilder, Digest, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType,
+};
 use std::{
     fs,
     io::{Read, Seek},
@@ -51,7 +54,7 @@ impl ImageBuilder for OciArchiveBuilder {
     type Image = OciArchive;
 
     fn add_blob(&mut self, blob: &[u8]) -> Result<(Digest, u64)> {
-        let digest = Digest::from_buf_sha256(blob);
+        let digest = Digest::eval_sha256_digest(blob);
         self.ar
             .append_data(&mut create_file_header(blob.len()), digest.as_path(), blob)?;
         Ok((digest, blob.len() as u64))
@@ -164,7 +167,7 @@ impl Image for OciArchive {
             .manifests()
             .first()
             .context("No manifest found in index.json")?;
-        let digest = Digest::from_descriptor(desc)?;
+        let digest = desc.digest();
         let manifest = serde_json::from_slice(self.get_blob(&digest)?.as_slice())?;
         Ok(manifest)
     }

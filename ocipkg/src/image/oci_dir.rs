@@ -1,11 +1,12 @@
 use crate::{
+    digest::DigestExt,
     image::{Image, ImageBuilder},
-    Digest, ImageName,
+    ImageName,
 };
 use anyhow::{bail, Context, Result};
 use maplit::hashmap;
 use oci_spec::image::{
-    DescriptorBuilder, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType, OciLayout,
+    DescriptorBuilder, Digest, ImageIndex, ImageIndexBuilder, ImageManifest, MediaType, OciLayout,
 };
 use std::{
     fs,
@@ -66,7 +67,7 @@ impl ImageBuilder for OciDirBuilder {
     type Image = OciDir;
 
     fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, u64)> {
-        let digest = Digest::from_buf_sha256(data);
+        let digest = Digest::eval_sha256_digest(data);
         let out = self.oci_dir_root.join(digest.as_path());
         fs::create_dir_all(out.parent().unwrap())?;
         fs::write(out, data)?;
@@ -156,7 +157,7 @@ impl Image for OciDir {
             .manifests()
             .first()
             .context("No manifest found in index.json")?;
-        let digest = Digest::from_descriptor(desc)?;
+        let digest = desc.digest();
         let manifest = serde_json::from_slice(self.get_blob(&digest)?.as_slice())?;
         Ok(manifest)
     }

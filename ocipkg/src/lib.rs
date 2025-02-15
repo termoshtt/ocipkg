@@ -58,8 +58,6 @@ pub mod media_types;
 
 mod digest;
 mod image_name;
-
-pub use digest::Digest;
 pub use image_name::ImageName;
 
 use anyhow::{Context, Result};

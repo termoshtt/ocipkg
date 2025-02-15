@@ -1,10 +1,10 @@
 use crate::{
     distribution::{Client, StoredAuth},
     image::{Image, ImageBuilder},
-    Digest, ImageName,
+    ImageName,
 };
 use anyhow::Result;
-use oci_spec::image::ImageManifest;
+use oci_spec::image::{Digest, ImageManifest};
 
 /// An image stored in remote registry as [Image]
 pub struct Remote {
