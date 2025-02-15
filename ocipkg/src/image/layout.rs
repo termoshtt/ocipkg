@@ -40,10 +40,11 @@ pub trait ImageBuilder {
     /// A placeholder for `application/vnd.oci.empty.v1+json`
     fn add_empty_json(&mut self) -> Result<Descriptor> {
         let (digest, size) = self.add_blob(b"{}")?;
+        let digest: oci_spec::image::Digest = digest.try_into()?;
         Ok(DescriptorBuilder::default()
             .media_type(MediaType::EmptyJSON)
             .size(size)
-            .digest(digest.to_string())
+            .digest(digest)
             .build()?)
     }
 }

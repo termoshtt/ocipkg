@@ -31,9 +31,9 @@ impl From<oci_spec::image::Digest> for Digest {
     }
 }
 
-impl TryFrom<&Digest> for oci_spec::image::Digest {
+impl TryFrom<Digest> for oci_spec::image::Digest {
     type Error = anyhow::Error;
-    fn try_from(digest: &Digest) -> Result<Self> {
+    fn try_from(digest: Digest) -> Result<Self> {
         Ok(oci_spec::image::Digest::from_str(&digest.to_string())?)
     }
 }

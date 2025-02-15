@@ -50,20 +50,21 @@ impl OciArchiveBuilder {
 impl ImageBuilder for OciArchiveBuilder {
     type Image = OciArchive;
 
-    fn add_blob(&mut self, blob: &[u8]) -> Result<(Digest, i64)> {
+    fn add_blob(&mut self, blob: &[u8]) -> Result<(Digest, u64)> {
         let digest = Digest::from_buf_sha256(blob);
         self.ar
             .append_data(&mut create_file_header(blob.len()), digest.as_path(), blob)?;
-        Ok((digest, blob.len() as i64))
+        Ok((digest, blob.len() as u64))
     }
 
     fn build(mut self, manifest: ImageManifest) -> Result<Self::Image> {
         let manifest_json = serde_json::to_string(&manifest)?;
         let (digest, size) = self.add_blob(manifest_json.as_bytes())?;
+        let digest: oci_spec::image::Digest = digest.try_into()?;
         let descriptor = DescriptorBuilder::default()
             .media_type(MediaType::ImageManifest)
             .size(size)
-            .digest(digest.to_string())
+            .digest(digest)
             .annotations(if let Some(name) = &self.image_name {
                 hashmap! {
                     "org.opencontainers.image.ref.name".to_string() => name.to_string()

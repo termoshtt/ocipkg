@@ -65,21 +65,22 @@ impl OciDirBuilder {
 impl ImageBuilder for OciDirBuilder {
     type Image = OciDir;
 
-    fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, i64)> {
+    fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, u64)> {
         let digest = Digest::from_buf_sha256(data);
         let out = self.oci_dir_root.join(digest.as_path());
         fs::create_dir_all(out.parent().unwrap())?;
         fs::write(out, data)?;
-        Ok((digest, data.len() as i64))
+        Ok((digest, data.len() as u64))
     }
 
     fn build(mut self, manifest: ImageManifest) -> Result<OciDir> {
         let manifest_json = serde_json::to_string(&manifest)?;
         let (digest, size) = self.add_blob(manifest_json.as_bytes())?;
+        let digest: oci_spec::image::Digest = digest.try_into()?;
         let descriptor = DescriptorBuilder::default()
             .media_type(MediaType::ImageManifest)
             .size(size)
-            .digest(digest.to_string())
+            .digest(digest)
             .annotations(if let Some(name) = &self.image_name {
                 hashmap! {
                     "org.opencontainers.image.ref.name".to_string() => name.to_string()

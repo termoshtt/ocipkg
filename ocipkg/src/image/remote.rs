@@ -67,9 +67,9 @@ impl RemoteBuilder {
 impl ImageBuilder for RemoteBuilder {
     type Image = Remote;
 
-    fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, i64)> {
+    fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, u64)> {
         let (digest, _url) = self.client.push_blob(data)?;
-        Ok((digest, data.len() as i64))
+        Ok((digest, data.len() as u64))
     }
 
     fn build(self, manifest: ImageManifest) -> Result<Self::Image> {

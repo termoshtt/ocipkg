@@ -43,10 +43,11 @@ impl<LayoutBuilder: ImageBuilder> OciArtifactBuilder<LayoutBuilder> {
         annotations: HashMap<String, String>,
     ) -> Result<Descriptor> {
         let (digest, size) = self.layout.add_blob(config_blob)?;
+        let digest: oci_spec::image::Digest = digest.try_into()?;
         let config = DescriptorBuilder::default()
             .media_type(config_type)
             .annotations(annotations)
-            .digest(digest.to_string())
+            .digest(digest)
             .size(size)
             .build()?;
         self.manifest.set_config(config.clone());
@@ -63,9 +64,10 @@ impl<LayoutBuilder: ImageBuilder> OciArtifactBuilder<LayoutBuilder> {
         annotations: HashMap<String, String>,
     ) -> Result<Descriptor> {
         let (digest, size) = self.layout.add_blob(layer_blob)?;
+        let digest: oci_spec::image::Digest = digest.try_into()?;
         let layer = DescriptorBuilder::default()
             .media_type(layer_type)
-            .digest(digest.to_string())
+            .digest(digest)
             .size(size)
             .annotations(annotations)
             .build()?;
