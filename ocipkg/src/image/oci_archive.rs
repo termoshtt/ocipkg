@@ -63,7 +63,6 @@ impl ImageBuilder for OciArchiveBuilder {
     fn build(mut self, manifest: ImageManifest) -> Result<Self::Image> {
         let manifest_json = serde_json::to_string(&manifest)?;
         let (digest, size) = self.add_blob(manifest_json.as_bytes())?;
-        let digest: oci_spec::image::Digest = digest.try_into()?;
         let descriptor = DescriptorBuilder::default()
             .media_type(MediaType::ImageManifest)
             .size(size)
@@ -168,7 +167,7 @@ impl Image for OciArchive {
             .first()
             .context("No manifest found in index.json")?;
         let digest = desc.digest();
-        let manifest = serde_json::from_slice(self.get_blob(&digest)?.as_slice())?;
+        let manifest = serde_json::from_slice(self.get_blob(digest)?.as_slice())?;
         Ok(manifest)
     }
 }

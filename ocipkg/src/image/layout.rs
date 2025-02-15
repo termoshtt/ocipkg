@@ -42,7 +42,6 @@ pub trait ImageBuilder {
     /// A placeholder for `application/vnd.oci.empty.v1+json`
     fn add_empty_json(&mut self) -> Result<Descriptor> {
         let (digest, size) = self.add_blob(b"{}")?;
-        let digest: oci_spec::image::Digest = digest.try_into()?;
         Ok(DescriptorBuilder::default()
             .media_type(MediaType::EmptyJSON)
             .size(size)
@@ -57,7 +56,7 @@ pub fn copy<From: Image, To: ImageBuilder>(from: &mut From, mut to: To) -> Resul
     let manifest = from.get_manifest()?;
     for layer in manifest.layers() {
         let digest = layer.digest();
-        let blob = from.get_blob(&digest)?;
+        let blob = from.get_blob(digest)?;
         let (digest_new, size) = to.add_blob(&blob)?;
         if digest != &digest_new {
             bail!("Digest of a layer in {name} mismatch: {digest} != {digest_new}",);
@@ -71,7 +70,7 @@ pub fn copy<From: Image, To: ImageBuilder>(from: &mut From, mut to: To) -> Resul
     }
     let config = manifest.config();
     let digest = config.digest();
-    let blob = from.get_blob(&digest)?;
+    let blob = from.get_blob(digest)?;
     let (digest_new, size) = to.add_blob(&blob)?;
     if digest != &digest_new {
         bail!("Digest of a config in {name} mismatch: {digest} != {digest_new}",);

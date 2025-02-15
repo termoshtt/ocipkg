@@ -135,7 +135,7 @@ impl Client {
             .join(&format!("/v2/{}/manifests/{}", self.name, reference))?;
         let mut req = self
             .put(&url)
-            .set("Content-Type", &MediaType::ImageManifest.to_string());
+            .set("Content-Type", MediaType::ImageManifest.as_ref());
         if let Some(token) = self.token.as_ref() {
             // Authorization must be done while blobs push
             req = req.set("Authorization", &format!("Bearer {}", token));
@@ -192,7 +192,7 @@ impl Client {
         let digest = Digest::eval_sha256_digest(blob);
         let mut req = self
             .put(&url)
-            .query("digest", &digest.to_string())
+            .query("digest", digest.as_ref())
             .set("Content-Length", &blob.len().to_string())
             .set("Content-Type", "application/octet-stream");
         if let Some(token) = self.token.as_ref() {
