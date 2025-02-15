@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
-use std::{fmt, path::PathBuf};
+use std::{fmt, path::PathBuf, str::FromStr};
 
 /// Digest of contents
 ///
@@ -20,6 +20,22 @@ use std::{fmt, path::PathBuf};
 pub struct Digest {
     pub algorithm: String,
     pub encoded: String,
+}
+
+impl From<oci_spec::image::Digest> for Digest {
+    fn from(digest: oci_spec::image::Digest) -> Self {
+        Digest {
+            algorithm: digest.algorithm().to_string(),
+            encoded: digest.digest().to_string(),
+        }
+    }
+}
+
+impl TryFrom<&Digest> for oci_spec::image::Digest {
+    type Error = anyhow::Error;
+    fn try_from(digest: &Digest) -> Result<Self> {
+        Ok(oci_spec::image::Digest::from_str(&digest.to_string())?)
+    }
 }
 
 lazy_static::lazy_static! {
