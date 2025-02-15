@@ -1,6 +1,6 @@
 use crate::{
     image::{Image, ImageBuilder, OciArchive, OciDir, Remote},
-    Digest, ImageName,
+    ImageName,
 };
 use anyhow::{Context, Result};
 use chrono::{DateTime, TimeZone};
@@ -46,7 +46,7 @@ impl<LayoutBuilder: ImageBuilder> OciArtifactBuilder<LayoutBuilder> {
         let config = DescriptorBuilder::default()
             .media_type(config_type)
             .annotations(annotations)
-            .digest(digest.to_string())
+            .digest(digest)
             .size(size)
             .build()?;
         self.manifest.set_config(config.clone());
@@ -65,7 +65,7 @@ impl<LayoutBuilder: ImageBuilder> OciArtifactBuilder<LayoutBuilder> {
         let (digest, size) = self.layout.add_blob(layer_blob)?;
         let layer = DescriptorBuilder::default()
             .media_type(layer_type)
-            .digest(digest.to_string())
+            .digest(digest)
             .size(size)
             .annotations(annotations)
             .build()?;
@@ -221,7 +221,7 @@ impl<Layout: Image> OciArtifact<Layout> {
         if config_desc.media_type() == &MediaType::EmptyJSON {
             return Ok((config_desc.clone(), "{}".as_bytes().to_vec()));
         }
-        let blob = self.get_blob(&Digest::from_descriptor(config_desc)?)?;
+        let blob = self.get_blob(config_desc.digest())?;
         Ok((config_desc.clone(), blob))
     }
 
@@ -231,7 +231,7 @@ impl<Layout: Image> OciArtifact<Layout> {
             .layers()
             .iter()
             .map(|layer| {
-                let blob = self.get_blob(&Digest::from_descriptor(layer)?)?;
+                let blob = self.get_blob(layer.digest())?;
                 Ok((layer.clone(), blob))
             })
             .collect()

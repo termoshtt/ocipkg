@@ -59,8 +59,8 @@ pub mod media_types;
 mod digest;
 mod image_name;
 
-pub use digest::Digest;
 pub use image_name::ImageName;
+pub use oci_spec::image::Digest;
 
 use anyhow::{Context, Result};
 use std::fs;

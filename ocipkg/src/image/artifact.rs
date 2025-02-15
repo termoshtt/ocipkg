@@ -1,7 +1,6 @@
 //! Compose directory as a container tar
 
 use crate::{
-    digest::Digest,
     image::{
         copy, Config, Image, OciArchive, OciArchiveBuilder, OciArtifact, OciArtifactBuilder,
         OciDir, OciDirBuilder, Remote,
@@ -59,8 +58,7 @@ impl Builder {
         let layer = self
             .builder
             .add_layer(media_types::layer_tar_gzip(), &buf, HashMap::new())?;
-        self.config
-            .add_layer(Digest::from_descriptor(&layer)?, files);
+        self.config.add_layer(layer.digest().clone(), files);
         Ok(())
     }
 
@@ -79,8 +77,7 @@ impl Builder {
         let layer_desc =
             self.builder
                 .add_layer(media_types::layer_tar_gzip(), &buf, HashMap::new())?;
-        self.config
-            .add_layer(Digest::new(layer_desc.digest())?, paths);
+        self.config.add_layer(layer_desc.digest().clone(), paths);
         Ok(())
     }
 

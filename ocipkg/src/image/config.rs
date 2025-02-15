@@ -1,5 +1,5 @@
-use crate::Digest;
 use anyhow::Result;
+use oci_spec::image::Digest;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 

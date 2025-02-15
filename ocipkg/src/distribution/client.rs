@@ -1,6 +1,9 @@
-use crate::distribution::*;
+use crate::{digest::DigestExt, distribution::*};
 use anyhow::{bail, ensure, Result};
-use oci_spec::{distribution::*, image::*};
+use oci_spec::{
+    distribution::TagList,
+    image::{ImageManifest, ToDockerV2S2},
+};
 use url::Url;
 
 /// A client for `/v2/<name>/` API endpoint
@@ -132,7 +135,7 @@ impl Client {
             .join(&format!("/v2/{}/manifests/{}", self.name, reference))?;
         let mut req = self
             .put(&url)
-            .set("Content-Type", &MediaType::ImageManifest.to_string());
+            .set("Content-Type", MediaType::ImageManifest.as_ref());
         if let Some(token) = self.token.as_ref() {
             // Authorization must be done while blobs push
             req = req.set("Authorization", &format!("Bearer {}", token));
@@ -186,10 +189,10 @@ impl Client {
         };
         let url = Url::parse(loc).or_else(|_| self.url.join(loc))?;
 
-        let digest = Digest::from_buf_sha256(blob);
+        let digest = Digest::eval_sha256_digest(blob);
         let mut req = self
             .put(&url)
-            .query("digest", &digest.to_string())
+            .query("digest", digest.as_ref())
             .set("Content-Length", &blob.len().to_string())
             .set("Content-Type", "application/octet-stream");
         if let Some(token) = self.token.as_ref() {
@@ -244,7 +247,7 @@ mod tests {
         for tag in ["tag1", "tag2", "tag3"] {
             let manifest = client.get_manifest(&Reference::new(tag)?)?;
             for layer in manifest.layers() {
-                let buf = client.get_blob(&Digest::new(layer.digest())?)?;
+                let buf = client.get_blob(layer.digest())?;
                 dbg!(buf.len());
             }
         }

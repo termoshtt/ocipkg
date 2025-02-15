@@ -1,9 +1,11 @@
 use crate::{
     image::{OciArchive, OciDir, Remote},
-    Digest, ImageName,
+    ImageName,
 };
 use anyhow::{bail, Context, Result};
-use oci_spec::image::{Descriptor, DescriptorBuilder, ImageIndex, ImageManifest, MediaType};
+use oci_spec::image::{
+    Descriptor, DescriptorBuilder, Digest, ImageIndex, ImageManifest, MediaType,
+};
 use std::path::Path;
 
 /// Handler of [OCI Image Layout] with containing single manifest
@@ -32,7 +34,7 @@ pub trait ImageBuilder {
     type Image: Image;
 
     /// Add a blob to the image layout.
-    fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, i64)>;
+    fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, u64)>;
 
     /// Finish building image layout.
     fn build(self, manifest: ImageManifest) -> Result<Self::Image>;
@@ -43,7 +45,7 @@ pub trait ImageBuilder {
         Ok(DescriptorBuilder::default()
             .media_type(MediaType::EmptyJSON)
             .size(size)
-            .digest(digest.to_string())
+            .digest(digest)
             .build()?)
     }
 }
@@ -53,10 +55,10 @@ pub fn copy<From: Image, To: ImageBuilder>(from: &mut From, mut to: To) -> Resul
     let name = from.get_name()?;
     let manifest = from.get_manifest()?;
     for layer in manifest.layers() {
-        let digest = Digest::from_descriptor(layer)?;
-        let blob = from.get_blob(&digest)?;
+        let digest = layer.digest();
+        let blob = from.get_blob(digest)?;
         let (digest_new, size) = to.add_blob(&blob)?;
-        if digest != digest_new {
+        if digest != &digest_new {
             bail!("Digest of a layer in {name} mismatch: {digest} != {digest_new}",);
         }
         if size != layer.size() {
@@ -67,10 +69,10 @@ pub fn copy<From: Image, To: ImageBuilder>(from: &mut From, mut to: To) -> Resul
         }
     }
     let config = manifest.config();
-    let digest = Digest::from_descriptor(config)?;
-    let blob = from.get_blob(&digest)?;
+    let digest = config.digest();
+    let blob = from.get_blob(digest)?;
     let (digest_new, size) = to.add_blob(&blob)?;
-    if digest != digest_new {
+    if digest != &digest_new {
         bail!("Digest of a config in {name} mismatch: {digest} != {digest_new}",);
     }
     if size != config.size() {

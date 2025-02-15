@@ -13,9 +13,10 @@ pub use reference::Reference;
 
 use crate::{
     image::{copy, Artifact, Image, OciArchive, RemoteBuilder},
-    Digest, ImageName,
+    ImageName,
 };
 use anyhow::Result;
+use oci_spec::image::Digest;
 use std::{io::Read, path::Path};
 
 /// Push image to registry
