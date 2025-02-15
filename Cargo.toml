@@ -19,7 +19,7 @@ lazy_static = "1.5.0"
 log = "0.4.25"
 maplit = "1.0.2"
 oci-spec = "0.7.1"
-regex = "1.10.6"
+regex = "1.11.1"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.138"
 sha2 = "0.10.8"
