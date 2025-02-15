@@ -32,7 +32,7 @@ pub trait ImageBuilder {
     type Image: Image;
 
     /// Add a blob to the image layout.
-    fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, i64)>;
+    fn add_blob(&mut self, data: &[u8]) -> Result<(Digest, u64)>;
 
     /// Finish building image layout.
     fn build(self, manifest: ImageManifest) -> Result<Self::Image>;

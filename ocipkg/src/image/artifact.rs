@@ -80,7 +80,7 @@ impl Builder {
             self.builder
                 .add_layer(media_types::layer_tar_gzip(), &buf, HashMap::new())?;
         self.config
-            .add_layer(Digest::new(layer_desc.digest())?, paths);
+            .add_layer(Digest::new(layer_desc.digest().as_ref())?, paths);
         Ok(())
     }
 

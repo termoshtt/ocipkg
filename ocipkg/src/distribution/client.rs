@@ -1,6 +1,9 @@
 use crate::distribution::*;
 use anyhow::{bail, ensure, Result};
-use oci_spec::{distribution::*, image::*};
+use oci_spec::{
+    distribution::TagList,
+    image::{ImageManifest, ToDockerV2S2},
+};
 use url::Url;
 
 /// A client for `/v2/<name>/` API endpoint
@@ -244,7 +247,7 @@ mod tests {
         for tag in ["tag1", "tag2", "tag3"] {
             let manifest = client.get_manifest(&Reference::new(tag)?)?;
             for layer in manifest.layers() {
-                let buf = client.get_blob(&Digest::new(layer.digest())?)?;
+                let buf = client.get_blob(&Digest::new(layer.digest().as_ref())?)?;
                 dbg!(buf.len());
             }
         }

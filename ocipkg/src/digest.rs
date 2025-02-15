@@ -71,7 +71,7 @@ impl Digest {
     }
 
     pub fn from_descriptor(descriptor: &oci_spec::image::Descriptor) -> Result<Self> {
-        Self::new(descriptor.digest())
+        Self::new(descriptor.digest().as_ref())
     }
 
     /// As a path used in oci-archive
