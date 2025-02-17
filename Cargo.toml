@@ -9,7 +9,7 @@ base16ct = { version = "0.2.0", features = ["alloc"] }
 base64 = "0.22.1"
 cargo_metadata = "0.18.1"
 chrono = "0.4.39"
-clap = { version = "4.5.29", features = ["derive"] }
+clap = { version = "4.5.30", features = ["derive"] }
 colored = "3.0.0"
 directories = "5.0.1"
 env_logger = "0.11.6"
@@ -24,7 +24,7 @@ serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.138"
 sha2 = "0.10.8"
 tar = "0.4.43"
-tempfile = "3.16.0"
+tempfile = "3.17.1"
 toml = "0.8.20"
 ureq = { version = "2.12.1", features = ["json"] }
 url = "2.5.4"
