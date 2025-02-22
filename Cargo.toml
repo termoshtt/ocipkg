@@ -1,6 +1,6 @@
 [workspace]
 members = ["ocipkg", "ocipkg-cli"]
-exclude = ["examples/rust/lib", "examples/rust/exe"]
+exclude = ["examples/static-exe", "examples/rust/lib", "examples/rust/exe"]
 resolver = "2"
 
 [workspace.dependencies]
