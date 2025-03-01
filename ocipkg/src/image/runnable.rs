@@ -6,10 +6,7 @@ use anyhow::Result;
 use oci_spec::image::ImageManifestBuilder;
 use std::path::PathBuf;
 
-pub struct Runnable {
-    archive: OciArchive,
-}
-
+/// Build [`OciArchive`] for a runnable container
 pub struct RunnableBuilder {
     builder: OciArchiveBuilder,
     manifest: oci_spec::image::ImageManifest,
@@ -25,9 +22,7 @@ impl RunnableBuilder {
         })
     }
 
-    pub fn build(self) -> Result<Runnable> {
-        Ok(Runnable {
-            archive: self.builder.build(self.manifest)?,
-        })
+    pub fn build(self) -> Result<OciArchive> {
+        self.builder.build(self.manifest)
     }
 }
