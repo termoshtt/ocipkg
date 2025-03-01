@@ -11,6 +11,7 @@ mod oci_archive;
 mod oci_artifact;
 mod oci_dir;
 mod remote;
+mod runnable;
 
 pub use artifact::*;
 pub use config::*;
@@ -19,3 +20,4 @@ pub use oci_archive::*;
 pub use oci_artifact::*;
 pub use oci_dir::*;
 pub use remote::*;
+pub use runnable::*;
