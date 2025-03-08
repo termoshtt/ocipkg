@@ -33,6 +33,19 @@ enum Opt {
         tag: Option<String>,
     },
 
+    /// Compose a static-linked executable file into an oci-archive tar file
+    Runnable {
+        /// Path of static-linked exetuable file
+        input: PathBuf,
+
+        /// Path of output tar archive in oci-archive format
+        output: PathBuf,
+
+        /// Name of container, use UUID v4 hyphenated if not set.
+        #[arg(short = 't', long = "tag")]
+        tag: Option<String>,
+    },
+
     /// Load and expand container local cache
     Load {
         /// Input oci-archive
@@ -119,6 +132,20 @@ fn main() -> Result<()> {
             let mut b = ocipkg::image::Builder::new(output, image_name)?;
             b.append_files(&inputs)?;
             let _artifact = b.build()?;
+        }
+
+        Opt::Runnable { input, output, tag } => {
+            let mut output = output;
+            output.set_extension("tar");
+            let image_name = if let Some(name) = tag {
+                ocipkg::ImageName::parse(&name)?
+            } else {
+                ocipkg::ImageName::default()
+            };
+
+            let mut b = ocipkg::image::RunnableBuilder::new_archive(output, image_name)?;
+            b.append_executable(&input)?;
+            let _runnable = b.build()?;
         }
 
         Opt::Load { input, overwrite } => {
