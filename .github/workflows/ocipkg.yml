@@ -60,7 +60,9 @@ jobs:
         run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
       - name: Build examples/static-exe
-        run: cargo build --release
+        run: |
+          rustup target add x86_64-unknown-linux-musl
+          cargo build --release
         working-directory: examples/static-exe
 
       - name: pack
