@@ -144,7 +144,7 @@ fn main() -> Result<()> {
                 ocipkg::ImageName::default()
             };
 
-            let _b = ocipkg::image::RunnableBuilder::new(output, image_name)?;
+            let _b = ocipkg::image::RunnableBuilder::new_archive(output, image_name)?;
 
             dbg!(input);
 
