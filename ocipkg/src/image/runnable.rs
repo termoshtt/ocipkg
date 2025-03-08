@@ -5,7 +5,9 @@ use std::path::PathBuf;
 use super::OciArchiveBuilder;
 use crate::{image::ImageBuilder, ImageName};
 use anyhow::{ensure, Result};
-use oci_spec::image::{ConfigBuilder, DescriptorBuilder, ImageManifestBuilder};
+use oci_spec::image::{
+    ConfigBuilder, DescriptorBuilder, ImageConfigurationBuilder, ImageManifestBuilder,
+};
 
 /// Build [`Runnable`], executable container
 pub struct RunnableBuilder<LayoutBuilder: ImageBuilder> {
@@ -67,11 +69,17 @@ impl<LayoutBuilder: ImageBuilder> RunnableBuilder<LayoutBuilder> {
             "No executable provided. Use `append_executable` to add one"
         );
 
-        let config = ConfigBuilder::default()
-            .entrypoint(self.entrypoint)
+        let cfg = ImageConfigurationBuilder::default()
+            .config(
+                ConfigBuilder::default()
+                    .entrypoint(self.entrypoint)
+                    .working_dir("/")
+                    .build()?,
+            )
             .build()?;
-        let cfg_json = serde_json::to_string(&config)?;
-        let (digest, size) = self.layout.add_blob(cfg_json.as_bytes())?;
+        let (digest, size) = self
+            .layout
+            .add_blob(serde_json::to_string(&cfg)?.as_bytes())?;
         let cfg_desc = DescriptorBuilder::default()
             .media_type(oci_spec::image::MediaType::ImageConfig)
             .size(size)
