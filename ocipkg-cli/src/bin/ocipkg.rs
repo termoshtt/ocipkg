@@ -39,7 +39,6 @@ enum Opt {
         input: PathBuf,
 
         /// Path of output tar archive in oci-archive format
-        #[arg(short = 'o', long = "output")]
         output: PathBuf,
 
         /// Name of container, use UUID v4 hyphenated if not set.
@@ -144,11 +143,9 @@ fn main() -> Result<()> {
                 ocipkg::ImageName::default()
             };
 
-            let _b = ocipkg::image::RunnableBuilder::new_archive(output, image_name)?;
-
-            dbg!(input);
-
-            todo!()
+            let mut b = ocipkg::image::RunnableBuilder::new_archive(output, image_name)?;
+            b.append_executable(&input)?;
+            let _runnable = b.build()?;
         }
 
         Opt::Load { input, overwrite } => {
