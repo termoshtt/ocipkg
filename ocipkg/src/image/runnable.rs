@@ -46,7 +46,6 @@ impl<LayoutBuilder: ImageBuilder> RunnableBuilder<LayoutBuilder> {
             let mut tar_builder = tar::Builder::new(&mut buf);
             let mut file = std::fs::File::open(path)?;
             tar_builder.append_file(filename, &mut file)?;
-            log::info!("Put executable `/{}` into container", filename);
         }
 
         let (digest, size) = self.layout.add_blob(&buf)?;
