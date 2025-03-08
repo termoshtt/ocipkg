@@ -31,12 +31,12 @@ impl<LayoutBuilder: ImageBuilder> RunnableBuilder<LayoutBuilder> {
 impl RunnableBuilder<OciArchiveBuilder> {
     pub fn new_archive_unnamed(path: PathBuf) -> Result<Self> {
         let layout = OciArchiveBuilder::new_unnamed(path)?;
-        Ok(Self::new(layout)?)
+        Self::new(layout)
     }
 
     pub fn new_archive(path: PathBuf, image_name: ImageName) -> Result<Self> {
         let layout = OciArchiveBuilder::new(path, image_name)?;
-        Ok(Self::new(layout)?)
+        Self::new(layout)
     }
 }
 
