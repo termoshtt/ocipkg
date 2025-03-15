@@ -1,12 +1,15 @@
 //! Executable container
 
-use std::path::PathBuf;
-
 use super::OciArchiveBuilder;
 use crate::{image::ImageBuilder, ImageName};
 use anyhow::{ensure, Result};
+use goblin::elf::Elf;
 use oci_spec::image::{
     ConfigBuilder, DescriptorBuilder, ImageConfigurationBuilder, ImageManifestBuilder,
+};
+use std::{
+    fs,
+    path::{Path, PathBuf},
 };
 
 /// Build [`Runnable`], executable container
@@ -33,6 +36,12 @@ impl<LayoutBuilder: ImageBuilder> RunnableBuilder<LayoutBuilder> {
         }
         if !self.layers.is_empty() {
             anyhow::bail!("Only one executable is allowed");
+        }
+        if !is_statically_linked_elf(path)? {
+            anyhow::bail!(
+                "Only statically linked ELF executables are supported: {}",
+                path.display()
+            );
         }
 
         let filename = path
@@ -104,3 +113,16 @@ impl RunnableBuilder<OciArchiveBuilder> {
 
 /// Runnable container containing single, statically linked executable
 pub struct Runnable<Layout>(Layout);
+
+fn is_statically_linked_elf(path: &Path) -> Result<bool> {
+    let buffer = fs::read(path)?;
+    match Elf::parse(&buffer) {
+        Ok(elf) => {
+            // Statically linked executable does not have interpreter (`PT_INTERP`).
+            // https://refspecs.linuxbase.org/elf/gabi4+/ch5.dynamic.html#interpreter
+            let is_static = elf.interpreter.is_none();
+            Ok(is_static)
+        }
+        Err(_) => Ok(false),
+    }
+}

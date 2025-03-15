@@ -16,6 +16,7 @@ base64.workspace = true
 chrono.workspace = true
 directories.workspace = true
 flate2.workspace = true
+goblin.workspace = true
 lazy_static.workspace = true
 log.workspace = true
 maplit.workspace = true
