@@ -162,9 +162,8 @@ fn main() -> Result<()> {
             }
 
             log::info!("Creating runnable image at {}", output.display());
-            let mut b = ocipkg::image::RunnableBuilder::new_archive(output, image_name)?;
-            b.append_executable(&input)?;
-            let _runnable = b.build()?;
+            let _out =
+                ocipkg::image::RunnableBuilder::new_archive(output, image_name)?.build(&input)?;
         }
 
         Opt::Load { input, overwrite } => {

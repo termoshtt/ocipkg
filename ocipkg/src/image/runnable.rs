@@ -2,10 +2,11 @@
 
 use super::OciArchiveBuilder;
 use crate::{image::ImageBuilder, ImageName};
-use anyhow::{bail, ensure, Context, Result};
+use anyhow::{bail, Context, Result};
 use goblin::elf::Elf;
 use oci_spec::image::{
-    Arch, ConfigBuilder, DescriptorBuilder, ImageConfigurationBuilder, ImageManifestBuilder, Os,
+    Arch, ConfigBuilder, Descriptor, DescriptorBuilder, ImageConfigurationBuilder,
+    ImageManifestBuilder, Os,
 };
 use std::{
     fs,
@@ -15,11 +16,7 @@ use std::{
 /// Build [`Runnable`], executable container
 pub struct RunnableBuilder<LayoutBuilder: ImageBuilder> {
     manifest: ImageManifestBuilder,
-    entrypoint: Vec<String>,
     layout: LayoutBuilder,
-    layers: Vec<oci_spec::image::Descriptor>,
-    arch: Option<Arch>,
-    os: Option<Os>,
 }
 
 impl<LayoutBuilder: ImageBuilder> RunnableBuilder<LayoutBuilder> {
@@ -27,25 +24,10 @@ impl<LayoutBuilder: ImageBuilder> RunnableBuilder<LayoutBuilder> {
         Ok(Self {
             layout: builder,
             manifest: ImageManifestBuilder::default().schema_version(2_u32),
-            entrypoint: Vec::new(),
-            layers: Vec::new(),
-            arch: None,
-            os: None,
         })
     }
 
-    pub fn append_executable(&mut self, path: &PathBuf) -> Result<()> {
-        if !path.is_file() {
-            anyhow::bail!("File does not exist: {:?}", path);
-        }
-        if !self.layers.is_empty() {
-            anyhow::bail!("Only one executable is allowed");
-        }
-
-        let (arch, os) = parse_elf_header(path)?;
-        self.arch = Some(arch);
-        self.os = Some(os);
-
+    fn add_layer(&mut self, path: &Path) -> Result<Descriptor> {
         let filename = path
             .file_name()
             .unwrap() // Checked above
@@ -66,25 +48,24 @@ impl<LayoutBuilder: ImageBuilder> RunnableBuilder<LayoutBuilder> {
             .size(size)
             .digest(digest)
             .build()?;
-        self.layers.push(layer_desc);
 
-        self.entrypoint.push(format!("/{filename}"));
-
-        Ok(())
+        Ok(layer_desc)
     }
 
-    pub fn build(mut self) -> Result<Runnable<LayoutBuilder::Image>> {
-        ensure!(
-            !self.layers.is_empty() && !self.entrypoint.is_empty(),
-            "No executable provided. Use `append_executable` to add one"
-        );
+    fn add_cfg(&mut self, path: &Path) -> Result<Descriptor> {
+        let filename = path
+            .file_name()
+            .unwrap() // Checked above
+            .to_str()
+            .expect("Non-UTF8 filename");
+        let (arch, os) = parse_elf_header(path)?;
 
         let cfg = ImageConfigurationBuilder::default()
-            .architecture(self.arch.unwrap())
-            .os(self.os.unwrap())
+            .architecture(arch)
+            .os(os)
             .config(
                 ConfigBuilder::default()
-                    .entrypoint(self.entrypoint)
+                    .entrypoint(vec![format!("/{filename}")])
                     .working_dir("/")
                     .build()?,
             )
@@ -98,7 +79,20 @@ impl<LayoutBuilder: ImageBuilder> RunnableBuilder<LayoutBuilder> {
             .digest(digest)
             .build()?;
 
-        let manifest = self.manifest.config(cfg_desc).layers(self.layers).build()?;
+        Ok(cfg_desc)
+    }
+
+    pub fn build(mut self, path: &Path) -> Result<Runnable<LayoutBuilder::Image>> {
+        if !path.is_file() {
+            anyhow::bail!("File does not exist: {:?}", path);
+        }
+        let layer_desc = self.add_layer(path)?;
+        let cfg_desc = self.add_cfg(path)?;
+        let manifest = self
+            .manifest
+            .config(cfg_desc)
+            .layers(vec![layer_desc])
+            .build()?;
         Ok(Runnable(self.layout.build(manifest)?))
     }
 }
