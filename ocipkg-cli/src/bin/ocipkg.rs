@@ -38,8 +38,13 @@ enum Opt {
         /// Path of static-linked exetuable file
         input: PathBuf,
 
-        /// Path of output tar archive in oci-archive format
-        output: PathBuf,
+        /// Path of output tar archive in oci-archive format. Default is input file name with .tar extension
+        #[arg(short = 'o', long = "output")]
+        output: Option<PathBuf>,
+
+        /// Overwrite the output file if it exists
+        #[arg(short = 'f', long = "overwrite")]
+        overwrite: bool,
 
         /// Name of container, use UUID v4 hyphenated if not set.
         #[arg(short = 't', long = "tag")]
@@ -134,15 +139,29 @@ fn main() -> Result<()> {
             let _artifact = b.build()?;
         }
 
-        Opt::Runnable { input, output, tag } => {
-            let mut output = output;
-            output.set_extension("tar");
+        Opt::Runnable {
+            input,
+            output,
+            overwrite,
+            tag,
+        } => {
+            let output = output.unwrap_or_else(|| {
+                let mut output = input.clone();
+                output.set_extension("tar");
+                output
+            });
             let image_name = if let Some(name) = tag {
                 ocipkg::ImageName::parse(&name)?
             } else {
                 ocipkg::ImageName::default()
             };
 
+            if overwrite && output.exists() {
+                log::warn!("Overwriting existing file: {}", output.display());
+                std::fs::remove_file(&output)?;
+            }
+
+            log::info!("Creating runnable image at {}", output.display());
             let mut b = ocipkg::image::RunnableBuilder::new_archive(output, image_name)?;
             b.append_executable(&input)?;
             let _runnable = b.build()?;

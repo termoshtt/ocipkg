@@ -67,7 +67,7 @@ jobs:
 
       - name: pack
         run: |
-          ocipkg runnable examples/static-exe/target/x86_64-unknown-linux-musl/release/static-exe test.tar --tag static-exe
+          ocipkg runnable examples/static-exe/target/x86_64-unknown-linux-musl/release/static-exe -o test.tar --tag static-exe
 
       - name: Test podman can run the
         run: |
