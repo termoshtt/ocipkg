@@ -48,6 +48,32 @@ jobs:
       - name: Show alpine version
         run: cat $HOME/.local/share/ocipkg/docker.io/library/alpine/__latest/etc/alpine-release
 
+  runnable:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: --path=ocipkg-cli/ -f
+      - name: Add path
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Build examples/static-exe
+        run: |
+          rustup target add x86_64-unknown-linux-musl
+          cargo build --release
+        working-directory: examples/static-exe
+
+      - name: pack
+        run: |
+          ocipkg runnable examples/static-exe/target/x86_64-unknown-linux-musl/release/static-exe -o test.tar --tag static-exe
+
+      - name: Test podman can run the
+        run: |
+          podman load < test.tar
+          podman run --rm static-exe
+
   get:
     runs-on: ubuntu-22.04
     steps:
