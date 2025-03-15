@@ -2,10 +2,10 @@
 
 use super::OciArchiveBuilder;
 use crate::{image::ImageBuilder, ImageName};
-use anyhow::{ensure, Result};
+use anyhow::{bail, ensure, Context, Result};
 use goblin::elf::Elf;
 use oci_spec::image::{
-    ConfigBuilder, DescriptorBuilder, ImageConfigurationBuilder, ImageManifestBuilder,
+    Arch, ConfigBuilder, DescriptorBuilder, ImageConfigurationBuilder, ImageManifestBuilder, Os,
 };
 use std::{
     fs,
@@ -18,6 +18,8 @@ pub struct RunnableBuilder<LayoutBuilder: ImageBuilder> {
     entrypoint: Vec<String>,
     layout: LayoutBuilder,
     layers: Vec<oci_spec::image::Descriptor>,
+    arch: Option<Arch>,
+    os: Option<Os>,
 }
 
 impl<LayoutBuilder: ImageBuilder> RunnableBuilder<LayoutBuilder> {
@@ -27,6 +29,8 @@ impl<LayoutBuilder: ImageBuilder> RunnableBuilder<LayoutBuilder> {
             manifest: ImageManifestBuilder::default().schema_version(2_u32),
             entrypoint: Vec::new(),
             layers: Vec::new(),
+            arch: None,
+            os: None,
         })
     }
 
@@ -37,12 +41,10 @@ impl<LayoutBuilder: ImageBuilder> RunnableBuilder<LayoutBuilder> {
         if !self.layers.is_empty() {
             anyhow::bail!("Only one executable is allowed");
         }
-        if !is_statically_linked_elf(path)? {
-            anyhow::bail!(
-                "Only statically linked ELF executables are supported: {}",
-                path.display()
-            );
-        }
+
+        let (arch, os) = parse_elf_header(path)?;
+        self.arch = Some(arch);
+        self.os = Some(os);
 
         let filename = path
             .file_name()
@@ -78,6 +80,8 @@ impl<LayoutBuilder: ImageBuilder> RunnableBuilder<LayoutBuilder> {
         );
 
         let cfg = ImageConfigurationBuilder::default()
+            .architecture(self.arch.unwrap())
+            .os(self.os.unwrap())
             .config(
                 ConfigBuilder::default()
                     .entrypoint(self.entrypoint)
@@ -114,15 +118,42 @@ impl RunnableBuilder<OciArchiveBuilder> {
 /// Runnable container containing single, statically linked executable
 pub struct Runnable<Layout>(Layout);
 
-fn is_statically_linked_elf(path: &Path) -> Result<bool> {
+fn parse_elf_header(path: &Path) -> Result<(Arch, Os)> {
     let buffer = fs::read(path)?;
-    match Elf::parse(&buffer) {
-        Ok(elf) => {
-            // Statically linked executable does not have interpreter (`PT_INTERP`).
-            // https://refspecs.linuxbase.org/elf/gabi4+/ch5.dynamic.html#interpreter
-            let is_static = elf.interpreter.is_none();
-            Ok(is_static)
-        }
-        Err(_) => Ok(false),
+    let elf = Elf::parse(&buffer).context("Cannot parse as an ELF file")?;
+
+    // Statically linked executable does not have interpreter (`PT_INTERP`).
+    // https://refspecs.linuxbase.org/elf/gabi4+/ch5.dynamic.html#interpreter
+    if elf.interpreter.is_some() {
+        bail!(
+            "Dynamically linked ELF executables are not supported: {}",
+            path.display()
+        );
     }
+
+    let header = elf.header;
+    let arch = match header.e_machine {
+        goblin::elf::header::EM_X86_64 => Arch::Amd64,
+        goblin::elf::header::EM_AARCH64 => Arch::ARM64,
+        _ => bail!(
+            "Unsupported ELF architecture: {} (Expected x86_64({}) or aarch64({})",
+            header.e_machine,
+            goblin::elf::header::EM_X86_64,
+            goblin::elf::header::EM_AARCH64
+        ),
+    };
+    let osabi = header.e_ident[goblin::elf::header::EI_OSABI];
+    let os = match osabi {
+        // XXX: OCI spec says `os` field in `application/vnd.oci.image.config.v1+json` should be GOOS value,
+        //      https://github.com/opencontainers/image-spec/blob/main/config.md
+        //      but it is unclear how `ELFOSABI_NONE=0` should be mapped to GOOS since it does not contains `None` variant.
+        //      For now, we simply map to `Linux` because the most common use case is Linux.
+        goblin::elf::header::ELFOSABI_NONE | goblin::elf::header::ELFOSABI_LINUX => Os::Linux,
+        _ => bail!(
+            "Unsupported ELF OS ABI: {osabi} (Expected None({}) or Linux({})",
+            goblin::elf::header::ELFOSABI_NONE,
+            goblin::elf::header::ELFOSABI_LINUX
+        ),
+    };
+    Ok((arch, os))
 }
