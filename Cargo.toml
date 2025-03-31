@@ -9,7 +9,7 @@ base16ct = { version = "0.2.0", features = ["alloc"] }
 base64 = "0.22.1"
 cargo_metadata = "0.18.1"
 chrono = "0.4.40"
-clap = { version = "4.5.32", features = ["derive"] }
+clap = { version = "4.5.34", features = ["derive"] }
 colored = "3.0.0"
 directories = "5.0.1"
 env_logger = "0.11.7"
