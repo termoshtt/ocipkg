@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Generate cargo-doc
       - uses: actions-rs/cargo@v1
@@ -46,7 +46,7 @@ jobs:
 
       # Upload target/doc directory
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: 'target/doc'
 
