@@ -62,7 +62,9 @@ mod image_name;
 pub use image_name::ImageName;
 pub use oci_spec::image::Digest;
 
+#[cfg(feature = "remote")]
 use anyhow::{Context, Result};
+#[cfg(feature = "remote")]
 use std::fs;
 
 const STATIC_PREFIX: &str = if cfg!(target_os = "windows") {
@@ -80,6 +82,7 @@ const STATIC_EXTENSION: &str = if cfg!(target_os = "windows") {
 /// Get and link package in `build.rs` with [cargo link instructions](https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script).
 ///
 /// This is aimed to use in [build script](https://doc.rust-lang.org/cargo/reference/build-scripts.html) a.k.a. `build.rs`.
+#[cfg(feature = "remote")]
 pub fn link_package(image_name: &str) -> Result<()> {
     let image_name = ImageName::parse(image_name)?;
     let dir = local::image_dir(&image_name)?;
