@@ -1,13 +1,13 @@
 [package]
 name = "ocipkg"
-version = "0.4.0"
-authors = ["Toshiki Teramura <toshiki.teramura@gmail.com>"]
-edition = "2021"
-license = "MIT OR Apache-2.0"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme.workspace = true
 description = "OCI registry for package distribution"
 documentation = "https://docs.rs/ocipkg"
-repository = "https://github.com/termoshtt/ocipkg"
-readme = "../README.md"
 
 [features]
 default = ["remote"]
