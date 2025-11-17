@@ -87,7 +87,6 @@ pub fn copy<From: Image, To: ImageBuilder>(from: &mut From, mut to: To) -> Resul
     to.build(manifest)
 }
 
-#[cfg(feature = "remote")]
 pub fn read(name_or_path: &str) -> Result<Box<dyn Image>> {
     let path: &Path = name_or_path.as_ref();
     if path.is_file() {
@@ -96,21 +95,16 @@ pub fn read(name_or_path: &str) -> Result<Box<dyn Image>> {
     if path.is_dir() {
         return Ok(Box::new(OciDir::new(path)?));
     }
-    if let Ok(image_name) = ImageName::parse(name_or_path) {
-        return Ok(Box::new(Remote::new(image_name)?));
-    }
-    bail!("Invalid image name or path: {}", name_or_path);
-}
 
-#[cfg(not(feature = "remote"))]
-pub fn read(name_or_path: &str) -> Result<Box<dyn Image>> {
-    let path: &Path = name_or_path.as_ref();
-    if path.is_file() {
-        return Ok(Box::new(OciArchive::new(path)?));
+    #[cfg(feature = "remote")]
+    {
+        if let Ok(image_name) = ImageName::parse(name_or_path) {
+            return Ok(Box::new(Remote::new(image_name)?));
+        }
+        bail!("Invalid image name or path: {}", name_or_path);
     }
-    if path.is_dir() {
-        return Ok(Box::new(OciDir::new(path)?));
-    }
+
+    #[cfg(not(feature = "remote"))]
     bail!("Invalid image name or path (remote feature disabled): {}", name_or_path);
 }
 

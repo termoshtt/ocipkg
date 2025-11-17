@@ -1,10 +1,7 @@
-use crate::{
-    image::{Image, ImageBuilder, OciArchive, OciDir},
-    ImageName,
-};
+use crate::image::{Image, ImageBuilder, OciArchive, OciDir};
 
 #[cfg(feature = "remote")]
-use crate::image::Remote;
+use crate::{image::Remote, ImageName};
 use anyhow::{Context, Result};
 use chrono::{DateTime, TimeZone};
 use oci_spec::image::{
