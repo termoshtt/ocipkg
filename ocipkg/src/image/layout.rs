@@ -1,7 +1,10 @@
 use crate::{
-    image::{OciArchive, OciDir, Remote},
+    image::{OciArchive, OciDir},
     ImageName,
 };
+
+#[cfg(feature = "remote")]
+use crate::image::Remote;
 use anyhow::{bail, Context, Result};
 use oci_spec::image::{
     Descriptor, DescriptorBuilder, Digest, ImageIndex, ImageManifest, MediaType,
@@ -92,10 +95,20 @@ pub fn read(name_or_path: &str) -> Result<Box<dyn Image>> {
     if path.is_dir() {
         return Ok(Box::new(OciDir::new(path)?));
     }
-    if let Ok(image_name) = ImageName::parse(name_or_path) {
-        return Ok(Box::new(Remote::new(image_name)?));
+
+    #[cfg(feature = "remote")]
+    {
+        if let Ok(image_name) = ImageName::parse(name_or_path) {
+            return Ok(Box::new(Remote::new(image_name)?));
+        }
+        bail!("Invalid image name or path: {}", name_or_path);
     }
-    bail!("Invalid image name or path: {}", name_or_path);
+
+    #[cfg(not(feature = "remote"))]
+    bail!(
+        "Invalid image name or path (remote feature disabled): {}",
+        name_or_path
+    );
 }
 
 pub(crate) fn get_name_from_index(index: &ImageIndex) -> Result<ImageName> {

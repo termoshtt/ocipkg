@@ -1,23 +1,18 @@
 //! Pull and Push images to OCI registry based on [OCI distribution specification](https://github.com/opencontainers/distribution-spec)
 
-mod auth;
-mod client;
-mod name;
-mod reference;
-
-pub use auth::*;
-pub use client::Client;
-pub use name::Name;
-pub use oci_spec::image::MediaType;
-pub use reference::Reference;
-
 use crate::{
     image::{copy, Artifact, Image, OciArchive, RemoteBuilder},
     ImageName,
 };
 use anyhow::Result;
-use oci_spec::image::Digest;
-use std::{io::Read, path::Path};
+use std::path::Path;
+
+mod auth;
+mod client;
+
+pub use auth::*;
+pub use client::Client;
+pub use oci_spec::image::MediaType;
 
 /// Push image to registry
 pub fn push_image(path: &Path) -> Result<()> {

@@ -1,7 +1,7 @@
-use crate::{
-    image::{Image, ImageBuilder, OciArchive, OciDir, Remote},
-    ImageName,
-};
+use crate::image::{Image, ImageBuilder, OciArchive, OciDir};
+
+#[cfg(feature = "remote")]
+use crate::{image::Remote, ImageName};
 use anyhow::{Context, Result};
 use chrono::{DateTime, TimeZone};
 use oci_spec::image::{
@@ -195,6 +195,7 @@ impl OciArtifact<OciDir> {
     }
 }
 
+#[cfg(feature = "remote")]
 impl OciArtifact<Remote> {
     pub fn from_remote(image_name: ImageName) -> Result<Self> {
         let layout = Remote::new(image_name)?;
