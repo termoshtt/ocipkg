@@ -105,7 +105,10 @@ pub fn read(name_or_path: &str) -> Result<Box<dyn Image>> {
     }
 
     #[cfg(not(feature = "remote"))]
-    bail!("Invalid image name or path (remote feature disabled): {}", name_or_path);
+    bail!(
+        "Invalid image name or path (remote feature disabled): {}",
+        name_or_path
+    );
 }
 
 pub(crate) fn get_name_from_index(index: &ImageIndex) -> Result<ImageName> {
