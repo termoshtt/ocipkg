@@ -10,7 +10,7 @@ jobs:
   test:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -24,7 +24,7 @@ jobs:
   with-registry:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Setup registry
         run: |
           ./test/fixture.sh
@@ -41,7 +41,7 @@ jobs:
   check-format:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
@@ -50,7 +50,7 @@ jobs:
   clippy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: rustup component add clippy
       - uses: actions-rs/clippy-check@v1
         with:
@@ -60,7 +60,7 @@ jobs:
   doc:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions-rs/cargo@v1
         with:
           command: doc

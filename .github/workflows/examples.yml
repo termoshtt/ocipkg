@@ -11,7 +11,7 @@ jobs:
   cpp-lib:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions-rs/cargo@v1
         with:
           command: install
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-22.04
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions-rs/cargo@v1
         with:
           command: install
@@ -53,7 +53,7 @@ jobs:
   rust-exe:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions-rs/cargo@v1
         with:
           command: install
