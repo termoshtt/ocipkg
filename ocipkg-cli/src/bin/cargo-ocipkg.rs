@@ -60,7 +60,7 @@ fn get_metadata() -> Metadata {
 fn get_package(metadata: &Metadata, package_name: Option<String>) -> Package {
     if let Some(name) = package_name {
         for pkg in metadata.workspace_packages() {
-            if pkg.name == name {
+            if pkg.name.as_str() == name {
                 return pkg.clone();
             }
         }
@@ -170,7 +170,7 @@ fn main() -> Result<()> {
                 let mut targets = Vec::new();
                 for ty in &target.crate_types {
                     // FIXME support non-Linux OS
-                    match ty.as_str() {
+                    match ty.to_string().as_str() {
                         "staticlib" => {
                             targets.push(
                                 build_dir.join(format!("lib{}.a", target.name.replace('-', "_"))),
