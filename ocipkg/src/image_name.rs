@@ -1,4 +1,4 @@
-use crate::distribution::{Name, Reference};
+use crate::{Name, Reference};
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -37,7 +37,7 @@ use url::Url;
 /// ```
 ///
 /// ```rust
-/// use ocipkg::{ImageName, distribution::{Name, Reference}};
+/// use ocipkg::{ImageName, Name, Reference};
 /// let name = ImageName::parse("ghcr.io/termoshtt/ocipkg/testing:latest")?;
 /// assert_eq!(
 ///     name,
@@ -62,7 +62,7 @@ use url::Url;
 /// ```
 ///
 /// ```
-/// use ocipkg::{ImageName, distribution::{Name, Reference}};
+/// use ocipkg::{ImageName, Name, Reference};
 /// let name = ImageName::parse("localhost:5000/test_repo:latest")?;
 /// assert_eq!(
 ///     name,
@@ -86,7 +86,7 @@ use url::Url;
 /// ```
 ///
 /// ```
-/// use ocipkg::{ImageName, distribution::{Name, Reference}};
+/// use ocipkg::{ImageName, Name, Reference};
 /// let name = ImageName::parse("quay.io/jitesoft/alpine:sha256:6755355f801f8e3694bffb1a925786813462cea16f1ce2b0290b6a48acf2500c")?;
 /// assert_eq!(
 ///     name,
@@ -105,7 +105,7 @@ use url::Url;
 /// If `hostname` is absent, use `registry-1.docker.io` for docker compatibility:
 ///
 /// ```
-/// use ocipkg::{ImageName, distribution::{Name, Reference}};
+/// use ocipkg::{ImageName, Name, Reference};
 /// let name = ImageName::parse("ubuntu:20.04")?;
 /// assert_eq!(
 ///     name,
@@ -122,7 +122,7 @@ use url::Url;
 /// If `reference` is absent, use `latest`:
 ///
 /// ```
-/// use ocipkg::{ImageName, distribution::{Name, Reference}};
+/// use ocipkg::{ImageName, Name, Reference};
 /// let name = ImageName::parse("alpine").unwrap();
 /// assert_eq!(
 ///     name,

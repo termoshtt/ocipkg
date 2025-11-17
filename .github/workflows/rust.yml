@@ -67,11 +67,26 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
 
-  semver-check:
-    runs-on: ubuntu-22.04
+  semver:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Install semver-check
-        run: cargo install cargo-semver-checks --locked
-      - name: semver check
-        run: cargo semver-checks
+      - uses: actions/checkout@v5
+      - name: Check semver
+        uses: obi1kenobi/cargo-semver-checks-action@v2
+
+  wasm-emscripten:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust nightly
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: wasm32-unknown-emscripten
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+
+      - name: Check ocipkg for wasm32-unknown-emscripten (no remote feature)
+        run: cargo +nightly check -p ocipkg --target wasm32-unknown-emscripten --no-default-features

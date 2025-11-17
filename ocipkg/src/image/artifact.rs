@@ -3,12 +3,15 @@
 use crate::{
     image::{
         copy, Config, Image, OciArchive, OciArchiveBuilder, OciArtifact, OciArtifactBuilder,
-        OciDir, OciDirBuilder, Remote,
+        OciDir, OciDirBuilder,
     },
     local::image_dir,
     media_types::{self, config_json},
     ImageName,
 };
+
+#[cfg(feature = "remote")]
+use crate::image::Remote;
 use anyhow::{bail, Context, Result};
 use flate2::{write::GzEncoder, Compression};
 use oci_spec::image::MediaType;
@@ -132,6 +135,7 @@ impl Artifact<OciDir> {
     }
 }
 
+#[cfg(feature = "remote")]
 impl Artifact<Remote> {
     pub fn from_remote(image_name: ImageName) -> Result<Self> {
         let layout = Remote::new(image_name)?;

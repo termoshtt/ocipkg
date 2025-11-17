@@ -1,4 +1,4 @@
-use crate::{digest::DigestExt, distribution::*};
+use crate::{digest::DigestExt, distribution::*, Digest, ImageName, Name, Reference};
 use anyhow::{bail, ensure, Result};
 use oci_spec::{
     distribution::TagList,

@@ -122,7 +122,7 @@ impl OciArchive {
         Ok(())
     }
 
-    fn get_entries(&mut self) -> Result<impl Iterator<Item = tar::Entry<fs::File>>> {
+    fn get_entries(&mut self) -> Result<impl Iterator<Item = tar::Entry<'_, fs::File>>> {
         self.rewind()?;
         Ok(self
             .ar

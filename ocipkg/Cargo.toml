@@ -9,6 +9,10 @@ documentation = "https://docs.rs/ocipkg"
 repository = "https://github.com/termoshtt/ocipkg"
 readme = "../README.md"
 
+[features]
+default = ["remote"]
+remote = ["dep:ureq"]
+
 [dependencies]
 anyhow.workspace = true
 base16ct.workspace = true
@@ -27,7 +31,7 @@ serde_json.workspace = true
 sha2.workspace = true
 tar.workspace = true
 toml.workspace = true
-ureq.workspace = true
+ureq = { workspace = true, optional = true }
 url.workspace = true
 urlencoding.workspace = true
 uuid.workspace = true
