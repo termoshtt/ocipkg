@@ -25,7 +25,7 @@ tar.workspace = true
 url.workspace = true
 
 [dependencies.ocipkg]
-version = "0.4.1"
+version = "0.4.2"
 path = "../ocipkg"
 
 [[bin]]
