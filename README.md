@@ -7,6 +7,23 @@ ocipkg
 
 OCI Registry for package distribution.
 
+Maintenance status
+------------------
+
+This project is no longer maintained.
+[Version 0.4.1](https://crates.io/crates/ocipkg/0.4.1) is the final release and
+fixes the path traversal vulnerability reported in
+[#222](https://github.com/termoshtt/ocipkg/issues/222).
+No further updates, including security fixes, are planned.
+
+For interacting with OCI registries, consider the ORAS project's
+[oci-client](https://github.com/oras-project/rust-oci-client).
+
+If you need ocipkg-specific functionality, such as local package management or
+build-time library fetching and linking, please fork this repository from
+[0.4.1](https://github.com/termoshtt/ocipkg/tree/0.4.1) and maintain it for your
+use case. `oci-client` is not a drop-in replacement for these features.
+
 Features
 ---------
 
