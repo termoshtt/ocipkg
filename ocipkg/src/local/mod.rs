@@ -1,7 +1,7 @@
 //! Manage container images stored in local storage
 
 use crate::ImageName;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use directories::ProjectDirs;
 use std::{path::*, sync::OnceLock};
 
@@ -27,8 +27,16 @@ pub fn data_dir() -> Result<PathBuf> {
 }
 
 /// Resolve a path to local storage where the image will be stored
+///
+/// Rejects invalid hostnames, including those supplied through public fields,
+/// and paths containing a root, prefix, or parent-directory component.
 pub fn image_dir(name: &ImageName) -> Result<PathBuf> {
-    Ok(data_dir()?.join(name.as_path()))
+    name.validate_hostname()?;
+    let path = name.as_path();
+    if !path.components().all(|c| matches!(c, Component::Normal(_))) {
+        bail!("Invalid image storage path: {}", path.display());
+    }
+    Ok(data_dir()?.join(path))
 }
 
 fn path_to_image_name(path: &Path) -> Result<ImageName> {
@@ -61,4 +69,30 @@ pub fn get_image_list() -> Result<Vec<ImageName>> {
         }
     }
     Ok(images)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reject_directly_constructed_invalid_hostnames() -> Result<()> {
+        for hostname in [
+            "",
+            ".",
+            "..",
+            "../outside",
+            "/outside",
+            "..\\outside",
+            "C:\\outside",
+        ] {
+            for port in [None, Some(5000)] {
+                let mut name = ImageName::parse("localhost/image:latest")?;
+                name.hostname = hostname.to_string();
+                name.port = port;
+                assert!(image_dir(&name).is_err(), "accepted {name:?}");
+            }
+        }
+        Ok(())
+    }
 }

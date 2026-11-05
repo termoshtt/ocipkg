@@ -138,6 +138,8 @@ use url::Url;
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ImageName {
+    /// Registry hostname: dot-separated labels of ASCII letters, digits, or
+    /// hyphens, each starting and ending with a letter or digit.
     pub hostname: String,
     pub port: Option<u16>,
     pub name: Name,
@@ -177,12 +179,14 @@ impl FromStr for ImageName {
             (hostname, None)
         };
         let (name, reference) = name.split_once(':').unwrap_or((name, "latest"));
-        Ok(ImageName {
+        let image_name = ImageName {
             hostname: hostname.to_string(),
             port,
             name: Name::new(name)?,
             reference: Reference::new(reference)?,
-        })
+        };
+        image_name.validate_hostname()?;
+        Ok(image_name)
     }
 }
 
@@ -206,6 +210,26 @@ impl<'de> Deserialize<'de> for ImageName {
 }
 
 impl ImageName {
+    // Local storage must revalidate public fields at the filesystem boundary,
+    // so hostname validation is shared with the top-level `local` module.
+    pub(crate) fn validate_hostname(&self) -> Result<()> {
+        let valid = self.hostname.split('.').all(|label| {
+            let bytes = label.as_bytes();
+            bytes.first().is_some_and(u8::is_ascii_alphanumeric)
+                && bytes.last().is_some_and(u8::is_ascii_alphanumeric)
+                && bytes
+                    .iter()
+                    .all(|b| b.is_ascii_alphanumeric() || *b == b'-')
+        });
+        if !valid {
+            bail!(
+                "Invalid image hostname {:?}: expected dot-separated alphanumeric or hyphenated labels",
+                self.hostname
+            );
+        }
+        Ok(())
+    }
+
     pub fn parse(name: &str) -> Result<Self> {
         Self::from_str(name)
     }
@@ -298,18 +322,67 @@ impl ImageName {
                 .replace("__", ":"),
         )?;
 
-        Ok(ImageName {
+        let image_name = ImageName {
             hostname,
             port,
             name,
             reference,
-        })
+        };
+        image_name.validate_hostname()?;
+        Ok(image_name)
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn reject_invalid_hostnames() {
+        for hostname in [
+            "",
+            ".",
+            "..",
+            "...",
+            "..\\outside",
+            "host\\outside",
+            "host ",
+        ] {
+            let input = format!("{hostname}/image:latest");
+            assert!(ImageName::parse(&input).is_err(), "accepted {input:?}");
+            let json = serde_json::to_string(&input).unwrap();
+            assert!(serde_json::from_str::<ImageName>(&json).is_err());
+        }
+        for path in [
+            "../image/__latest",
+            "/image/__latest",
+            "..\\outside/image/__latest",
+        ] {
+            assert!(
+                ImageName::from_path(Path::new(path)).is_err(),
+                "accepted {path:?}"
+            );
+        }
+        assert!(ImageName::from_escaped_path(Path::new("%2E%2E/image%3Alatest")).is_err());
+    }
+
+    #[test]
+    fn valid_hostnames() -> Result<()> {
+        for hostname in [
+            "localhost",
+            "registry-1.docker.io",
+            "127.0.0.1",
+            "Registry.EXAMPLE.com",
+        ] {
+            for port in ["", ":5000"] {
+                let input = format!("{hostname}{port}/example/image:latest");
+                let name = ImageName::parse(&input)?;
+                assert_eq!(name.to_string(), input);
+                assert_eq!(ImageName::from_path(&name.as_path())?, name);
+            }
+        }
+        Ok(())
+    }
 
     #[test]
     fn as_path() -> Result<()> {
