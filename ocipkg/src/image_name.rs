@@ -1,5 +1,6 @@
 use crate::{Name, Reference};
 use anyhow::{anyhow, bail, Context, Result};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
     fmt,
@@ -10,8 +11,8 @@ use url::Url;
 
 /// Image name
 ///
-/// The input must be valid both as "org.opencontainers.image.ref.name"
-/// defined in pre-defined annotation keys in [OCI image spec]:
+/// OCI defines the following grammar for "org.opencontainers.image.ref.name"
+/// in the pre-defined annotation keys in [OCI image spec]:
 ///
 /// ```text
 /// ref       ::= component ("/" component)*
@@ -20,14 +21,19 @@ use url::Url;
 /// separator ::= [-._:@+] | "--"
 /// ```
 ///
-/// and as an argument for [docker tag].
+/// The leading component is validated against this grammar, with `:` reserved
+/// for the optional port. The remaining parts are validated by [Name] and
+/// [Reference] according to the OCI Distribution Specification.
 ///
-/// [OCI image spec]: https://github.com/opencontainers/image-spec/blob/main/annotations.md#pre-defined-annotation-keys
-/// [docker tag]: https://docs.docker.com/engine/reference/commandline/tag/
+/// The hostname/name/reference split and defaults below are ocipkg conventions;
+/// the OCI annotation grammar does not require its first component to be a DNS
+/// hostname. In particular, `test_repo/testing:tag1` is a valid reference.
+///
+/// [OCI image spec]: https://github.com/opencontainers/image-spec/blob/v1.1.1/annotations.md#pre-defined-annotation-keys
 ///
 /// Terminology
 /// ------------
-/// We call each components of image name to match OCI distribution spec:
+/// ocipkg calls each component of an image name:
 ///
 /// ```text
 /// ghcr.io/termoshtt/ocipkg/testing:latest
@@ -138,10 +144,19 @@ use url::Url;
 ///
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ImageName {
+    /// Leading OCI reference component, excluding the optional port.
+    /// This is not restricted to DNS hostname syntax.
     pub hostname: String,
     pub port: Option<u16>,
     pub name: Name,
     pub reference: Reference,
+}
+
+lazy_static::lazy_static! {
+    // OCI image-spec v1.1.1, annotations.md: component ::= alphanum
+    // (separator alphanum)*. ':' is represented separately by `port`.
+    static ref HOSTNAME_RE: Regex =
+        Regex::new(r"\A[A-Za-z0-9]+(([-._@+]|--)[A-Za-z0-9]+)*\z").unwrap();
 }
 
 impl fmt::Display for ImageName {
@@ -177,12 +192,14 @@ impl FromStr for ImageName {
             (hostname, None)
         };
         let (name, reference) = name.split_once(':').unwrap_or((name, "latest"));
-        Ok(ImageName {
+        let image_name = ImageName {
             hostname: hostname.to_string(),
             port,
             name: Name::new(name)?,
             reference: Reference::new(reference)?,
-        })
+        };
+        image_name.validate_hostname()?;
+        Ok(image_name)
     }
 }
 
@@ -206,6 +223,18 @@ impl<'de> Deserialize<'de> for ImageName {
 }
 
 impl ImageName {
+    // Local storage must revalidate public fields at the filesystem boundary,
+    // so hostname validation is shared with the top-level `local` module.
+    pub(crate) fn validate_hostname(&self) -> Result<()> {
+        if !HOSTNAME_RE.is_match(&self.hostname) {
+            bail!(
+                "Invalid leading OCI reference component {:?}: expected alphanumeric groups separated by '-', '--', '.', '_', '@', or '+'; specify a port separately",
+                self.hostname
+            );
+        }
+        Ok(())
+    }
+
     pub fn parse(name: &str) -> Result<Self> {
         Self::from_str(name)
     }
@@ -298,18 +327,80 @@ impl ImageName {
                 .replace("__", ":"),
         )?;
 
-        Ok(ImageName {
+        let image_name = ImageName {
             hostname,
             port,
             name,
             reference,
-        })
+        };
+        image_name.validate_hostname()?;
+        Ok(image_name)
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn reject_invalid_hostnames() {
+        for hostname in [
+            "",
+            ".",
+            "..",
+            "...",
+            "..\\outside",
+            "host\\outside",
+            "host ",
+            "host\n",
+            "host..name",
+            "host__name",
+            "host---name",
+            "-host",
+            "host-",
+        ] {
+            let input = format!("{hostname}/image:latest");
+            assert!(ImageName::parse(&input).is_err(), "accepted {input:?}");
+            let json = serde_json::to_string(&input).unwrap();
+            assert!(serde_json::from_str::<ImageName>(&json).is_err());
+        }
+        for path in [
+            "../image/__latest",
+            "/image/__latest",
+            "..\\outside/image/__latest",
+        ] {
+            assert!(
+                ImageName::from_path(Path::new(path)).is_err(),
+                "accepted {path:?}"
+            );
+        }
+        assert!(ImageName::from_escaped_path(Path::new("%2E%2E/image%3Alatest")).is_err());
+    }
+
+    #[test]
+    fn valid_hostnames() -> Result<()> {
+        for hostname in [
+            "localhost",
+            "registry-1.docker.io",
+            "127.0.0.1",
+            "Registry.EXAMPLE.com",
+            "test_repo",
+            "test+repo",
+            "test@repo",
+            "test--repo",
+        ] {
+            for port in ["", ":5000"] {
+                let input = format!("{hostname}{port}/example/image:latest");
+                let name = ImageName::parse(&input)?;
+                assert_eq!(name.to_string(), input);
+                assert_eq!(ImageName::from_path(&name.as_path())?, name);
+                assert_eq!(ImageName::from_escaped_path(&name.as_escaped_path())?, name);
+                let json = serde_json::to_string(&name)?;
+                assert_eq!(serde_json::from_str::<ImageName>(&json)?, name);
+            }
+        }
+        Ok(())
+    }
 
     #[test]
     fn as_path() -> Result<()> {
