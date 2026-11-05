@@ -45,24 +45,36 @@ fn load_rejects_traversal_before_writing_or_deleting() -> Result<()> {
     }
 
     // Valid names retain the existing load and overwrite behavior.
-    let name = ImageName::parse("localhost:5000/example/image:latest")?;
-    let destination = local::image_dir(&name)?;
-    let archive = temp.path().join("valid.tar");
-    let mut builder = image::Builder::new(archive.clone(), name)?;
-    builder.append_files(&[&payload])?;
-    builder.build()?;
-    image::load(&archive, false)?;
-    assert_eq!(
-        fs::read_to_string(destination.join("payload.txt"))?,
-        "archive contents"
-    );
-    assert!(image::load(&archive, false).is_err());
-    fs::write(destination.join("old.txt"), "replace me")?;
-    image::load(&archive, true)?;
-    assert!(!destination.join("old.txt").exists());
-    assert_eq!(
-        fs::read_to_string(destination.join("payload.txt"))?,
-        "archive contents"
-    );
+    for (index, input) in [
+        "localhost:5000/example/image:latest",
+        "test_repo/testing:tag1",
+        "test+repo/testing:tag1",
+        "test@repo/testing:tag1",
+        "test--repo/testing:tag1",
+    ]
+    .iter()
+    .enumerate()
+    {
+        let name = ImageName::parse(input)?;
+        let destination = local::image_dir(&name)?;
+        assert!(destination.starts_with(&store));
+        let archive = temp.path().join(format!("valid-{index}.tar"));
+        let mut builder = image::Builder::new(archive.clone(), name)?;
+        builder.append_files(&[&payload])?;
+        builder.build()?;
+        image::load(&archive, false)?;
+        assert_eq!(
+            fs::read_to_string(destination.join("payload.txt"))?,
+            "archive contents"
+        );
+        assert!(image::load(&archive, false).is_err());
+        fs::write(destination.join("old.txt"), "replace me")?;
+        image::load(&archive, true)?;
+        assert!(!destination.join("old.txt").exists());
+        assert_eq!(
+            fs::read_to_string(destination.join("payload.txt"))?,
+            "archive contents"
+        );
+    }
     Ok(())
 }

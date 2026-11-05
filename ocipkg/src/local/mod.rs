@@ -85,6 +85,8 @@ mod tests {
             "/outside",
             "..\\outside",
             "C:\\outside",
+            "C:outside",
+            "host:5000",
         ] {
             for port in [None, Some(5000)] {
                 let mut name = ImageName::parse("localhost/image:latest")?;
